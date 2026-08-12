@@ -1,3 +1,8 @@
+import {
+  archiveMeetings,
+  energyMeetings,
+  supplyMeetings,
+} from "@/lib/data/meetings";
 import type { Application } from "@/lib/types";
 
 /**
@@ -247,6 +252,7 @@ export const applications: Application[] = [
           posterApproved: false,
         },
       ],
+      meetings: supplyMeetings,
       resources: [
         {
           name: "Inbound shipment extract (18 months)",
@@ -345,6 +351,7 @@ export const applications: Application[] = [
           posterApproved: false,
         },
       ],
+      meetings: energyMeetings,
       resources: [
         {
           name: "Campus meter readings 2024–2026",
@@ -430,6 +437,7 @@ export const applications: Application[] = [
           posterApproved: true,
         },
       ],
+      meetings: archiveMeetings,
       resources: [
         {
           name: "Scanned holdings index",

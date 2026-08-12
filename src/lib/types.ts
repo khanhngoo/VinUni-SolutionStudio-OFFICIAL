@@ -271,6 +271,37 @@ export interface Milestone {
   posterApproved: boolean;
 }
 
+export type MeetingKind =
+  | "Kickoff"
+  | "Weekly sync"
+  | "Milestone review"
+  | "Supervisor 1:1"
+  | "Final presentation";
+
+export interface MeetingAttendee {
+  name: string;
+  /** "Faculty supervisor" / "Partner lead" / "You". */
+  role: string;
+}
+
+/**
+ * Scheduled contact on a live project. Standalone rather than a field on
+ * Milestone: most meetings (kickoff, weekly sync, 1:1) have no milestone at
+ * all, and the ones that do are a review *of* it rather than part of it.
+ */
+export interface Meeting {
+  id: string;
+  title: string;
+  kind: MeetingKind;
+  /** ISO datetime with an explicit Z — unlike the date-only fields elsewhere. */
+  startsAt: string;
+  durationMinutes: number;
+  joinUrl: string;
+  attendees: MeetingAttendee[];
+  /** Set only on reviews — the milestone this meeting signs off. */
+  milestoneId?: string;
+}
+
 export interface WorkspaceResource {
   name: string;
   kind: string;
@@ -283,6 +314,8 @@ export interface WorkspaceResource {
 export interface ProjectRecord {
   startedAt: string;
   milestones: Milestone[];
+  /** May be empty; every live project has at least a kickoff in practice. */
+  meetings: Meeting[];
   resources: WorkspaceResource[];
   /** T3 content — visible in the workspace and nowhere else. */
   posterContact: { name: string; role: string; email: string };

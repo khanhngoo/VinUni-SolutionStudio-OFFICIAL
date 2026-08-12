@@ -91,6 +91,7 @@ export function timelineIndex(stage: ApplicationStage): number {
 }
 
 const MS_PER_HOUR = 3_600_000;
+const MS_PER_MINUTE = 60_000;
 
 /**
  * Hours between the pinned TODAY and an ISO datetime. Negative once elapsed.
@@ -100,6 +101,15 @@ const MS_PER_HOUR = 3_600_000;
 export function hoursUntil(isoDateTime: string): number {
   const target = new Date(isoDateTime);
   return Math.round((target.getTime() - TODAY.getTime()) / MS_PER_HOUR);
+}
+
+/**
+ * Minute precision, for the window where hoursUntil has already rounded to
+ * zero — "starts in 20 min" needs to survive that.
+ */
+export function minutesUntil(isoDateTime: string): number {
+  const target = new Date(isoDateTime);
+  return Math.round((target.getTime() - TODAY.getTime()) / MS_PER_MINUTE);
 }
 
 /** "2 days 4 hrs" / "18 hrs" / "Expired". */
@@ -116,6 +126,59 @@ export function countdownLabel(isoDateTime: string): string {
 
 function plural(n: number, unit: string): string {
   return `${n} ${unit}${n === 1 ? "" : "s"}`;
+}
+
+export interface CtaTarget {
+  label: string;
+  href: string;
+}
+
+/**
+ * The one thing a student can do next on an application, given its stage.
+ * Lives here rather than beside the button that renders it because the
+ * workspace hub needs the same stage-to-destination map — two copies would
+ * drift the moment a stage moves.
+ *
+ * Returns null for the stages where the student owes nothing (APPLIED,
+ * SHORTLISTED, INTERVIEW_*, WITHDRAWN, EXPIRED). Callers that must always
+ * show a button supply their own fallback.
+ */
+export function ctaFor(application: Application): CtaTarget | null {
+  switch (application.stage) {
+    case "TEST_PENDING":
+      return {
+        label: "Start assessment",
+        href: `/assessment/${application.id}`,
+      };
+    case "TEST_SUBMITTED":
+      return {
+        label: "View your result",
+        href: `/assessment/${application.id}/result`,
+      };
+    case "INVITED":
+      return {
+        label: application.offer
+          ? `Respond · ${countdownLabel(application.offer.respondBy)} left`
+          : "Respond to your invitation",
+        href: `/offer/${application.id}`,
+      };
+    case "ACTIVE":
+    case "IN_REVIEW":
+    case "COMPLETED":
+      return {
+        label: "Open workspace",
+        href: `/workspace/${application.id}`,
+      };
+    case "NOT_SELECTED":
+      return application.testResult
+        ? {
+            label: "View your result",
+            href: `/assessment/${application.id}/result`,
+          }
+        : null;
+    default:
+      return null;
+  }
 }
 
 /** Days a student has been sitting in the current stage. */

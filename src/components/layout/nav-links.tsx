@@ -3,16 +3,11 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-interface NavLinksProps {
-  /** The workspace of the student's current engagement, if they have one. */
-  workspaceHref: string | null;
-}
-
 /**
  * Only the link list needs the pathname, so the client boundary stops here —
  * the header, brand mark and avatar stay server-rendered.
  */
-export function NavLinks({ workspaceHref }: NavLinksProps) {
+export function NavLinks() {
   const pathname = usePathname();
 
   const links = [
@@ -22,15 +17,14 @@ export function NavLinks({ workspaceHref }: NavLinksProps) {
       // A challenge detail page is still "Challenges" (prefix match).
       active: pathname === "/challenges" || pathname.startsWith("/challenges/"),
     },
-    ...(workspaceHref
-      ? [
-          {
-            href: workspaceHref,
-            label: "Workspace",
-            active: pathname.startsWith("/workspace"),
-          },
-        ]
-      : []),
+    {
+      // The hub, not a single application — it is always somewhere to go, even
+      // with nothing active, so this link no longer disappears.
+      href: "/workspace",
+      label: "Your work",
+      active:
+        pathname.startsWith("/workspace") || pathname.startsWith("/meeting"),
+    },
   ];
 
   return (

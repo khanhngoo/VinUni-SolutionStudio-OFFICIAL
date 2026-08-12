@@ -1,8 +1,14 @@
 import { Chip, type ChipVariant } from "@/components/ui/chip";
 import { CheckIcon } from "@/components/ui/icons";
+import { JoinButton } from "@/components/workspace/join-button";
 import { cn } from "@/lib/cn";
 import { daysUntil, formatDate } from "@/lib/dates";
-import type { Milestone, MilestoneStatus } from "@/lib/types";
+import {
+  meetingState,
+  meetingTimeLabel,
+  meetingsByMilestone,
+} from "@/lib/meetings";
+import type { Meeting, Milestone, MilestoneStatus } from "@/lib/types";
 
 export const MILESTONE_VARIANT: Record<MilestoneStatus, ChipVariant> = {
   Approved: "ok",
@@ -16,18 +22,27 @@ interface MilestoneListProps {
   milestones: Milestone[];
   /** Dual sign-off detail belongs on the deliverables view, not the timeline. */
   showSignoff?: boolean;
+  /**
+   * The project's meetings. Any that name a milestone surface as a Join row
+   * inside it — a review is easiest to find next to the thing being reviewed.
+   */
+  meetings?: Meeting[];
 }
 
 export function MilestoneList({
   milestones,
   showSignoff = false,
+  meetings = [],
 }: MilestoneListProps) {
+  const byMilestone = meetingsByMilestone(meetings);
+
   return (
     <ol className="flex flex-col">
       {milestones.map((milestone, index) => {
         const days = daysUntil(milestone.dueDate);
         const overdue = days < 0 && milestone.status !== "Approved";
         const last = index === milestones.length - 1;
+        const meeting = byMilestone.get(milestone.id);
 
         return (
           <li key={milestone.id} className="flex gap-3.5">
@@ -88,6 +103,19 @@ export function MilestoneList({
                   <SignoffPill
                     label="Partner"
                     approved={milestone.posterApproved}
+                  />
+                </div>
+              ) : null}
+
+              {meeting ? (
+                <div className="flex flex-wrap items-center gap-2.5 mt-2.5 pt-2.5 border-t border-line-2">
+                  <span className="text-meta text-ink-2">
+                    {meeting.title} · {meetingTimeLabel(meeting)}
+                  </span>
+                  <JoinButton
+                    meetingId={meeting.id}
+                    state={meetingState(meeting)}
+                    size="sm"
                   />
                 </div>
               ) : null}
