@@ -88,16 +88,82 @@ export function groupApplications(
 }
 
 /**
- * ctaFor with a fallback, because a hub card with no button is a dead end —
- * the detail page is always somewhere to go.
+ * Table-density labels. A row has one line to spare, so "Respond · 1 day 16
+ * hrs left" becomes "Respond" and the countdown moves to the due column.
+ */
+const SHORT_LABELS: Partial<Record<ApplicationStage, string>> = {
+  TEST_PENDING: "Start test",
+  TEST_SUBMITTED: "Result",
+  INVITED: "Respond",
+  ACTIVE: "Open",
+  IN_REVIEW: "Open",
+  COMPLETED: "Open",
+  NOT_SELECTED: "Result",
+};
+
+/**
+ * ctaFor with a fallback, because a hub row with no action is a dead end —
+ * the challenge page is always somewhere to go. The destination stays
+ * single-sourced in ctaFor; only the wording is shortened here.
  */
 export function hubCtaFor(row: ApplicationWithChallenge): CtaTarget {
-  return (
-    ctaFor(row.application) ?? {
-      label: "View challenge",
-      href: `/challenges/${row.challenge.id}`,
+  const fallback = `/challenges/${row.challenge.id}`;
+  const href = ctaFor(row.application)?.href ?? fallback;
+  return {
+    href,
+    label: href === fallback ? "View" : SHORT_LABELS[row.application.stage] ?? "View",
+  };
+}
+
+/** Urgent enough to earn the warn colour rather than muted grey. */
+const URGENT_WITHIN_DAYS = 3;
+
+function dueLabelFor(dueAt: string): string {
+  const days = daysUntil(dueAt);
+  if (days < 0) {
+    const late = Math.abs(days);
+    return `${late} day${late === 1 ? "" : "s"} overdue`;
+  }
+  if (days === 0) return "Due today";
+  if (days === 1) return "Due tomorrow";
+  return `Due in ${days} days`;
+}
+
+/**
+ * The one date a row should show. An overdue milestone outranks the partner's
+ * stated next action — being late on work already started is the more
+ * pressing fact, and nextActionDue would otherwise hide it.
+ */
+export function hubDueFor(
+  row: ApplicationWithChallenge,
+): { label: string; urgent: boolean } | null {
+  const { application } = row;
+
+  if (application.stage === "INVITED" && application.offer) {
+    return {
+      label: `${countdownLabel(application.offer.respondBy)} left`,
+      urgent: true,
+    };
+  }
+
+  if (application.project && hubGroupFor(application.stage) === "in-progress") {
+    const overdue = application.project.milestones
+      .filter((m) => m.status !== "Approved" && daysUntil(m.dueDate) < 0)
+      .sort((a, b) => daysUntil(a.dueDate) - daysUntil(b.dueDate))[0];
+
+    if (overdue) {
+      return { label: dueLabelFor(overdue.dueDate), urgent: true };
     }
-  );
+  }
+
+  if (application.nextActionDue) {
+    return {
+      label: dueLabelFor(application.nextActionDue),
+      urgent: daysUntil(application.nextActionDue) <= URGENT_WITHIN_DAYS,
+    };
+  }
+
+  return null;
 }
 
 export function milestoneProgress(project: ProjectRecord): {
@@ -112,150 +178,13 @@ export function milestoneProgress(project: ProjectRecord): {
   return { approved, total, percent: total === 0 ? 0 : approved / total };
 }
 
-// ----------------------------------------------------------------- todos
-
-export type TodoKind = "action" | "offer" | "milestone" | "meeting";
-export type TodoUrgency = "overdue" | "today" | "soon" | "later";
-
-export interface HubTodo {
-  id: string;
-  kind: TodoKind;
-  title: string;
-  /** Which challenge this belongs to. */
-  context: string;
-  /** Date-only or datetime — always read through toDate(). */
-  dueAt: string;
-  urgency: TodoUrgency;
-  dueLabel: string;
-  cta: CtaTarget;
-}
-
-/** How far ahead a milestone has to be before it stops being "do next". */
-const MILESTONE_HORIZON_DAYS = 10;
-
-/** "soon" is the one-week horizon the marketplace already treats as urgent. */
-function urgencyFor(dueAt: string): TodoUrgency {
-  const days = daysUntil(dueAt);
-  if (days < 0) return "overdue";
-  if (days === 0) return "today";
-  if (days <= 7) return "soon";
-  return "later";
-}
-
-function dueLabelFor(dueAt: string): string {
-  const days = daysUntil(dueAt);
-  if (days < 0) {
-    const late = Math.abs(days);
-    return `${late} day${late === 1 ? "" : "s"} overdue`;
-  }
-  if (days === 0) return "Due today";
-  if (days === 1) return "Due tomorrow";
-  return `Due in ${days} days`;
-}
-
 /**
- * The "do next" strip. Everything is derived from data the pipeline already
- * carries — there is no separate todo fixture to drift out of sync.
- *
- * The dedupe rules matter more than the sources: an offer deadline and a
- * nextAction describe the same obligation, and so does a milestone whose due
- * date the partner has already restated as nextActionDue.
+ * How many applications are actually pressing. Deliberately the same test that
+ * colours a due cell warn, so the headline count is something the student can
+ * verify by looking down the table rather than a number only the code knows.
  */
-export function buildTodos(rows: ApplicationWithChallenge[]): HubTodo[] {
-  const todos: HubTodo[] = [];
-
-  for (const row of rows) {
-    const { application, challenge } = row;
-    const group = hubGroupFor(application.stage);
-    const context = challenge.title;
-
-    // 1. An offer deadline is stated in hours, so it beats the date-only
-    //    nextAction saying the same thing.
-    const offer =
-      application.stage === "INVITED" ? application.offer : null;
-
-    if (offer) {
-      todos.push({
-        id: `${application.id}:offer`,
-        kind: "offer",
-        title: "Respond to your invitation",
-        context,
-        dueAt: offer.respondBy,
-        urgency: urgencyFor(offer.respondBy),
-        dueLabel: `${countdownLabel(offer.respondBy)} left`,
-        cta: hubCtaFor(row),
-      });
-    } else if (
-      application.nextAction &&
-      application.nextActionDue &&
-      (group === "needs-you" || group === "in-progress")
-    ) {
-      // 2. Waiting on someone else is not a todo, however it is worded.
-      todos.push({
-        id: `${application.id}:action`,
-        kind: "action",
-        title: application.nextAction,
-        context,
-        dueAt: application.nextActionDue,
-        urgency: urgencyFor(application.nextActionDue),
-        dueLabel: dueLabelFor(application.nextActionDue),
-        cta: hubCtaFor(row),
-      });
-    }
-
-    if (!application.project) continue;
-
-    // 3. Milestones coming due, minus the one nextAction already covers.
-    if (group === "in-progress") {
-      for (const milestone of application.project.milestones) {
-        if (milestone.status === "Approved") continue;
-        if (daysUntil(milestone.dueDate) > MILESTONE_HORIZON_DAYS) continue;
-        if (milestone.dueDate === application.nextActionDue) continue;
-
-        todos.push({
-          id: `${application.id}:milestone:${milestone.id}`,
-          kind: "milestone",
-          title: milestone.title,
-          context,
-          dueAt: milestone.dueDate,
-          urgency: urgencyFor(milestone.dueDate),
-          dueLabel: dueLabelFor(milestone.dueDate),
-          cta: {
-            label: "Open deliverables",
-            href: `/workspace/${application.id}?tab=deliverables`,
-          },
-        });
-      }
-    }
-
-    // 4. A meeting you could walk into right now.
-    for (const meeting of application.project.meetings) {
-      const state = meetingState(meeting);
-      if (state !== "live" && state !== "starting") continue;
-
-      todos.push({
-        id: `${application.id}:meeting:${meeting.id}`,
-        kind: "meeting",
-        title: meeting.title,
-        context,
-        dueAt: meeting.startsAt,
-        urgency: state === "live" ? "overdue" : "today",
-        dueLabel: meetingTimeLabel(meeting),
-        cta: { label: "Join meeting", href: `/meeting/${meeting.id}` },
-      });
-    }
-  }
-
-  return todos.sort((a, b) => {
-    const aOverdue = a.urgency === "overdue" ? 0 : 1;
-    const bOverdue = b.urgency === "overdue" ? 0 : 1;
-    if (aOverdue !== bOverdue) return aOverdue - bOverdue;
-    return toDate(a.dueAt).getTime() - toDate(b.dueAt).getTime();
-  });
-}
-
-export function todosThisWeek(todos: HubTodo[]): HubTodo[] {
-  return todos.filter((todo) => todo.urgency !== "later");
+export function urgentCount(rows: ApplicationWithChallenge[]): number {
+  return rows.filter((row) => hubDueFor(row)?.urgent).length;
 }
 
 // ---------------------------------------------------------------- agenda

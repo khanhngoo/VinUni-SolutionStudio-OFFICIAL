@@ -1,15 +1,13 @@
 import Link from "next/link";
-import { Section } from "@/components/ui/section";
-import { AgendaList } from "@/components/workspace/agenda-list";
-import { HubApplicationCard } from "@/components/workspace/hub-application-card";
-import { HubTodoList } from "@/components/workspace/hub-todo-list";
+import { Chip } from "@/components/ui/chip";
+import { AgendaRail } from "@/components/workspace/agenda-rail";
+import { HubApplicationTable } from "@/components/workspace/hub-application-table";
 import { getApplicationsWithChallenge } from "@/lib/queries";
+import { STAGE_LABELS } from "@/lib/types";
 import {
   buildAgenda,
-  buildTodos,
   groupApplications,
-  todosThisWeek,
-  HUB_GROUP_BLURB,
+  urgentCount,
   HUB_GROUP_LABELS,
 } from "@/lib/workspace";
 
@@ -17,13 +15,17 @@ import {
  * The student's whole workload in one place. Every challenge detail page shows
  * one application's next step; this is the only screen that answers "what
  * should I be working on".
+ *
+ * Applications are a table rather than a card grid — eleven of them is a list
+ * you scan, not a gallery you browse — and the dates sit in a rail beside it
+ * so they stop competing with the roster for vertical space.
  */
 export default function WorkspaceHubPage() {
   const rows = getApplicationsWithChallenge();
 
   if (rows.length === 0) {
     return (
-      <div className="max-w-[980px] mx-auto px-6 sm:px-7 py-7 pb-16">
+      <div className="max-w-[1080px] mx-auto px-6 sm:px-7 py-7 pb-16">
         <h1>Your work</h1>
         <div className="mt-6 border border-dashed border-line rounded-card py-16 px-6 text-center">
           <p className="text-ink font-semibold">
@@ -43,47 +45,84 @@ export default function WorkspaceHubPage() {
     );
   }
 
-  const todos = buildTodos(rows);
   const buckets = groupApplications(rows);
-  const agenda = buildAgenda(rows);
-  const thisWeek = todosThisWeek(todos).length;
+  const agenda = buildAgenda(rows, { maxEvents: 10 });
+  const urgent = urgentCount(rows);
+
+  // Closed applications are a footnote, not a table — no dates, no actions
+  // worth a column, and they would otherwise be the longest group on screen.
+  const open = buckets.filter((bucket) => bucket.group !== "closed");
+  const closed = buckets.find((bucket) => bucket.group === "closed");
 
   return (
-    <div className="max-w-[980px] mx-auto px-6 sm:px-7 py-7 pb-16">
-      <h1>Your work</h1>
-      <p className="text-ink-2 mt-2">
-        {thisWeek === 0
-          ? "Nothing needs you this week."
-          : `${thisWeek} thing${thisWeek === 1 ? "" : "s"} need${
-              thisWeek === 1 ? "s" : ""
-            } you this week.`}
-      </p>
+    <div className="max-w-[1080px] mx-auto px-6 sm:px-7 py-7 pb-16">
+      <div className="grid gap-8 lg:grid-cols-[1fr_268px]">
+        <div className="min-w-0">
+          <h1>Your work</h1>
+          <p className="text-ink-2 mt-2">
+            {urgent === 0
+              ? "Nothing is pressing right now."
+              : `${urgent} thing${urgent === 1 ? "" : "s"} need${
+                  urgent === 1 ? "s" : ""
+                } your attention.`}
+          </p>
 
-      <Section title="Do next">
-        <HubTodoList todos={todos} />
-      </Section>
-
-      {buckets.map((bucket) => (
-        <Section
-          key={bucket.group}
-          title={HUB_GROUP_LABELS[bucket.group]}
-          aside={HUB_GROUP_BLURB[bucket.group]}
-        >
-          <div className="grid gap-2.5 sm:grid-cols-2">
-            {bucket.rows.map((row) => (
-              <HubApplicationCard
-                key={row.application.id}
-                application={row.application}
-                challenge={row.challenge}
+          {open.map((bucket) => (
+            <section key={bucket.group} className="mt-7">
+              <GroupHeading
+                title={HUB_GROUP_LABELS[bucket.group]}
+                count={bucket.rows.length}
               />
-            ))}
-          </div>
-        </Section>
-      ))}
+              <HubApplicationTable
+                rows={bucket.rows}
+                showProgress={bucket.group === "in-progress"}
+              />
+            </section>
+          ))}
 
-      <Section title="Coming up" aside="Next six weeks">
-        <AgendaList days={agenda} />
-      </Section>
+          {closed ? (
+            <section className="mt-7">
+              <GroupHeading title="Closed" count={closed.rows.length} />
+              <div className="flex flex-wrap gap-2">
+                {closed.rows.map(({ application, challenge }) => (
+                  <Link
+                    key={application.id}
+                    href={`/challenges/${challenge.id}`}
+                    className="text-ink-3 hover:text-brand"
+                  >
+                    <Chip variant="outline-dashed">
+                      {challenge.title} · {STAGE_LABELS[application.stage]}
+                    </Chip>
+                  </Link>
+                ))}
+              </div>
+            </section>
+          ) : null}
+        </div>
+
+        <aside className="lg:border-l lg:border-line lg:pl-6">
+          <GroupHeading title="Coming up" />
+          <AgendaRail days={agenda} />
+        </aside>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * A rule rather than a boxed heading — with four groups stacked, the rules
+ * read as one continuous list instead of four separate panels.
+ */
+function GroupHeading({ title, count }: { title: string; count?: number }) {
+  return (
+    <div className="flex items-center gap-2.5 mb-2.5">
+      <h2 className="text-h3 text-ink-3 normal-case tracking-[0.09em] uppercase">
+        {title}
+      </h2>
+      {count !== undefined ? (
+        <span className="text-meta text-ink-3">{count}</span>
+      ) : null}
+      <span aria-hidden="true" className="flex-1 h-px bg-line" />
     </div>
   );
 }
