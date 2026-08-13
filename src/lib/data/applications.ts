@@ -3,6 +3,17 @@ import {
   energyMeetings,
   supplyMeetings,
 } from "@/lib/data/meetings";
+import {
+  archiveTeam,
+  churnTeam,
+  energyTeam,
+  genzTeam,
+  heatTeam,
+  lastMileTeam,
+  marketTeam,
+  soloTeam,
+  supplyTeam,
+} from "@/lib/data/teams";
 import type { Application } from "@/lib/types";
 
 /**
@@ -35,6 +46,7 @@ export const applications: Application[] = [
     appliedAt: "2026-07-08",
     stageEnteredAt: "2026-07-24",
     facultySupervisorId: "fac-rivera",
+    team: soloTeam("Perception Solo", "Data & ML"),
     nextAction: "Complete your technical test",
     // Two days out: the urgent case the pre-flight screen exists to catch.
     nextActionDue: "2026-07-29",
@@ -49,6 +61,7 @@ export const applications: Application[] = [
     appliedAt: "2026-07-12",
     stageEnteredAt: "2026-07-25",
     facultySupervisorId: "fac-do",
+    team: heatTeam,
     nextAction: "Complete your cognitive test",
     nextActionDue: "2026-08-01",
     testResult: null,
@@ -62,6 +75,7 @@ export const applications: Application[] = [
     appliedAt: "2026-07-02",
     stageEnteredAt: "2026-07-21",
     facultySupervisorId: "fac-pham",
+    team: churnTeam,
     nextAction: "Waiting on your results",
     nextActionDue: null,
     testResult: {
@@ -86,6 +100,7 @@ export const applications: Application[] = [
     appliedAt: "2026-06-18",
     stageEnteredAt: "2026-07-06",
     facultySupervisorId: "fac-osei",
+    team: soloTeam("Triage Review", "Research"),
     nextAction: null,
     nextActionDue: null,
     // The failing result: terminal for this challenge, 30-day cooldown (§8.1).
@@ -112,6 +127,7 @@ export const applications: Application[] = [
     appliedAt: "2026-06-30",
     stageEnteredAt: "2026-07-26",
     facultySupervisorId: "fac-nguyen-k",
+    team: lastMileTeam,
     nextAction: "Respond to your invitation",
     nextActionDue: "2026-07-29",
     testResult: {
@@ -145,6 +161,7 @@ export const applications: Application[] = [
     appliedAt: "2026-07-01",
     stageEnteredAt: "2026-07-25",
     facultySupervisorId: "fac-le",
+    team: genzTeam,
     nextAction: "Respond to your invitation",
     nextActionDue: "2026-07-30",
     testResult: {
@@ -178,6 +195,7 @@ export const applications: Application[] = [
     appliedAt: "2026-05-20",
     stageEnteredAt: "2026-06-22",
     facultySupervisorId: "fac-pham",
+    team: supplyTeam,
     nextAction: "Submit milestone 3 — forecast module",
     nextActionDue: "2026-08-03",
     testResult: {
@@ -296,6 +314,7 @@ export const applications: Application[] = [
     appliedAt: "2026-03-10",
     stageEnteredAt: "2026-07-18",
     facultySupervisorId: "fac-vu",
+    team: energyTeam,
     nextAction: "Complete your reflection",
     nextActionDue: "2026-08-05",
     testResult: {
@@ -382,6 +401,7 @@ export const applications: Application[] = [
     appliedAt: "2025-11-14",
     stageEnteredAt: "2026-05-29",
     facultySupervisorId: "fac-tran",
+    team: archiveTeam,
     nextAction: null,
     nextActionDue: null,
     testResult: {
@@ -468,6 +488,7 @@ export const applications: Application[] = [
     appliedAt: "2026-07-19",
     stageEnteredAt: "2026-07-26",
     facultySupervisorId: "fac-le",
+    team: marketTeam,
     nextAction: "Waiting on the partner to release your test",
     nextActionDue: null,
     testResult: null,
@@ -481,6 +502,7 @@ export const applications: Application[] = [
     appliedAt: "2026-06-11",
     stageEnteredAt: "2026-06-25",
     facultySupervisorId: "fac-rivera",
+    team: soloTeam("Spectro", "Research"),
     nextAction: null,
     nextActionDue: null,
     testResult: null,

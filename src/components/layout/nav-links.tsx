@@ -25,6 +25,11 @@ export function NavLinks() {
       active:
         pathname.startsWith("/workspace") || pathname.startsWith("/meeting"),
     },
+    {
+      href: "/profile",
+      label: "Profile",
+      active: pathname.startsWith("/profile"),
+    },
   ];
 
   return (

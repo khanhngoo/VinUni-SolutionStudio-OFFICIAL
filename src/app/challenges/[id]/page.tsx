@@ -7,6 +7,7 @@ import { LockedBlock } from "@/components/challenge/locked-block";
 import { PipelineCta } from "@/components/challenge/pipeline-cta";
 import { SelectionTimeline } from "@/components/challenge/selection-timeline";
 import { SummarySection } from "@/components/challenge/summary-section";
+import { TeamRoster } from "@/components/team/team-roster";
 import { Section } from "@/components/ui/section";
 import { currentStudent } from "@/lib/data/student";
 import { checkEligibility } from "@/lib/eligibility";
@@ -42,6 +43,7 @@ export default async function ChallengeDetailPage({
         {application ? (
           <>
             <PipelineCta application={application} />
+            <TeamRoster team={application.team} challenge={challenge} />
             <Section title="Selection timeline">
               <div className="bg-card border border-line rounded-card px-5 py-6">
                 <SelectionTimeline

@@ -94,7 +94,15 @@ export interface Challenge {
   domainTags: string[];
 
   durationWeeks: number;
+  /** Per person, not per team. */
   hoursPerWeek: number;
+  /**
+   * How many students the partner wants. Both 1 means solo — some research
+   * internships genuinely are — so the apply flow enforces a range rather
+   * than assuming everything is teamwork.
+   */
+  teamSizeMin: number;
+  teamSizeMax: number;
   workMode: WorkMode;
   compensation: Compensation;
 
@@ -134,6 +142,65 @@ export interface Faculty {
   slotsTotal: number;
 }
 
+/**
+ * The roles a student can claim on a team. A fixed list rather than free text
+ * so a team can be checked for gaps and teammates can be searched by role.
+ */
+export const TEAM_ROLES = [
+  "Data & ML",
+  "Backend",
+  "Frontend",
+  "Analysis",
+  "Research",
+  "Design",
+  "Domain expert",
+  "Coordination",
+] as const;
+
+export type TeamRole = (typeof TEAM_ROLES)[number];
+
+/** Rough weekly shape, one slot per day. Enough to spot a shared afternoon. */
+export type DayAvailability = "free" | "partly" | "busy";
+
+export const WEEKDAY_LABELS = ["M", "T", "W", "T", "F", "S", "S"] as const;
+
+/**
+ * A course on the student's record. Registrar rows are the only thing in the
+ * whole profile the university stands behind — everything else a student
+ * types about themselves is a claim, and the UI must never blur the two.
+ */
+export interface Course {
+  id: string;
+  title: string;
+  code: string;
+  term: string;
+  credits: number | null;
+  /** Null for self-added courses, which also stay out of the GPA. */
+  grade: string | null;
+  source: "registrar" | "self";
+}
+
+export type ExperienceKind =
+  | "Internship"
+  | "Research"
+  | "Teaching"
+  | "Part-time"
+  | "Volunteering"
+  | "Other";
+
+export interface Experience {
+  id: string;
+  kind: ExperienceKind;
+  role: string;
+  organisation: string;
+  /** "Jun 2025" — month precision is all anyone fills in honestly. */
+  from: string;
+  /** Null while ongoing. */
+  to: string | null;
+  summary: string | null;
+  skills: string[];
+}
+
 export interface Student {
   id: string;
   name: string;
@@ -146,6 +213,20 @@ export interface Student {
   skills: string[];
   hoursAvailable: number;
   workPreference: WorkMode;
+  /** Short self-introduction. Null until the student writes one. */
+  about: string | null;
+  creditsEarned: number;
+  /** The registrar's own PDF — the profile links out rather than restating it. */
+  transcriptUrl: string;
+  /** Last registrar sync, ISO date. Shown next to the verified mark. */
+  recordSyncedAt: string;
+  portfolioUrl: string | null;
+  /** How this student works on a team — read by the apply flow. */
+  usualRoles: TeamRole[];
+  preferredTeamMin: number;
+  preferredTeamMax: number;
+  /** Seven entries, Monday first. */
+  weeklyAvailability: DayAvailability[];
 }
 
 /** What the apply modal hands back on submit. */
@@ -323,6 +404,36 @@ export interface ProjectRecord {
   fullBrief: string[];
 }
 
+export type InviteStatus = "leader" | "accepted" | "invited" | "declined";
+
+/**
+ * One student on one team. Roles are per-team rather than copied off the
+ * profile: the role you play depends on who else is with you.
+ */
+export interface TeamMember {
+  studentId: string;
+  name: string;
+  major: string;
+  year: number;
+  college: College;
+  role: TeamRole;
+  hoursAvailable: number;
+  weeklyAvailability: DayAvailability[];
+  status: InviteStatus;
+  /** ISO date the invite went out. Null for the leader. */
+  invitedAt: string | null;
+}
+
+/**
+ * A team exists for exactly one application. Two challenges mean two teams
+ * even with identical people — the pipeline, assessment and offer all hang
+ * off a single application, and a shared team would have to straddle them.
+ */
+export interface Team {
+  name: string;
+  members: TeamMember[];
+}
+
 export interface Application {
   id: string;
   challengeId: string;
@@ -335,6 +446,12 @@ export interface Application {
 
   /** Nominated at apply time; mentors in the workspace (diagram 5.2). */
   facultySupervisorId: string;
+
+  /**
+   * Who is applying. Always present — a solo application is a team of one,
+   * which keeps every downstream screen from carrying two code paths.
+   */
+  team: Team;
 
   /** The one thing the student must do or is waiting on. null when terminal. */
   nextAction: string | null;
