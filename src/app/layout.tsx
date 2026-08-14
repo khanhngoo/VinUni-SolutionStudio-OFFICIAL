@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Poppins } from "next/font/google";
 import "./globals.css";
-import { NavBar } from "@/components/layout/nav-bar";
+import { Chrome } from "@/components/layout/chrome";
 
 const poppins = Poppins({
   subsets: ["latin"],
@@ -23,8 +23,7 @@ export default function RootLayout({
   return (
     <html lang="en" className={`h-full ${poppins.variable}`}>
       <body className="min-h-full flex flex-col">
-        <NavBar />
-        <main className="flex-1">{children}</main>
+        <Chrome>{children}</Chrome>
       </body>
     </html>
   );

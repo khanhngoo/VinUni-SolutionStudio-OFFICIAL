@@ -46,6 +46,9 @@ export const currentStudent: Student = {
     "free",
     "busy",
   ],
+  // Two of the three A-grade courses. Partners see these and no other part of
+  // the record — the transcript and GPA stay private.
+  pinnedCourseIds: ["crs-cs3040", "crs-cs2100"],
 };
 
 export function initials(name: string): string {

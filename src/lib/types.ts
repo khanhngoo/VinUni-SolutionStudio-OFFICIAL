@@ -128,7 +128,24 @@ export interface Challenge {
   lockedBlocks: LockedBlock[];
   suggestedFacultyIds: string[];
   applicantCount: number;
+
+  /**
+   * The partner that owns this posting. Never rendered to a student — the
+   * display identity is `orgName`/`orgCategory`/`confidential` above, which
+   * deliberately hides the name on confidential posts. This is the join the
+   * provider portal filters "your challenges" on.
+   */
+  orgId: string;
+  /** Drafts are visible only in the provider portal, never in the marketplace. */
+  status: ChallengeStatus;
 }
+
+/**
+ * Where a posting sits in the partner's own workflow. Only `Published`
+ * challenges reach the student marketplace; `Draft` and `In review` are the
+ * states the posting flow moves through, and `Closed` is past its deadline.
+ */
+export type ChallengeStatus = "Draft" | "In review" | "Published" | "Closed";
 
 export interface Faculty {
   id: string;
@@ -140,6 +157,29 @@ export interface Faculty {
   /** Supervision capacity (PRD §7.2) — a full supervisor cannot be nominated. */
   slotsUsed: number;
   slotsTotal: number;
+}
+
+/**
+ * The partner that posts challenges — the provider portal's account holder.
+ *
+ * Introduced with the portal: until then a poster was only ever three loose
+ * fields on Challenge (`orgName`, `orgCategory`, `confidential`), which is
+ * enough to render a card but not enough to hang a login, a member list or
+ * "your challenges" off. Those fields stay as the *display* identity, because
+ * a confidential posting deliberately shows the category and hides the name;
+ * `Challenge.orgId` is the real owner and is never rendered to a student.
+ */
+export interface Organization {
+  id: string;
+  name: string;
+  /** Shown to students in place of the name on confidential postings. */
+  category: string;
+  kind: PosterKind;
+  /** Two-letter monogram for the nav avatar. */
+  initials: string;
+  about: string;
+  /** Who at the partner runs these engagements. */
+  contact: { name: string; role: string; email: string };
 }
 
 /**
@@ -227,6 +267,48 @@ export interface Student {
   preferredTeamMax: number;
   /** Seven entries, Monday first. */
   weeklyAvailability: DayAvailability[];
+  /**
+   * Courses the student has chosen to showcase — `Course.id` references.
+   *
+   * Opt-in disclosure: GPA and the full transcript stay private from partners,
+   * but a student can volunteer specific evidence of strength in an area. The
+   * provider portal renders these and nothing else from the academic record.
+   */
+  pinnedCourseIds: string[];
+}
+
+/** A showcased course as a partner sees it — no term, no credits, no GPA. */
+export interface PinnedCourse {
+  code: string;
+  title: string;
+  grade: string;
+}
+
+/**
+ * A student as the provider portal sees them.
+ *
+ * Deliberately its own shape rather than `Student` or `Peer`, because the
+ * three roles see three different slices. `Peer` is what a classmate sees
+ * (roles and availability — enough to decide about teaming up). This adds the
+ * things a partner needs to judge fit — skills, assessment band, showcased
+ * courses — and still withholds GPA, transcript and any raw score.
+ */
+export interface DirectoryStudent {
+  id: string;
+  name: string;
+  major: string;
+  year: number;
+  college: College;
+  about: string | null;
+  skills: string[];
+  roles: TeamRole[];
+  hoursAvailable: number;
+  weeklyAvailability: DayAvailability[];
+  /** Null when they have never sat one. Never a raw score. */
+  assessmentBand: ScoreBand | null;
+  pinnedCourses: PinnedCourse[];
+  /** Two live challenges is the Studio's cap — a full student can't be invited. */
+  liveChallenges: number;
 }
 
 /** What the apply modal hands back on submit. */
@@ -402,6 +484,61 @@ export interface ProjectRecord {
   posterContact: { name: string; role: string; email: string };
   /** The full brief the locked block has been promising all along. */
   fullBrief: string[];
+  /** Written by the faculty supervisor once the project is COMPLETED; null until then. */
+  facultyFeedback: string | null;
+  /**
+   * The partner's close-out review. Deliberately a separate field from
+   * `facultyFeedback` rather than a shared shape: the two are written by
+   * different people, at different moments, about different things — faculty
+   * assess the learning, the partner assesses the work delivered.
+   *
+   * Optional rather than required-nullable so existing project fixtures read
+   * as "no partner feedback yet" without a backfill. Absent and null mean the
+   * same thing; read it through `partnerFeedbackOf()` in lib/provider.ts.
+   */
+  partnerFeedback?: PartnerFeedback | null;
+}
+
+/**
+ * What the partner records when a project closes.
+ *
+ * Bands rather than a numeric rating, matching PRD §8.5 on the assessment
+ * side: the student sees how they were rated, so the vocabulary has to be one
+ * they already understand and one that cannot be turned into a league table.
+ */
+export interface PartnerFeedback {
+  submittedAt: string;
+  qualityBand: ScoreBand;
+  reliabilityBand: ScoreBand;
+  wouldHostAgain: WouldHostAgain;
+  /** Shared with the student and the faculty supervisor. */
+  note: string;
+  /** Visible to CAID only — never rendered on a student-facing screen. */
+  privateNote: string | null;
+}
+
+export type WouldHostAgain = "Yes" | "With reservations" | "No";
+
+export type SupervisionInviteStatus = "pending" | "accepted" | "declined";
+
+/**
+ * A team's request that a faculty member supervise their application —
+ * issued when the student nominates a supervisor at apply time
+ * (`ApplicationDraft.facultySupervisorId`) and outstanding until the faculty
+ * responds. Kept separate from `Application`/`ApplicationStage` rather than
+ * folded in: accepting or declining supervision doesn't gate the pipeline —
+ * per the diagram, faculty mentors from the workspace (5.2), they don't
+ * approve the application itself.
+ */
+export interface SupervisionInvite {
+  id: string;
+  applicationId: string;
+  facultyId: string;
+  status: SupervisionInviteStatus;
+  /** ISO date the team nominated this faculty. */
+  requestedAt: string;
+  /** ISO date the faculty is expected to respond by. */
+  respondBy: string;
 }
 
 export type InviteStatus = "leader" | "accepted" | "invited" | "declined";

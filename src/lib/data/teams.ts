@@ -120,3 +120,12 @@ export const marketTeam: Team = {
     member("stu-minh-anh", "Domain expert", "accepted", "2026-07-25"),
   ],
 };
+
+/** app-outreach — nominates a supervisor before the invite has been accepted. */
+export const outreachTeam: Team = {
+  name: "Outreach Metrics",
+  members: [
+    leader("Analysis"),
+    member("stu-hoang-tran", "Coordination", "accepted", "2026-07-24"),
+  ],
+};

@@ -35,7 +35,7 @@ export const challenges: Challenge[] = [
     title: "Merchant churn analysis and retention model",
     subType: "Mini-Internship",
     orgName: null,
-    orgCategory: "Fintech scale-up, Hanoi",
+    orgCategory: "Logistics group, Hai Phong",
     confidential: true,
     posterKind: "Company",
     colleges: ["CBM", "CECS"],
@@ -80,6 +80,8 @@ export const challenges: Challenge[] = [
     ],
     suggestedFacultyIds: ["fac-osei", "fac-pham"],
     applicantCount: 23,
+    orgId: "org-bencang",
+    status: "Published",
   },
   {
     id: "multimodal-perception",
@@ -123,6 +125,8 @@ export const challenges: Challenge[] = [
     lockedBlocks: standardLockedBlocks,
     suggestedFacultyIds: ["fac-rivera", "fac-nguyen-k"],
     applicantCount: 31,
+    orgId: "org-vinai",
+    status: "Published",
   },
   {
     id: "route-optimisation",
@@ -165,6 +169,8 @@ export const challenges: Challenge[] = [
     lockedBlocks: standardLockedBlocks,
     suggestedFacultyIds: ["fac-pham", "fac-nguyen-k"],
     applicantCount: 12,
+    orgId: "org-bencang",
+    status: "Published",
   },
   {
     id: "genz-brand-positioning",
@@ -215,6 +221,8 @@ export const challenges: Challenge[] = [
     ],
     suggestedFacultyIds: ["fac-do", "fac-osei"],
     applicantCount: 19,
+    orgId: "org-consumer",
+    status: "Published",
   },
   {
     id: "market-entry-case",
@@ -256,6 +264,8 @@ export const challenges: Challenge[] = [
     lockedBlocks: standardLockedBlocks,
     suggestedFacultyIds: ["fac-osei", "fac-do"],
     applicantCount: 41,
+    orgId: "org-mekong",
+    status: "Published",
   },
   {
     id: "urban-heat-mapping",
@@ -297,6 +307,8 @@ export const challenges: Challenge[] = [
     lockedBlocks: standardLockedBlocks,
     suggestedFacultyIds: ["fac-le", "fac-tran"],
     applicantCount: 8,
+    orgId: "org-green",
+    status: "Published",
   },
   {
     id: "spectroscopy-pipeline",
@@ -339,6 +351,8 @@ export const challenges: Challenge[] = [
     lockedBlocks: standardLockedBlocks,
     suggestedFacultyIds: ["fac-tran", "fac-pham"],
     applicantCount: 15,
+    orgId: "org-materials",
+    status: "Published",
   },
   {
     id: "triage-protocol-review",
@@ -380,6 +394,8 @@ export const challenges: Challenge[] = [
     lockedBlocks: standardLockedBlocks,
     suggestedFacultyIds: ["fac-vu"],
     applicantCount: 11,
+    orgId: "org-health",
+    status: "Published",
   },
   {
     id: "community-health-outreach",
@@ -421,13 +437,15 @@ export const challenges: Challenge[] = [
     lockedBlocks: standardLockedBlocks,
     suggestedFacultyIds: ["fac-vu", "fac-le"],
     applicantCount: 9,
+    orgId: "org-vhf",
+    status: "Published",
   },
   {
     id: "supply-chain-dashboard",
     title: "Supply chain visibility dashboard",
     subType: "Project",
-    orgName: "Trường Sơn Manufacturing",
-    orgCategory: "Manufacturer, Bac Ninh",
+    orgName: "Bến Cảng Logistics",
+    orgCategory: "Logistics group, Hai Phong",
     confidential: false,
     posterKind: "Company",
     colleges: ["CECS", "CBM"],
@@ -462,6 +480,8 @@ export const challenges: Challenge[] = [
     lockedBlocks: standardLockedBlocks,
     suggestedFacultyIds: ["fac-pham", "fac-osei"],
     applicantCount: 17,
+    orgId: "org-bencang",
+    status: "Published",
   },
   {
     id: "campus-energy-audit",
@@ -503,6 +523,8 @@ export const challenges: Challenge[] = [
     lockedBlocks: standardLockedBlocks,
     suggestedFacultyIds: ["fac-nguyen-k", "fac-le"],
     applicantCount: 6,
+    orgId: "org-facilities",
+    status: "Published",
   },
   {
     id: "archive-digitisation",
@@ -544,5 +566,7 @@ export const challenges: Challenge[] = [
     lockedBlocks: standardLockedBlocks,
     suggestedFacultyIds: ["fac-le", "fac-tran"],
     applicantCount: 5,
+    orgId: "org-heritage",
+    status: "Published",
   },
 ];
