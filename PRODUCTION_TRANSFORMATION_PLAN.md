@@ -2,8 +2,8 @@
 
 **Repository:** `VinUni-SolutionStudio-OFFICIAL`  
 **Project:** VinUniversity Solution Studio / AI-in-Action Platform  
-**Last updated:** 2026-08-15  
-**Current phase:** Phase 1 complete → Phase 2.0 static MVP audit + ERD reconciliation next
+**Last updated:** 2026-08-16  
+**Current phase:** Phase 2 complete → Phase 3.0 seed transformation design next
 
 ---
 
@@ -129,7 +129,7 @@ VinUni-SolutionStudio-OFFICIAL/
 | Phase | Description | Status |
 |---|---|---|
 | Phase 1 | Database infrastructure | ✅ Complete |
-| Phase 2 | Audit MVP + reconcile with ERD → Drizzle schema + migrations | ⏭️ Next |
+| Phase 2 | Audit MVP + reconcile with ERD → Drizzle schema + migrations | ✅ Complete |
 | Phase 3 | Reconciled static mock data → production-valid database seed | ⬜ Not started |
 | Phase 4 | Challenge marketplace → real DB | ⬜ Not started |
 | Phase 5 | Applications, assessments, offers, workspace → real DB | ⬜ Not started |
@@ -222,17 +222,31 @@ The authority order for this phase is:
 
 The ERD remains the production design source of truth. Existing mock objects may reveal missing requirements, but they must not silently override or denormalize the ERD.
 
+## Phase 2 checkpoint status
+
+- Phase 2.0: COMPLETE. Static MVP audit created at `docs/database/mvp-data-model-audit.md`.
+- Phase 2.1: COMPLETE. ERD implementation-readiness review completed.
+- Phase 2.2: COMPLETE. MVP to ERD reconciliation completed at `docs/database/mvp-erd-reconciliation.md`.
+- Phase 2.3: COMPLETE. ERD v1 reviewed and FROZEN in `docs/database/schema.dbml`.
+- Phase 2.4: COMPLETE. Modular Drizzle schema organization implemented under `src/db/schema/**`.
+- Phase 2.5: COMPLETE. Frozen ERD v1 translated into Drizzle tables/enums.
+- Phase 2.6: COMPLETE. Approved constraints, partial unique indexes, CHECK constraints, and query indexes implemented.
+- Phase 2.7: COMPLETE. pgvector extension strategy documented and implemented through the Phase 2.8 migration.
+- Phase 2.8: COMPLETE. Initial migration generated, reviewed, applied, and verified against a fresh PostgreSQL database.
+
+ERD v1 is frozen. Future structural database changes require a new reviewed schema change rather than silently editing the frozen model.
+
 ---
 
 ## 2.0 Repository preparation and static MVP audit
 
 ### 2.0.1 Store the canonical ERD in the repository
 
-- [ ] Create `docs/database/`
-- [ ] Save the latest dbdiagram.io/DBML definition as `docs/database/schema.dbml`
-- [ ] Add `docs/database/README.md` for implementation decisions and reconciliation notes
-- [ ] Update `AGENTS.md` so coding agents are explicitly instructed to read `docs/database/schema.dbml` before database work
-- [ ] Document that `src/lib/data` and `src/lib/types.ts` are temporary MVP representations, not production schema authority
+- [x] Create `docs/database/`
+- [x] Save the latest dbdiagram.io/DBML definition as `docs/database/schema.dbml`
+- [x] Add `docs/database/README.md` for implementation decisions and reconciliation notes
+- [x] Update `AGENTS.md` so coding agents are explicitly instructed to read `docs/database/schema.dbml` before database work
+- [x] Document that `src/lib/data` and `src/lib/types.ts` are temporary MVP representations, not production schema authority
 
 ### 2.0.2 Perform a read-only audit of the current MVP
 
@@ -253,30 +267,30 @@ src/lib/pipeline.ts
 
 Audit these feature areas:
 
-- [ ] Challenge marketplace
-- [ ] Challenge detail/apply flow
-- [ ] Student-facing views
-- [ ] Faculty-facing views
-- [ ] Partner-facing views
-- [ ] Assessment flow
-- [ ] Offer/selection flow
-- [ ] Workspace/project flow
-- [ ] Shared filters/query helpers
-- [ ] Eligibility logic
-- [ ] Pipeline/status logic
+- [x] Challenge marketplace
+- [x] Challenge detail/apply flow
+- [x] Student-facing views
+- [x] Faculty-facing views
+- [x] Partner-facing views
+- [x] Assessment flow
+- [x] Offer/selection flow
+- [x] Workspace/project flow
+- [x] Shared filters/query helpers
+- [x] Eligibility logic
+- [x] Pipeline/status logic
 
 For every major feature, identify:
 
-- [ ] Current mock entities
-- [ ] Current fields
-- [ ] Current relationships
-- [ ] Current status/state values
-- [ ] User-entered fields
-- [ ] Derived/display-only fields
-- [ ] Existing business rules
-- [ ] Existing filtering/sorting assumptions
-- [ ] Existing lifecycle transitions
-- [ ] UI-required information that is not currently represented in the ERD
+- [x] Current mock entities
+- [x] Current fields
+- [x] Current relationships
+- [x] Current status/state values
+- [x] User-entered fields
+- [x] Derived/display-only fields
+- [x] Existing business rules
+- [x] Existing filtering/sorting assumptions
+- [x] Existing lifecycle transitions
+- [x] UI-required information that is not currently represented in the ERD
 
 ### 2.0.3 Produce an MVP inventory
 
@@ -305,10 +319,10 @@ Open questions
 
 ### Phase 2.0 exit criteria
 
-- [ ] Canonical ERD exists in the repository
-- [ ] Agent guidance points to the canonical ERD
-- [ ] Existing MVP data/workflow assumptions are documented
-- [ ] No Drizzle production schema has been generated from mock types prematurely
+- [x] Canonical ERD exists in the repository
+- [x] Agent guidance points to the canonical ERD
+- [x] Existing MVP data/workflow assumptions are documented
+- [x] No Drizzle production schema has been generated from mock types prematurely
 
 ---
 
@@ -317,45 +331,45 @@ Open questions
 The latest approved DBML has already been recovered. The task is now to verify and refine it for PostgreSQL implementation.
 
 - [x] Recover the latest approved dbdiagram.io schema
-- [ ] Verify all tables
-- [ ] Verify all fields
-- [ ] Verify primary keys
-- [ ] Verify foreign keys
-- [ ] Verify nullable vs required fields
-- [ ] Verify `1:1`, `1:N`, `N:M`, `0..1`, and `0..N` relationships
-- [ ] Verify status/state fields
-- [ ] Verify timestamps
-- [ ] Verify organization ownership model
-- [ ] Verify CAID and E-Lab administration model
-- [ ] Verify partner/contact-person model
-- [ ] Verify student/faculty profile structure
-- [ ] Verify challenge lifecycle
-- [ ] Verify application lifecycle
-- [ ] Verify selection/offer lifecycle
-- [ ] Verify project lifecycle
-- [ ] Verify skill taxonomy and normalization model
-- [ ] Verify assessment model
-- [ ] Verify matching-result model
-- [ ] Verify governance tables: consent, notifications, audit logs
-- [ ] Identify fields that should use PostgreSQL enums
-- [ ] Identify fields that should use `JSONB`
-- [ ] Identify future vector columns without implementing ranking logic yet
-- [ ] Identify URL/file fields that will later point to object storage rather than database blobs
+- [x] Verify all tables
+- [x] Verify all fields
+- [x] Verify primary keys
+- [x] Verify foreign keys
+- [x] Verify nullable vs required fields
+- [x] Verify `1:1`, `1:N`, `N:M`, `0..1`, and `0..N` relationships
+- [x] Verify status/state fields
+- [x] Verify timestamps
+- [x] Verify organization ownership model
+- [x] Verify CAID and E-Lab administration model
+- [x] Verify partner/contact-person model
+- [x] Verify student/faculty profile structure
+- [x] Verify challenge lifecycle
+- [x] Verify application lifecycle
+- [x] Verify selection/offer lifecycle
+- [x] Verify project lifecycle
+- [x] Verify skill taxonomy and normalization model
+- [x] Verify assessment model
+- [x] Verify matching-result model
+- [x] Verify governance tables: consent, notifications, audit logs
+- [x] Identify fields that should use PostgreSQL enums
+- [x] Identify fields that should use `JSONB`
+- [x] Identify future vector columns without implementing ranking logic yet
+- [x] Identify URL/file fields that will later point to object storage rather than database blobs
 
 ### PostgreSQL implementation decisions to resolve
 
-- [ ] `timestamp` vs `timestamptz` strategy
-- [ ] `bigint` representation in TypeScript/Drizzle
-- [ ] `decimal/numeric` precision and scale
-- [ ] `varchar` length strategy
-- [ ] enum vs free-text decisions
-- [ ] `JSONB` candidates
-- [ ] default timestamps
-- [ ] `updated_at` update strategy
-- [ ] delete/update behavior for foreign keys
-- [ ] indexes required for ordinary relational queries
-- [ ] embedding/vector dimension strategy
-- [ ] uniqueness rules not explicit in the conceptual ERD
+- [x] `timestamp` vs `timestamptz` strategy
+- [x] `bigint` representation in TypeScript/Drizzle
+- [x] `decimal/numeric` precision and scale
+- [x] `varchar` length strategy
+- [x] enum vs free-text decisions
+- [x] `JSONB` candidates
+- [x] default timestamps
+- [x] `updated_at` update strategy
+- [x] delete/update behavior for foreign keys
+- [x] indexes required for ordinary relational queries
+- [x] embedding/vector dimension strategy
+- [x] uniqueness rules not explicit in the conceptual ERD
 
 ---
 
@@ -403,18 +417,18 @@ Recommended reconciliation matrix:
 
 Checklist:
 
-- [ ] Map every major mock entity to ERD table(s)
-- [ ] Map every UI-consumed field
-- [ ] Identify denormalized arrays/objects
-- [ ] Identify derived values
-- [ ] Identify presentation-only values
-- [ ] Identify naming differences
-- [ ] Identify status mismatches
-- [ ] Identify lifecycle mismatches
-- [ ] Identify business rules that should be preserved
-- [ ] Identify mock shortcuts that should be removed
-- [ ] Identify genuine UI/workflow requirements missing from ERD
-- [ ] Resolve each `REVIEW` item before freezing ERD v1
+- [x] Map every major mock entity to ERD table(s)
+- [x] Map every UI-consumed field
+- [x] Identify denormalized arrays/objects
+- [x] Identify derived values
+- [x] Identify presentation-only values
+- [x] Identify naming differences
+- [x] Identify status mismatches
+- [x] Identify lifecycle mismatches
+- [x] Identify business rules that should be preserved
+- [x] Identify mock shortcuts that should be removed
+- [x] Identify genuine UI/workflow requirements missing from ERD
+- [x] Resolve each `REVIEW` item before freezing ERD v1
 
 ---
 
@@ -422,12 +436,12 @@ Checklist:
 
 After the audit and reconciliation:
 
-- [ ] Update `docs/database/schema.dbml` with approved corrections
-- [ ] Resolve all high-priority reconciliation questions
-- [ ] Record significant design decisions in `docs/database/README.md`
-- [ ] Confirm no current UI requirement is unintentionally lost
-- [ ] Confirm no mock-only convenience structure is promoted into the DB without justification
-- [ ] Tag/document the ERD as implementation-ready v1
+- [x] Update `docs/database/schema.dbml` with approved corrections
+- [x] Resolve all high-priority reconciliation questions
+- [x] Record significant design decisions in `docs/database/README.md`
+- [x] Confirm no current UI requirement is unintentionally lost
+- [x] Confirm no mock-only convenience structure is promoted into the DB without justification
+- [x] Tag/document the ERD as implementation-ready v1
 
 At this point:
 
@@ -472,11 +486,11 @@ Notes:
 
 Checklist:
 
-- [ ] Decide table grouping across schema files
-- [ ] Create PostgreSQL enums
-- [ ] Create shared timestamps/helpers if useful
-- [ ] Avoid circular schema imports
-- [ ] Export all tables/enums from `src/db/schema/index.ts`
+- [x] Decide table grouping across schema files
+- [x] Create PostgreSQL enums
+- [x] Create shared timestamps/helpers if useful
+- [x] Avoid circular schema imports
+- [x] Export all tables/enums from `src/db/schema/index.ts`
 
 ---
 
@@ -486,115 +500,123 @@ Implement according to the frozen ERD v1, module by module.
 
 ### Identity / profiles / consent
 
-- [ ] `users`
-- [ ] `student_profiles`
-- [ ] `faculty_profiles`
-- [ ] `consent_records`
+- [x] `users`
+- [x] `student_profiles`
+- [x] `faculty_profiles`
+- [x] `consent_records`
 
 ### Organizations
 
-- [ ] `organizations`
-- [ ] `organization_memberships`
+- [x] `organizations`
+- [x] `organization_memberships`
 
 ### Skills and student experience
 
-- [ ] `skill_categories`
-- [ ] `skills`
-- [ ] `skill_aliases`
-- [ ] `student_skills`
-- [ ] `student_projects`
-- [ ] `project_skills`
-- [ ] `project_evidence`
-- [ ] `skill_candidates`
-- [ ] `skill_relationships`
+- [x] `skill_categories`
+- [x] `skills`
+- [x] `skill_aliases`
+- [x] `student_skills`
+- [x] `student_projects`
+- [x] `project_skills`
+- [x] `project_evidence`
+- [x] `skill_candidates`
+- [x] `skill_relationships`
 
 ### Challenges
 
-- [ ] `challenges`
-- [ ] `challenge_skills`
-- [ ] `challenge_faculty_assignments`
-- [ ] `challenge_reviews`
+- [x] `challenges`
+- [x] `challenge_eligibility_rules`
+- [x] `challenge_skills`
+- [x] `challenge_faculty_assignments`
+- [x] `challenge_reviews`
 
 ### Applications / selection
 
-- [ ] `applications`
-- [ ] `application_projects`
-- [ ] `selections`
+- [x] `applications`
+- [x] `application_members`
+- [x] `application_projects`
+- [x] `supervision_requests`
+- [x] `selections`
+- [x] `offers`
+- [x] `agreements`
 
 ### Matching
 
-- [ ] `match_results`
-- [ ] `match_skill_details`
-- [ ] `match_experience_details`
+- [x] `match_results`
+- [x] `match_skill_details`
+- [x] `match_experience_details`
 
 ### Assessments
 
-- [ ] `assessments`
-- [ ] `assessment_questions`
-- [ ] `assessment_attempts`
-- [ ] `assessment_responses`
-- [ ] `assessment_scores`
+- [x] `assessments`
+- [x] `assessment_sections`
+- [x] `assessment_questions`
+- [x] `assessment_attempts`
+- [x] `assessment_responses`
+- [x] `assessment_scores`
 
 ### Active projects
 
-- [ ] `projects`
-- [ ] `project_members`
-- [ ] `milestones`
-- [ ] `deliverables`
-- [ ] `feedback`
+- [x] `projects`
+- [x] `project_members`
+- [x] `milestones`
+- [x] `deliverables`
+- [x] `milestone_reviews`
+- [x] `project_resources`
+- [x] `feedback`
 
 ### Governance / system
 
-- [ ] `notifications`
-- [ ] `audit_logs`
+- [x] `notifications`
+- [x] `audit_logs`
 
 ---
 
 ## 2.6 Add constraints and indexes
 
-- [ ] Unique user email
-- [ ] Composite primary/unique keys for junction tables where appropriate
-- [ ] Required foreign keys
-- [ ] `ON DELETE` strategy for every relationship
-- [ ] `ON UPDATE` strategy where relevant
-- [ ] Database-level check constraints where useful
-- [ ] Appropriate timestamp defaults
-- [ ] Prevent impossible duplicate organization memberships
-- [ ] Define duplicate rules for student skills, including unnormalized skills
-- [ ] Prevent duplicate challenge skills where appropriate
-- [ ] Prevent duplicate applications per student/challenge
-- [ ] Prevent duplicate project membership
-- [ ] Define duplicate rules for match-result versions/runs
-- [ ] Add indexes for common foreign-key/filter fields
-- [ ] Avoid speculative indexes that are not justified by expected queries
+- [x] Unique user email
+- [x] Composite primary/unique keys for junction tables where appropriate
+- [x] Required foreign keys
+- [x] `ON DELETE` strategy for every relationship
+- [x] `ON UPDATE` strategy where relevant
+- [x] Database-level check constraints where useful
+- [x] Appropriate timestamp defaults
+- [x] Prevent impossible duplicate organization memberships
+- [x] Define duplicate rules for student skills, including unnormalized skills
+- [x] Prevent duplicate challenge skills where appropriate
+- [x] Preserve duplicate-application prevention as a later service/transaction rule because applications are team submissions
+- [x] Prevent duplicate project membership
+- [x] Preserve match-result version/run duplicate policy for later matching-service design
+- [x] Add indexes for common foreign-key/filter fields
+- [x] Avoid speculative indexes that are not justified by expected queries
 
 ---
 
 ## 2.7 Enable pgvector through migration
 
-- [ ] Create version-controlled extension migration
-- [ ] Add:
+- [x] Create version-controlled extension migration in Phase 2.8
+- [x] Document required SQL:
 
 ```sql
 CREATE EXTENSION IF NOT EXISTS vector;
 ```
 
-- [ ] Verify extension exists after migration
-- [ ] Replace conceptual ERD `embedding text` placeholders with the approved Drizzle/PostgreSQL vector representation when embedding dimension is known
-- [ ] Do not implement ranking logic in this phase
-- [ ] Do not add HNSW/IVFFlat indexes until Phase 7 unless an earlier measured requirement justifies them
+- [x] Verify extension exists after migration in Phase 2.8
+- [x] Confirm ERD v1 has no conceptual `embedding text` placeholders and Drizzle adds no vector columns
+- [x] Do not implement ranking logic in this phase
+- [x] Do not add HNSW/IVFFlat indexes until Phase 7 unless an earlier measured requirement justifies them
 
 ---
 
 ## 2.8 Generate and verify initial migrations
 
-- [ ] Run `drizzle-kit generate`
-- [ ] Review generated SQL manually
-- [ ] Verify migration ordering
-- [ ] Apply migrations to the current local DB
-- [ ] Confirm Drizzle migration tracking works
-- [ ] Inspect created tables/constraints
-- [ ] Run application build/typecheck/lint as appropriate
+- [x] Run `drizzle-kit generate`
+- [x] Review generated SQL manually
+- [x] Verify migration ordering
+- [x] Apply migrations to the current local DB
+- [x] Confirm Drizzle migration tracking works
+- [x] Inspect created tables/constraints
+- [x] Run application build/typecheck/lint as appropriate
 
 ### Fresh-database reproducibility test
 
@@ -608,26 +630,26 @@ pnpm db:migrate
 
 Then verify:
 
-- [ ] Database initializes from zero
-- [ ] pgvector extension is enabled
-- [ ] All ERD tables exist
-- [ ] All expected constraints exist
-- [ ] No manual SQL step outside version-controlled migrations is required
-- [ ] `pnpm db:check` still passes
+- [x] Database initializes from zero
+- [x] pgvector extension is enabled
+- [x] All ERD tables exist
+- [x] All expected constraints exist
+- [x] No manual SQL step outside version-controlled migrations is required
+- [x] `pnpm db:check` still passes
 
 ## Phase 2 exit criteria
 
 Phase 2 is complete when:
 
-- [ ] Static MVP implementation has been audited
-- [ ] MVP ↔ ERD reconciliation is documented
-- [ ] All unresolved schema-impacting `REVIEW` items are resolved
-- [ ] ERD v1 is frozen and stored in the repository
-- [ ] ERD v1 is fully represented in modular Drizzle schema files
-- [ ] A fresh PostgreSQL database can be created entirely from migrations
-- [ ] Core relationships and constraints are verified
-- [ ] pgvector is enabled through a version-controlled migration
-- [ ] No production table structure depends accidentally on temporary static MVP fields
+- [x] Static MVP implementation has been audited
+- [x] MVP ↔ ERD reconciliation is documented
+- [x] All unresolved schema-impacting `REVIEW` items are resolved
+- [x] ERD v1 is frozen and stored in the repository
+- [x] ERD v1 is fully represented in modular Drizzle schema files
+- [x] A fresh PostgreSQL database can be created entirely from migrations
+- [x] Core relationships and constraints are verified
+- [x] pgvector is enabled through a version-controlled migration
+- [x] No production table structure depends accidentally on temporary static MVP fields
 
 ---
 
@@ -1113,10 +1135,26 @@ project files
 
 ## Current status
 
-**Current phase:** Phase 1 complete  
-**Active next phase:** Phase 2.0 — repository ERD setup + read-only static MVP audit
+**Current phase:** Phase 2 complete  
+**Active next phase:** Phase 3.0 — seed transformation design
 
 ### Latest completed work
+
+- Phase 2.0 static MVP audit created at `docs/database/mvp-data-model-audit.md`
+- Phase 2.1 ERD implementation-readiness review completed
+- Phase 2.2 MVP to ERD reconciliation completed at `docs/database/mvp-erd-reconciliation.md`
+- Phase 2.3 ERD v1 reviewed and FROZEN in `docs/database/schema.dbml`
+- Phase 2.4 Drizzle schema module organization implemented under `src/db/schema/**`
+- Phase 2.5 frozen ERD v1 translated into 45 Drizzle PostgreSQL tables and 41 enums
+- Phase 2.6 primary keys, foreign keys, unique constraints, partial unique indexes, CHECK constraints, and query indexes implemented
+- Phase 2.7 pgvector extension strategy implemented through a version-controlled migration
+- Phase 2.8 initial migration generated at `drizzle/0000_empty_gladiator.sql`
+- `CREATE EXTENSION IF NOT EXISTS vector;` is included before schema objects in the initial migration
+- Fresh database reproducibility verified with `docker compose down -v`, `docker compose up -d`, and `pnpm db:migrate`
+- `src/db/index.ts` now exposes the shared node-postgres Drizzle client with the production schema
+- ERD v1 remains frozen; future structural changes require a new reviewed schema change
+
+Previous completed work:
 
 - PostgreSQL + pgvector successfully running under OrbStack
 - Docker container is healthy
@@ -1135,6 +1173,18 @@ project files
 - Phase 2 strategy revised to audit the existing static MVP before implementing Drizzle tables
 
 ### Latest verification
+
+- `pnpm exec tsc --noEmit` passes
+- `pnpm exec drizzle-kit check` passes
+- `pnpm db:check` passes against PostgreSQL 18.4 after starting the local Compose database
+- `pnpm lint` passes
+- `pnpm build` passes when network access is available for Google Fonts
+- DBML to Drizzle comparison: 45 tables and 41 enums implemented; no missing or extra domain tables/enums
+- Fresh PostgreSQL migration replay creates 45 public tables, 41 enums, 82 foreign keys, 35 CHECK constraints, and 11 partial indexes
+- Drizzle migration journal contains one applied migration after repeated `pnpm db:migrate`
+- pgvector extension is enabled and no vector columns/indexes exist yet
+
+Previous verification:
 
 ```text
 database: solution_studio
@@ -1165,83 +1215,54 @@ port:
 
 ## Immediate next task
 
-### Store the ERD in-repo and run a read-only audit of the current static implementation.
+### Begin Phase 3.0 seed transformation design.
 
-Do **not** implement production Drizzle tables or migrations yet.
+Phase 2 is complete. Do **not** seed data until Phase 3.0 designs the deterministic seed mapping from reconciled static MVP records into the frozen production schema.
 
 Immediate sequence:
 
 ```text
-1. Save latest DBML
+1. Review Phase 2 MVP audit and reconciliation docs
       ↓
-docs/database/schema.dbml
-
-2. Update AGENTS.md database guidance
+2. Identify static records worth preserving as deterministic seed data
       ↓
-
-3. Agent performs read-only MVP audit
+3. Map static MVP records to frozen ERD tables
       ↓
-docs/database/mvp-data-model-audit.md
-
-4. Reconfirm PostgreSQL-ready ERD
+4. Define seed ordering and idempotency strategy
       ↓
-
-5. Reconcile MVP ↔ ERD
-      ↓
-docs/database/mvp-erd-reconciliation.md
-
-6. Resolve REVIEW items
-      ↓
-
-7. Freeze ERD v1
-      ↓
-
-8. Begin modular Drizzle schema implementation
+5. Only then implement seed scripts
 ```
 
 ### Immediate checklist
 
-- [ ] Create `docs/database/schema.dbml`
-- [ ] Copy the latest approved DBML into it
-- [ ] Create/update `docs/database/README.md`
-- [ ] Update `AGENTS.md` with database authority and workflow rules
-- [ ] Ask the agent to inspect the existing static MVP in read-only mode
-- [ ] Produce `docs/database/mvp-data-model-audit.md`
-- [ ] Reconfirm ERD fields/relationships against implementation needs
-- [ ] Produce `docs/database/mvp-erd-reconciliation.md`
-- [ ] Resolve all schema-impacting `REVIEW` decisions
-- [ ] Freeze ERD v1
-- [ ] Only then implement `src/db/schema/*`
+- [ ] Review `docs/database/mvp-data-model-audit.md`
+- [ ] Review `docs/database/mvp-erd-reconciliation.md`
+- [ ] Review frozen Drizzle schema and initial migration
+- [ ] Design deterministic seed data mapping
+- [ ] Preserve Phase 2 migration history unchanged
+- [ ] Do not change the frozen ERD without a reviewed schema change
+- [ ] Do not begin application DB reads/writes until seed strategy is reviewed
 
 ### Recommended first agent instruction
 
 ```text
-Analyze the current static implementation before making database schema changes.
+Proceed with Phase 3.0 only.
 
 Read:
 - AGENTS.md
+- PRODUCTION_TRANSFORMATION_PLAN.md
 - docs/database/schema.dbml
-- src/app/**
-- src/components/**
+- docs/database/README.md
+- docs/database/mvp-data-model-audit.md
+- docs/database/mvp-erd-reconciliation.md
+- src/db/schema/**
 - src/lib/data/**
 - src/lib/types.ts
-- src/lib/queries.ts
-- src/lib/eligibility.ts
-- src/lib/filters.ts
-- src/lib/pipeline.ts
 
-Do not modify application code, create Drizzle tables, or generate migrations yet.
+Design the deterministic seed transformation from useful static MVP records into the frozen production schema.
 
-Produce docs/database/mvp-data-model-audit.md containing:
-1. data model currently assumed by each major feature;
-2. entities, fields, relationships, statuses, and derived values;
-3. business rules encoded in queries/eligibility/filters/pipeline;
-4. UI requirements not obviously represented by the ERD;
-5. preliminary mappings to docs/database/schema.dbml;
-6. contradictions or open questions.
-
-Treat docs/database/schema.dbml as the intended production architecture.
-Treat current static types/data as implementation evidence, not schema authority.
+Do not implement seed scripts until the mapping and ordering are reviewed.
+Do not change the frozen ERD unless a new reviewed schema change is explicitly approved.
 ```
 
 ---
@@ -1249,6 +1270,31 @@ Treat current static types/data as implementation evidence, not schema authority
 # 15. Work Log
 
 Use this section after each development session.
+
+## 2026-08-16
+
+### Completed
+
+- Phase 2.8 initial migration generated, reviewed, applied, and fresh-tested
+- `drizzle/0000_empty_gladiator.sql` created with `CREATE EXTENSION IF NOT EXISTS vector;` before schema objects
+- Fresh database replay verified with `docker compose down -v`, `docker compose up -d`, `pnpm db:migrate`, and repeated no-op `pnpm db:migrate`
+- PostgreSQL inspection verified pgvector, 45 public tables, 41 enums, 82 foreign keys, 35 CHECK constraints, 11 partial indexes, and one Drizzle journal row
+- Confirmed no `projects.challenge_id`, `selections.challenge_id`, `assessment_questions.assessment_id`, embedding placeholder fields, vector columns, or vector indexes exist
+- Phase 2.4 modular Drizzle schema organization implemented
+- Phase 2.5 frozen ERD v1 translated into 45 tables and 41 enums
+- Phase 2.6 keys, foreign keys, unique constraints, partial unique indexes, CHECK constraints, and query indexes implemented
+- Phase 2.7 pgvector extension strategy implemented through the Phase 2.8 version-controlled migration
+- Shared Drizzle client updated to expose the schema through the existing node-postgres pool
+- Validation passed: TypeScript, Drizzle Kit check, DB connection check, lint, production build with network access
+- DBML to Drizzle comparison found no missing or extra domain tables/enums
+
+### Current blocker
+
+None.
+
+### Next action
+
+Proceed to Phase 3.0: design deterministic seed transformation from reconciled static MVP data into the frozen production schema.
 
 ## 2026-08-15
 
