@@ -3,7 +3,7 @@
 **Repository:** `VinUni-SolutionStudio-OFFICIAL`  
 **Project:** VinUniversity Solution Studio / AI-in-Action Platform  
 **Last updated:** 2026-08-16  
-**Current phase:** Phase 2 complete → Phase 3.0 seed transformation design next
+**Current phase:** Phase 3 — Seed Transformation
 
 ---
 
@@ -130,7 +130,7 @@ VinUni-SolutionStudio-OFFICIAL/
 |---|---|---|
 | Phase 1 | Database infrastructure | ✅ Complete |
 | Phase 2 | Audit MVP + reconcile with ERD → Drizzle schema + migrations | ✅ Complete |
-| Phase 3 | Reconciled static mock data → production-valid database seed | ⬜ Not started |
+| Phase 3 | Reconciled static mock data → production-valid database seed | 🚧 In progress |
 | Phase 4 | Challenge marketplace → real DB | ⬜ Not started |
 | Phase 5 | Applications, assessments, offers, workspace → real DB | ⬜ Not started |
 | Phase 6 | Authentication + RBAC | ⬜ Not started |
@@ -664,14 +664,43 @@ Phase 3 should reuse the analysis produced in:
 ```text
 docs/database/mvp-data-model-audit.md
 docs/database/mvp-erd-reconciliation.md
+docs/database/seed-transformation-plan.md
 ```
 
 Do not re-design the schema from mock objects during seeding.
 
-## 3.1 Prepare the seed transformation
+## Phase 3 checkpoint status
+
+- Phase 3.0: COMPLETE. HUMAN REVIEW COMPLETE. Seed transformation design and approved review corrections recorded at `docs/database/seed-transformation-plan.md`.
+- Phase 3.1: NEXT. Implement seed safety/context infrastructure, BOOTSTRAP data, and REFERENCE skill taxonomy.
+
+## 3.0 Design the seed transformation
+
+- [x] Review the Phase 2 MVP inventory
+- [x] Review the Phase 2 reconciliation matrix
+- [x] Audit static fixture sources under `src/lib/data/**`
+- [x] Classify proposed records as BOOTSTRAP, REFERENCE, or DEMO
+- [x] Map static fixtures to normalized production tables
+- [x] Identify derived/drop/deferred fixture fields
+- [x] Define team-application transformation
+- [x] Define lifecycle, selection, offer, assessment, project, milestone, organization, skill, and eligibility transformations
+- [x] Define deterministic identity strategy
+- [x] Define FK dependency/insertion order
+- [x] Define seed idempotency/safety strategy
+- [x] Recommend compact demo scenario coverage
+- [x] Record REVIEW items requiring human decisions
+- [x] Produce `docs/database/seed-transformation-plan.md`
+- [x] Apply human review corrections before Phase 3.1
+
+## 3.1 Prepare and implement bootstrap/reference seed infrastructure
 
 - [ ] Review the Phase 2 MVP inventory
 - [ ] Review the Phase 2 reconciliation matrix
+- [ ] Review the Phase 3.0 seed transformation plan
+- [ ] Implement future seed safety guard
+- [ ] Implement deterministic seed key/context strategy
+- [ ] Implement BOOTSTRAP records
+- [ ] Implement REFERENCE skill categories/canonical skills/exact lexical aliases
 - [ ] Select useful existing demo records to preserve
 - [ ] Transform denormalized mock objects into normalized ERD records
 - [ ] Supply ERD-required fields missing from current mocks with intentional development values
@@ -1135,8 +1164,8 @@ project files
 
 ## Current status
 
-**Current phase:** Phase 2 complete  
-**Active next phase:** Phase 3.0 — seed transformation design
+**Current phase:** Phase 3 — Seed Transformation  
+**Active next phase:** Phase 3.1 — implement seed safety/context infrastructure, BOOTSTRAP data, and REFERENCE skill taxonomy
 
 ### Latest completed work
 
@@ -1151,6 +1180,8 @@ project files
 - Phase 2.8 initial migration generated at `drizzle/0000_empty_gladiator.sql`
 - `CREATE EXTENSION IF NOT EXISTS vector;` is included before schema objects in the initial migration
 - Fresh database reproducibility verified with `docker compose down -v`, `docker compose up -d`, and `pnpm db:migrate`
+- Phase 3.0 seed transformation design created at `docs/database/seed-transformation-plan.md`
+- Phase 3.0 human review corrections applied: compact demo dataset approved; skill aliases limited to exact lexical variants; provider/team assessment results deferred when ownership is unclear; E-Lab demo challenge approved; ambiguous organization classification excluded from compact seed; challenge description convention approved; expired offers remain selected/pending/derived; matching outputs deferred to Phase 7; transcript/experience conversion deferred from Phase 3.1; seed command safety clarified
 - `src/db/index.ts` now exposes the shared node-postgres Drizzle client with the production schema
 - ERD v1 remains frozen; future structural changes require a new reviewed schema change
 
@@ -1215,38 +1246,39 @@ port:
 
 ## Immediate next task
 
-### Begin Phase 3.0 seed transformation design.
+### Begin Phase 3.1 seed safety/context infrastructure, BOOTSTRAP data, and REFERENCE skill taxonomy.
 
-Phase 2 is complete. Do **not** seed data until Phase 3.0 designs the deterministic seed mapping from reconciled static MVP records into the frozen production schema.
+Phase 3.0 seed transformation design is complete and human review corrections are applied. Begin implementation with seed safety/context infrastructure, BOOTSTRAP data, and REFERENCE skill taxonomy only; do not seed the full demo dataset yet.
 
 Immediate sequence:
 
 ```text
-1. Review Phase 2 MVP audit and reconciliation docs
+1. Review docs/database/seed-transformation-plan.md
       ↓
-2. Identify static records worth preserving as deterministic seed data
+2. Implement seed safety guard and transaction/context utilities
       ↓
-3. Map static MVP records to frozen ERD tables
+3. Implement CAID/E-Lab bootstrap organizations and dev admin identities
       ↓
-4. Define seed ordering and idempotency strategy
+4. Implement reference skill categories, canonical skills, and approved lexical aliases
       ↓
-5. Only then implement seed scripts
+5. Add seed command only after bootstrap/reference path is reviewed
 ```
 
 ### Immediate checklist
 
-- [ ] Review `docs/database/mvp-data-model-audit.md`
-- [ ] Review `docs/database/mvp-erd-reconciliation.md`
-- [ ] Review frozen Drizzle schema and initial migration
-- [ ] Design deterministic seed data mapping
+- [ ] Review `docs/database/seed-transformation-plan.md`
+- [ ] Implement seed environment/database safety guard
+- [ ] Implement seed transaction/context and returned-ID lookup strategy
+- [ ] Implement BOOTSTRAP records for CAID/E-Lab and development admin users
+- [ ] Implement REFERENCE skill categories, canonical skills, and exact lexical aliases
 - [ ] Preserve Phase 2 migration history unchanged
 - [ ] Do not change the frozen ERD without a reviewed schema change
-- [ ] Do not begin application DB reads/writes until seed strategy is reviewed
+- [ ] Do not seed full demo application/project scenarios in Phase 3.1
 
 ### Recommended first agent instruction
 
 ```text
-Proceed with Phase 3.0 only.
+Proceed with Phase 3.1 only.
 
 Read:
 - AGENTS.md
@@ -1255,13 +1287,14 @@ Read:
 - docs/database/README.md
 - docs/database/mvp-data-model-audit.md
 - docs/database/mvp-erd-reconciliation.md
+- docs/database/seed-transformation-plan.md
 - src/db/schema/**
 - src/lib/data/**
 - src/lib/types.ts
 
-Design the deterministic seed transformation from useful static MVP records into the frozen production schema.
+Implement seed safety/context infrastructure, BOOTSTRAP data, and REFERENCE skill taxonomy only.
 
-Do not implement seed scripts until the mapping and ordering are reviewed.
+Do not seed full demo application/project scenarios yet.
 Do not change the frozen ERD unless a new reviewed schema change is explicitly approved.
 ```
 
@@ -1275,6 +1308,16 @@ Use this section after each development session.
 
 ### Completed
 
+- Phase 3.0 seed transformation design created at `docs/database/seed-transformation-plan.md`
+- Phase 3.0 human review corrections applied before Phase 3.1
+- Approved compact initial demo dataset strategy; do not seed every static fixture
+- Approved skill policy: categories are taxonomy/navigation only, aliases are exact lexical variants only, relationships are explicit semantic links, embeddings are Phase 7 fallback
+- Approved deferrals: provider/team assessment results without member attribution, matching output tables, and transcript/experience to `student_projects`
+- Approved E-Lab-owned and E-Lab-managed synthesized demo challenge for internal-unit coverage
+- Approved seed safety convention: `pnpm db:seed` must be non-destructive/idempotent and destructive reset remains a separate explicit local workflow
+- Static fixture sources classified into BOOTSTRAP, REFERENCE, and DEMO seed categories
+- Source-to-seed mapping, lifecycle mapping, team-application mapping, assessment mapping, project/milestone mapping, skill/reference strategy, eligibility mapping, dependency order, and idempotency/safety strategy documented
+- Remaining REVIEW items limited to exact compact fixture list after excluding ambiguous organizations and optional approved skill relationships
 - Phase 2.8 initial migration generated, reviewed, applied, and fresh-tested
 - `drizzle/0000_empty_gladiator.sql` created with `CREATE EXTENSION IF NOT EXISTS vector;` before schema objects
 - Fresh database replay verified with `docker compose down -v`, `docker compose up -d`, `pnpm db:migrate`, and repeated no-op `pnpm db:migrate`
@@ -1294,7 +1337,7 @@ None.
 
 ### Next action
 
-Proceed to Phase 3.0: design deterministic seed transformation from reconciled static MVP data into the frozen production schema.
+Proceed to Phase 3.1: implement seed safety/context infrastructure, BOOTSTRAP data, and REFERENCE skill taxonomy.
 
 ## 2026-08-15
 
