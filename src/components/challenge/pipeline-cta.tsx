@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Chip } from "@/components/ui/chip";
 import { ChevronRightIcon } from "@/components/ui/icons";
-import { countdownLabel, STAGE_VARIANT } from "@/lib/pipeline";
+import { ctaFor, STAGE_VARIANT } from "@/lib/pipeline";
 import { deadlineLabel } from "@/lib/dates";
 import { STAGE_LABELS, type Application } from "@/lib/types";
 
@@ -48,44 +48,4 @@ export function PipelineCta({ application }: PipelineCtaProps) {
       </div>
     </div>
   );
-}
-
-function ctaFor(
-  application: Application,
-): { label: string; href: string } | null {
-  switch (application.stage) {
-    case "TEST_PENDING":
-      return {
-        label: "Start assessment",
-        href: `/assessment/${application.id}`,
-      };
-    case "TEST_SUBMITTED":
-      return {
-        label: "View your result",
-        href: `/assessment/${application.id}/result`,
-      };
-    case "INVITED":
-      return {
-        label: application.offer
-          ? `Respond · ${countdownLabel(application.offer.respondBy)} left`
-          : "Respond to your invitation",
-        href: `/offer/${application.id}`,
-      };
-    case "ACTIVE":
-    case "IN_REVIEW":
-    case "COMPLETED":
-      return {
-        label: "Open workspace",
-        href: `/workspace/${application.id}`,
-      };
-    case "NOT_SELECTED":
-      return application.testResult
-        ? {
-            label: "View your result",
-            href: `/assessment/${application.id}/result`,
-          }
-        : null;
-    default:
-      return null;
-  }
 }

@@ -91,6 +91,9 @@ export function getFacultyById(id: string): Faculty | undefined {
   return faculty.find((f) => f.id === id);
 }
 
+/** v1 has no auth — the faculty portal renders as this supervisor. */
+export const currentFacultyId = "fac-pham";
+
 export function isAtCapacity(f: Faculty): boolean {
   return f.slotsUsed >= f.slotsTotal;
 }

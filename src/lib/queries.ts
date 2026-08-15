@@ -1,7 +1,7 @@
 import { applications } from "@/lib/data/applications";
 import { challenges } from "@/lib/data/challenges";
 import { faculty } from "@/lib/data/faculty";
-import type { Application, Challenge, Faculty } from "@/lib/types";
+import type { Application, Challenge, Faculty, Meeting } from "@/lib/types";
 import { matchesFilters, sortChallenges, type FilterState } from "@/lib/filters";
 
 export function getChallenges(filters: FilterState): Challenge[] {
@@ -75,4 +75,35 @@ export function getApplicationsWithChallenge(): ApplicationWithChallenge[] {
       return challenge ? { application, challenge } : undefined;
     })
     .filter((row): row is ApplicationWithChallenge => row !== undefined);
+}
+
+export interface MeetingWithContext {
+  meeting: Meeting;
+  application: Application;
+  challenge: Challenge;
+}
+
+/**
+ * Every meeting across every project, carrying the application and challenge
+ * it belongs to. Meetings live inside a project record, so the owning
+ * application is the only way back to a title or a workspace link.
+ */
+export function getAllMeetings(): MeetingWithContext[] {
+  return getApplicationsWithChallenge().flatMap(({ application, challenge }) =>
+    (application.project?.meetings ?? []).map((meeting) => ({
+      meeting,
+      application,
+      challenge,
+    })),
+  );
+}
+
+export function getMeetingById(
+  meetingId: string,
+): MeetingWithContext | undefined {
+  return getAllMeetings().find((row) => row.meeting.id === meetingId);
+}
+
+export function getAllMeetingIds(): string[] {
+  return getAllMeetings().map((row) => row.meeting.id);
 }

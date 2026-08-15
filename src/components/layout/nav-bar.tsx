@@ -1,8 +1,6 @@
 import Link from "next/link";
 import { NavLinks } from "@/components/layout/nav-links";
 import { currentStudent, initials } from "@/lib/data/student";
-import { getApplications } from "@/lib/queries";
-import { isRevealed } from "@/lib/pipeline";
 
 /** The VinUniversity chevron mark: navy left half, red right half. */
 function BrandMark({ className }: { className?: string }) {
@@ -15,13 +13,10 @@ function BrandMark({ className }: { className?: string }) {
 }
 
 export function NavBar() {
-  // One active engagement at a time (PRD D8), so the Workspace link resolves to
-  // it directly. Absent when the student has none — a link to nothing is worse
-  // than no link.
-  const active = getApplications().find(
-    (a) => isRevealed(a) && a.stage !== "COMPLETED",
-  );
-
+  // "Your work" used to resolve straight to the single engagement PRD D8
+  // allows. The fixture already carries eleven applications at once, and a
+  // student needs to see the ones still in selection too, so the link now
+  // points at the hub and is always present.
   return (
     <header className="h-[60px] shrink-0 bg-card border-b border-line">
       <div className="h-full px-7 flex items-center justify-between gap-6">
@@ -34,9 +29,7 @@ export function NavBar() {
         </Link>
 
         <nav className="flex items-center gap-5 sm:gap-[22px]">
-          <NavLinks
-            workspaceHref={active ? `/workspace/${active.id}` : null}
-          />
+          <NavLinks />
           <span
             className="w-7 h-7 rounded-full bg-brand text-white grid place-items-center text-[10px] font-semibold"
             title={currentStudent.name}

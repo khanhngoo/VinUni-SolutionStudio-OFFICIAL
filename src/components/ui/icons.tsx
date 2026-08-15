@@ -1,4 +1,4 @@
-/** Four glyphs, inline — not worth a dependency. */
+/** Six glyphs, inline — not worth a dependency. */
 
 interface IconProps {
   className?: string;
@@ -52,6 +52,42 @@ export function ChevronRightIcon({ className }: IconProps) {
       className={className}
     >
       <path d="M6 3.5l4.5 4.5L6 12.5" />
+    </svg>
+  );
+}
+
+export function CalendarIcon({ className }: IconProps) {
+  return (
+    <svg
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.4"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      className={className}
+    >
+      <rect x="2.5" y="3.5" width="11" height="10" rx="1.5" />
+      <path d="M2.5 6.5h11M5.5 2v3M10.5 2v3" />
+    </svg>
+  );
+}
+
+export function VideoIcon({ className }: IconProps) {
+  return (
+    <svg
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.4"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      className={className}
+    >
+      <rect x="1.75" y="4" width="8.5" height="8" rx="1.5" />
+      <path d="M10.25 7l4-2.25v6.5L10.25 9z" />
     </svg>
   );
 }

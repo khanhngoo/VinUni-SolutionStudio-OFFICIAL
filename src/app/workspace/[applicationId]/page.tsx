@@ -2,6 +2,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { revealCredential } from "@/app/workspace/[applicationId]/actions";
 import { MilestoneList } from "@/components/workspace/milestone-list";
+import { NextMeetingCard } from "@/components/workspace/next-meeting-card";
+import { ProgressBar } from "@/components/workspace/progress-bar";
 import { ResourceList } from "@/components/workspace/resource-list";
 import { SubmitDeliverable } from "@/components/workspace/submit-deliverable";
 import {
@@ -61,7 +63,7 @@ export default async function WorkspacePage({
   return (
     <div className="max-w-[980px] mx-auto px-6 sm:px-7 py-7 pb-16">
       <nav className="text-meta text-ink-3">
-        <Link href="/challenges">Challenges</Link>
+        <Link href="/workspace">Your work</Link>
         <span className="mx-1.5">›</span>
         <Link href={`/challenges/${challenge.id}`}>{challenge.title}</Link>
         <span className="mx-1.5">›</span>
@@ -82,12 +84,7 @@ export default async function WorkspacePage({
         milestones approved
       </p>
 
-      <div className="mt-5 h-1.5 rounded-full bg-line-2 overflow-hidden">
-        <div
-          className="h-full bg-ok rounded-full"
-          style={{ width: `${total === 0 ? 0 : (approved / total) * 100}%` }}
-        />
-      </div>
+      <ProgressBar approved={approved} total={total} className="mt-5" />
 
       <div className="mt-6">
         <WorkspaceTabs applicationId={application.id} active={tab} />
@@ -132,6 +129,10 @@ export default async function WorkspacePage({
             ) : null}
           </Section>
 
+          <Section title="Next meeting">
+            <NextMeetingCard project={project} />
+          </Section>
+
           <Section title="People">
             <div className="grid sm:grid-cols-3 gap-2.5">
               <Person
@@ -161,7 +162,10 @@ export default async function WorkspacePage({
       {tab === "milestones" ? (
         <Section title="Milestones">
           <div className="bg-card border border-line rounded-card p-5">
-            <MilestoneList milestones={project.milestones} />
+            <MilestoneList
+              milestones={project.milestones}
+              meetings={project.meetings}
+            />
           </div>
         </Section>
       ) : null}
@@ -172,7 +176,11 @@ export default async function WorkspacePage({
           aside="Faculty and partner both sign off"
         >
           <div className="bg-card border border-line rounded-card p-5">
-            <MilestoneList milestones={project.milestones} showSignoff />
+            <MilestoneList
+              milestones={project.milestones}
+              meetings={project.meetings}
+              showSignoff
+            />
             {!readOnly ? (
               <div className="mt-5 pt-4 border-t border-line-2">
                 <SubmitDeliverable milestones={project.milestones} />
@@ -222,7 +230,7 @@ function LockedWorkspace({
   return (
     <article className="max-w-[820px] mx-auto px-6 sm:px-7 py-7 pb-16">
       <nav className="text-meta text-ink-3">
-        <Link href="/challenges">Challenges</Link>
+        <Link href="/workspace">Your work</Link>
         <span className="mx-1.5">›</span>
         <Link href={`/challenges/${challenge.id}`}>{challenge.title}</Link>
         <span className="mx-1.5">›</span>

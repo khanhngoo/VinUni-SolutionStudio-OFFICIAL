@@ -1,12 +1,14 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { ApplyModal } from "@/components/apply/apply-modal";
 import { SelectionTimeline } from "@/components/challenge/selection-timeline";
 import { Chip } from "@/components/ui/chip";
 import { CheckIcon } from "@/components/ui/icons";
 import { Section } from "@/components/ui/section";
 import { deadlineLabel, isUrgent } from "@/lib/dates";
+import { sizeLabel } from "@/lib/teams";
 import type { Challenge, EligibilityResult, Faculty } from "@/lib/types";
 
 interface ApplyPanelProps {
@@ -55,13 +57,20 @@ export function ApplyPanel({
               Applied · pending faculty
             </Chip>
           ) : eligibility.eligible ? (
-            <button
-              type="button"
-              onClick={() => setModalOpen(true)}
-              className="h-10 px-5 rounded-card bg-brand text-white font-semibold hover:bg-brand-deep focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-            >
-              Apply to this challenge
-            </button>
+            <div className="text-right">
+              {/* Applying starts with a team now, so the first step is a page
+                  of its own rather than the modal. */}
+              <Link
+                href={`/challenges/${challenge.id}/apply`}
+                className="inline-flex items-center h-10 px-5 rounded-card bg-brand text-white font-semibold hover:bg-brand-deep hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+              >
+                Apply to this challenge
+              </Link>
+              <p className="text-meta text-ink-3 mt-2">
+                Teams of {sizeLabel(challenge)} · you&apos;ll invite teammates
+                first
+              </p>
+            </div>
           ) : (
             <div className="text-right">
               <button

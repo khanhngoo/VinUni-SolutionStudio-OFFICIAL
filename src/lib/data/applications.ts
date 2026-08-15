@@ -1,3 +1,20 @@
+import {
+  archiveMeetings,
+  energyMeetings,
+  supplyMeetings,
+} from "@/lib/data/meetings";
+import {
+  archiveTeam,
+  churnTeam,
+  energyTeam,
+  genzTeam,
+  heatTeam,
+  lastMileTeam,
+  marketTeam,
+  outreachTeam,
+  soloTeam,
+  supplyTeam,
+} from "@/lib/data/teams";
 import type { Application } from "@/lib/types";
 
 /**
@@ -30,6 +47,7 @@ export const applications: Application[] = [
     appliedAt: "2026-07-08",
     stageEnteredAt: "2026-07-24",
     facultySupervisorId: "fac-rivera",
+    team: soloTeam("Perception Solo", "Data & ML"),
     nextAction: "Complete your technical test",
     // Two days out: the urgent case the pre-flight screen exists to catch.
     nextActionDue: "2026-07-29",
@@ -44,6 +62,7 @@ export const applications: Application[] = [
     appliedAt: "2026-07-12",
     stageEnteredAt: "2026-07-25",
     facultySupervisorId: "fac-do",
+    team: heatTeam,
     nextAction: "Complete your cognitive test",
     nextActionDue: "2026-08-01",
     testResult: null,
@@ -57,6 +76,7 @@ export const applications: Application[] = [
     appliedAt: "2026-07-02",
     stageEnteredAt: "2026-07-21",
     facultySupervisorId: "fac-pham",
+    team: churnTeam,
     nextAction: "Waiting on your results",
     nextActionDue: null,
     testResult: {
@@ -81,6 +101,7 @@ export const applications: Application[] = [
     appliedAt: "2026-06-18",
     stageEnteredAt: "2026-07-06",
     facultySupervisorId: "fac-osei",
+    team: soloTeam("Triage Review", "Research"),
     nextAction: null,
     nextActionDue: null,
     // The failing result: terminal for this challenge, 30-day cooldown (§8.1).
@@ -107,6 +128,7 @@ export const applications: Application[] = [
     appliedAt: "2026-06-30",
     stageEnteredAt: "2026-07-26",
     facultySupervisorId: "fac-nguyen-k",
+    team: lastMileTeam,
     nextAction: "Respond to your invitation",
     nextActionDue: "2026-07-29",
     testResult: {
@@ -140,6 +162,7 @@ export const applications: Application[] = [
     appliedAt: "2026-07-01",
     stageEnteredAt: "2026-07-25",
     facultySupervisorId: "fac-le",
+    team: genzTeam,
     nextAction: "Respond to your invitation",
     nextActionDue: "2026-07-30",
     testResult: {
@@ -173,8 +196,9 @@ export const applications: Application[] = [
     appliedAt: "2026-05-20",
     stageEnteredAt: "2026-06-22",
     facultySupervisorId: "fac-pham",
-    nextAction: "Submit milestone 3 — forecast module",
-    nextActionDue: "2026-08-03",
+    team: supplyTeam,
+    nextAction: "Milestone 3 is with your reviewers",
+    nextActionDue: null,
     testResult: {
       track: "Technical",
       submittedAt: "2026-06-04",
@@ -223,7 +247,8 @@ export const applications: Application[] = [
           id: "ms-3",
           title: "Forecast module",
           dueDate: "2026-08-03",
-          status: "In progress",
+          // Submitted and unreviewed — the faculty portal's approve case.
+          status: "Submitted",
           deliverable: "Notebook + short methodology memo",
           facultyApproved: false,
           posterApproved: false,
@@ -232,7 +257,7 @@ export const applications: Application[] = [
           id: "ms-4",
           title: "Dashboard build",
           dueDate: "2026-08-24",
-          status: "Not started",
+          status: "In progress",
           deliverable: "Deployed dashboard link",
           facultyApproved: false,
           posterApproved: false,
@@ -247,6 +272,7 @@ export const applications: Application[] = [
           posterApproved: false,
         },
       ],
+      meetings: supplyMeetings,
       resources: [
         {
           name: "Inbound shipment extract (18 months)",
@@ -281,6 +307,7 @@ export const applications: Application[] = [
         "Your work is to build the first unified view. That means reconciling the four sources into a single warehouse schema, establishing which fields can be trusted from which system, and producing a forecast module that flags likely stockouts two weeks ahead. The dashboard is the visible deliverable, but the reconciliation logic underneath it is the part the partner will keep.",
         "You will have direct access to eighteen months of historical shipment data under NDA, and a weekly slot with the analytics team. The partner has been explicit that they would rather have a defensible, well-documented model over a sophisticated one they cannot maintain after handover.",
       ],
+      facultyFeedback: null,
     },
   },
   {
@@ -290,6 +317,7 @@ export const applications: Application[] = [
     appliedAt: "2026-03-10",
     stageEnteredAt: "2026-07-18",
     facultySupervisorId: "fac-vu",
+    team: energyTeam,
     nextAction: "Complete your reflection",
     nextActionDue: "2026-08-05",
     testResult: {
@@ -345,6 +373,7 @@ export const applications: Application[] = [
           posterApproved: false,
         },
       ],
+      meetings: energyMeetings,
       resources: [
         {
           name: "Campus meter readings 2024–2026",
@@ -366,6 +395,7 @@ export const applications: Application[] = [
         "VinUniversity has committed to a measurable reduction in campus energy consumption, but the estimates it currently reports are extrapolated from a small number of building-level meters rather than measured directly.",
         "This audit establishes the real baseline: what each building consumes, when, and how much of that is avoidable. The output feeds directly into the university's capital planning cycle, so the recommendations need to be costed, not just identified.",
       ],
+      facultyFeedback: null,
     },
   },
   {
@@ -374,7 +404,11 @@ export const applications: Application[] = [
     stage: "COMPLETED",
     appliedAt: "2025-11-14",
     stageEnteredAt: "2026-05-29",
-    facultySupervisorId: "fac-tran",
+    // Not fac-tran: Dr. Bao Tran is this project's poster contact (the
+    // University Librarian), and the same person cannot also be the faculty
+    // supervisor signing their own project off.
+    facultySupervisorId: "fac-pham",
+    team: archiveTeam,
     nextAction: null,
     nextActionDue: null,
     testResult: {
@@ -430,6 +464,7 @@ export const applications: Application[] = [
           posterApproved: true,
         },
       ],
+      meetings: archiveMeetings,
       resources: [
         {
           name: "Scanned holdings index",
@@ -451,6 +486,8 @@ export const applications: Application[] = [
         "The university's regional history collection exists only on paper, is consulted rarely because nobody can search it, and is deteriorating.",
         "This project built the digitisation pipeline and the searchable front end that replaced it, along with the runbook the library uses to continue the work.",
       ],
+      // Closed but unreviewed — the faculty portal's write-feedback case.
+      facultyFeedback: null,
     },
   },
   {
@@ -460,6 +497,7 @@ export const applications: Application[] = [
     appliedAt: "2026-07-19",
     stageEnteredAt: "2026-07-26",
     facultySupervisorId: "fac-le",
+    team: marketTeam,
     nextAction: "Waiting on the partner to release your test",
     nextActionDue: null,
     testResult: null,
@@ -473,7 +511,23 @@ export const applications: Application[] = [
     appliedAt: "2026-06-11",
     stageEnteredAt: "2026-06-25",
     facultySupervisorId: "fac-rivera",
+    team: soloTeam("Spectro", "Research"),
     nextAction: null,
+    nextActionDue: null,
+    testResult: null,
+    offer: null,
+    project: null,
+  },
+  {
+    id: "app-outreach",
+    challengeId: "community-health-outreach",
+    stage: "APPLIED",
+    appliedAt: "2026-07-25",
+    stageEnteredAt: "2026-07-25",
+    // Nominated but not yet accepted — see supervision-invites.ts.
+    facultySupervisorId: "fac-pham",
+    team: outreachTeam,
+    nextAction: "Waiting on your supervisor to accept",
     nextActionDue: null,
     testResult: null,
     offer: null,
