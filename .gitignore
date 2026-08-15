@@ -50,6 +50,6 @@ next-env.d.ts
 # claude code local settings
 .claude/settings.local.json
 
-context/
+#
 agent-briefs/
 MISSING_PAGES_PLAN.md
