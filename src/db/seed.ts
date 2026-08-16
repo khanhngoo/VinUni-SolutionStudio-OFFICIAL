@@ -8,6 +8,7 @@ import { seedBootstrap } from "./seed/bootstrap";
 import { seedDemoChallenges } from "./seed/challenges";
 import { SeedContext } from "./seed/context";
 import { seedDemo } from "./seed/demo";
+import { seedDemoSelectionsOffersAgreements } from "./seed/offers";
 import { seedReference } from "./seed/reference";
 import { formatSeedTarget, validateSeedSafety } from "./seed/safety";
 
@@ -204,6 +205,7 @@ async function main() {
     await seedDemoChallenges(seedContext);
     await seedDemoApplications(seedContext);
     await seedDemoAssessments(seedContext);
+    await seedDemoSelectionsOffersAgreements(seedContext);
 
     return seedContext;
   });

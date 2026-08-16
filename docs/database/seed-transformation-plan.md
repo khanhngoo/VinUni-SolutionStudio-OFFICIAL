@@ -274,6 +274,68 @@ Phase 3.6 application status distribution:
 
 See `docs/database/demo-seed-manifest.md` for exact assessment definitions, attempt ownership, lifecycle transitions, and deferral notes.
 
+## Phase 3.7 Selections, Offers, And Agreements Status
+
+Phase 3.7 implements the compact DEMO selection/offer/agreement layer only.
+
+Implemented scope:
+
+- DEMO selections: 5
+- DEMO offers: 5
+- DEMO agreements: 5
+
+Seeded selection/offer fixtures:
+
+- `application:app-route` -> pending offer
+- `application:app-supply` -> accepted offer
+- `application:app-energy` -> accepted offer
+- `application:app-archive` -> accepted offer
+- `application:papp-depot` -> accepted offer
+
+Phase 3.7 classification policy as implemented:
+
+- `app-triage` is `NO_SELECTION` and remains `REJECTED`.
+- `app-churn` is `NO_SELECTION` and remains `SELECTION_PENDING` after its passing reviewed assessment because no deterministic final-selection evidence is present.
+- `app-outreach` is `NO_SELECTION` and remains `SUBMITTED` with its pending supervision request.
+- `app-route` is `SELECTION_WITH_PENDING_OFFER`.
+- `app-supply`, `app-energy`, `app-archive`, and `papp-depot` are `SELECTION_WITH_ACCEPTED_OFFER`.
+
+Selection and offer mapping:
+
+- One selected application has exactly one `selections` row.
+- One selection has exactly one durable `offers` row.
+- `applications.status` is updated to `SELECTED` only for applications with a selection row.
+- `selected_by` uses the deterministic owner/contact actor where available: Bến Cảng contact for Bến Cảng scenarios, Facilities contact for campus energy, and Heritage contact for archive.
+- Accepted offers use `responded_by` = the accepted application leader.
+- The `app-route` pending offer keeps `responded_by = NULL`, `responded_at = NULL`, and preserves the invited member without creating a project or agreement.
+- Offer expiration remains derived from `PENDING + respond_by < current time`; no `EXPIRED` status is seeded.
+
+Agreement mapping:
+
+- Individual NDA agreements are seeded only for accepted-offer scenarios with deterministic NDA/restricted-resource evidence.
+- `app-supply` seeds NDA `demo-v1` agreements for Jordan Lee, Priya Raman, and Minh Anh Nguyen.
+- `papp-depot` seeds NDA `demo-v1` agreements for Bao Tran and Hoang Tran.
+- `app-route` seeds no agreements because the offer is still pending, even though the offer requires NDA acceptance later.
+- `app-energy` and `app-archive` seed no agreements because no deterministic NDA requirement exists.
+- No agreement is seeded for invited application members.
+
+Deferred/avoided records:
+
+- Projects, project members, milestones, deliverables, milestone reviews, project resources, feedback, matching outputs, notifications, and audit logs remain deferred.
+- Phase 3.7 does not fabricate rich offer terms beyond compact deterministic static values and minimal lifecycle support for historical project fixtures.
+- `papp-depot` selection/offer state is labeled synthesized lifecycle support where needed because the static provider fixture has active-project evidence but project rows remain Phase 3.8.
+
+Phase 3.7 application status distribution:
+
+- `SUBMITTED`: 1
+- `ASSESSMENT`: 0
+- `SELECTION_PENDING`: 1
+- `SELECTED`: 5
+- `REJECTED`: 1
+- `WITHDRAWN`: 0
+
+See `docs/database/demo-seed-manifest.md` for exact selection/offer timestamps, actors, terms, agreement users, invariants, and deferral notes.
+
 ## Seed Categories
 
 | Category | Meaning | Proposed records |

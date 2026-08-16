@@ -1,11 +1,11 @@
 # DEMO Seed Manifest
 
-Phase: 3.6 compact DEMO assessment layer
+Phase: 3.7 compact DEMO selections, offers, and agreements layer
 Date: 2026-08-16
 
 ## Scope
 
-This manifest is the authoritative compact DEMO identity, organization, and challenge-side inventory for Phase 3.2+.
+This manifest is the authoritative compact DEMO identity, organization, challenge, application, assessment, selection, offer, and agreement inventory for Phase 3.2+.
 
 Phase 3.2 seeds only:
 
@@ -37,7 +37,13 @@ Phase 3.6 adds only unambiguous assessment records:
 - DEMO `assessment_attempts`
 - DEMO `assessment_scores`
 
-Phase 3.6 intentionally keeps `assessment_responses = 0` because the selected fixtures provide qualitative reviewed results but no response-level answers. `application_projects` remains 0 because structured student-project evidence conversion is deferred. It does not seed selections, offers, agreements, projects, milestones, deliverables, feedback, matching records, notifications, or audit demo records.
+Phase 3.7 adds only selected-application commercial/legal lifecycle records:
+
+- DEMO `selections`
+- DEMO `offers`
+- DEMO `agreements`
+
+Phase 3.6 intentionally keeps `assessment_responses = 0` because the selected fixtures provide qualitative reviewed results but no response-level answers. `application_projects` remains 0 because structured student-project evidence conversion is deferred. Phase 3.7 still does not seed projects, project members, milestones, deliverables, feedback, matching records, notifications, or audit demo records.
 
 ## Compact Scenario Spine
 
@@ -331,16 +337,16 @@ Leader `responded_at` uses the deterministic application `appliedAt` timestamp b
 
 ### Static To Staged Lifecycle Matrix
 
-| Source fixture | Static display state | Phase 3.5 authoritative database state | Phase 3.6 authoritative database state | Future database state |
-|---|---|---|---|---|
-| `app-triage` | `NOT_SELECTED` after failed assessment | `applications.status = ASSESSMENT`; no assessment rows yet | `applications.status = REJECTED`; reviewed failed INDIVIDUAL assessment attempt exists | Terminal rejected scenario unless later fixtures explicitly add history |
-| `app-route` | `INVITED` / pending offer | `applications.status = SELECTION_PENDING`; no selection/offer rows yet | unchanged; no assessment attempt seeded | Phase 3.7 creates selection plus pending offer and transitions to `SELECTED` |
-| `app-churn` | `TEST_SUBMITTED` with passing visible result | `applications.status = SELECTION_PENDING`; no assessment rows yet | `applications.status = SELECTION_PENDING`; reviewed passed INDIVIDUAL assessment attempt exists | Phase 3.7 may create selected/offer state if chosen |
-| `app-outreach` | `APPLIED` / waiting on supervisor | `applications.status = SUBMITTED`; pending supervision request exists | unchanged; no assessment attempt seeded | Later phase may advance after supervision and assessment/selection rows exist |
-| `app-supply` | `ACTIVE` project workspace | `applications.status = SELECTION_PENDING`; no selection/offer/project rows yet | unchanged; project-bound assessment history remains deferred | Phase 3.7 creates accepted selection/offer; Phase 3.8 creates active project |
-| `app-energy` | `IN_REVIEW` project | `applications.status = SELECTION_PENDING`; no selection/offer/project rows yet | unchanged; project-bound assessment history remains deferred | Phase 3.7 creates accepted selection/offer; Phase 3.8 creates final-review project |
-| `app-archive` | `COMPLETED` project | `applications.status = SELECTION_PENDING`; no selection/offer/project rows yet | unchanged; project-bound assessment history remains deferred | Phase 3.7 creates accepted selection/offer; Phase 3.8 creates completed project and close-out data |
-| `papp-depot` | `ACTIVE` partner approval workflow | `applications.status = SELECTION_PENDING`; no selection/offer/project rows yet | unchanged; provider/team `testResult` ownership is ambiguous and deferred | Phase 3.7 creates accepted selection/offer; Phase 3.8 creates active project with pending partner approval |
+| Source fixture | Static display state | Phase 3.5 authoritative database state | Phase 3.6 authoritative database state | Phase 3.7 authoritative database state | Phase 3.8+ database state |
+|---|---|---|---|---|---|
+| `app-triage` | `NOT_SELECTED` after failed assessment | `applications.status = ASSESSMENT`; no assessment rows yet | `applications.status = REJECTED`; reviewed failed INDIVIDUAL assessment attempt exists | unchanged; no selection/offer/agreement rows | Terminal rejected scenario unless later fixtures explicitly add history |
+| `app-route` | `INVITED` / pending offer | `applications.status = SELECTION_PENDING`; no selection/offer rows yet | unchanged; no assessment attempt seeded | `applications.status = SELECTED`; one selection plus one `PENDING` offer; invited member remains `INVITED`; no agreements | Phase 3.8 still creates no project unless an accepted offer exists |
+| `app-churn` | `TEST_SUBMITTED` with passing visible result | `applications.status = SELECTION_PENDING`; no assessment rows yet | `applications.status = SELECTION_PENDING`; reviewed passed INDIVIDUAL assessment attempt exists | unchanged; no selection/offer/agreement rows | Later phase may advance only if explicit selected evidence is approved |
+| `app-outreach` | `APPLIED` / waiting on supervisor | `applications.status = SUBMITTED`; pending supervision request exists | unchanged; no assessment attempt seeded | unchanged; no selection/offer/agreement rows | Later phase may advance after supervision and assessment/selection rows exist |
+| `app-supply` | `ACTIVE` project workspace | `applications.status = SELECTION_PENDING`; no selection/offer/project rows yet | unchanged; project-bound assessment history remains deferred | `applications.status = SELECTED`; one accepted selection/offer plus NDA agreements for accepted members | Phase 3.8 creates active project |
+| `app-energy` | `IN_REVIEW` project | `applications.status = SELECTION_PENDING`; no selection/offer/project rows yet | unchanged; project-bound assessment history remains deferred | `applications.status = SELECTED`; one accepted selection/offer; no agreements | Phase 3.8 creates final-review project |
+| `app-archive` | `COMPLETED` project | `applications.status = SELECTION_PENDING`; no selection/offer/project rows yet | unchanged; project-bound assessment history remains deferred | `applications.status = SELECTED`; one accepted selection/offer; no agreements | Phase 3.8 creates completed project and close-out data |
+| `papp-depot` | `ACTIVE` partner approval workflow | `applications.status = SELECTION_PENDING`; no selection/offer/project rows yet | unchanged; provider/team `testResult` ownership is ambiguous and deferred | `applications.status = SELECTED`; one accepted selection/offer plus NDA agreements for accepted members | Phase 3.8 creates active project with pending partner approval |
 
 Phase 3.5 intentionally seeds no `SELECTED` applications because `selections = 0`. It also avoids `REJECTED` for `app-triage` until the failed assessment result exists as durable assessment data.
 
@@ -407,6 +413,93 @@ Acceptance invariants verified during seeding:
 - Every attempt assessment challenge matches the attempt application challenge.
 - No provider/team ambiguous assessment attempts are seeded for `papp-depot`.
 - Selections, offers, agreements, projects, project members, milestones, resources, feedback, and matching records remain zero.
+
+## Phase 3.7 Selection, Offer, And Agreement DEMO Records
+
+Phase 3.7 seeds only selected-application, durable offer, and individual agreement records. Projects remain deferred until Phase 3.8, so accepted historical project fixtures stop at accepted offer state in this checkpoint.
+
+### Compact Application Selection Classification
+
+| Application | Classification | Phase 3.7 action |
+|---|---|---|
+| `app-triage` | `NO_SELECTION` | Remains `REJECTED` after failed assessment; no selection or offer is seeded. |
+| `app-churn` | `NO_SELECTION` | Remains `SELECTION_PENDING` because no deterministic final-selection evidence is present. |
+| `app-outreach` | `NO_SELECTION` | Remains `SUBMITTED` with pending supervision request; no selection or offer is seeded. |
+| `app-route` | `SELECTION_WITH_PENDING_OFFER` | Creates one selection and one pending offer; application becomes `SELECTED`. |
+| `app-supply` | `SELECTION_WITH_ACCEPTED_OFFER` | Creates one selection and one accepted offer; application becomes `SELECTED`. |
+| `app-energy` | `SELECTION_WITH_ACCEPTED_OFFER` | Creates one selection and one accepted offer; application becomes `SELECTED`. |
+| `app-archive` | `SELECTION_WITH_ACCEPTED_OFFER` | Creates one selection and one accepted offer; application becomes `SELECTED`. |
+| `papp-depot` | `SELECTION_WITH_ACCEPTED_OFFER` | Creates one selection and one accepted offer; application becomes `SELECTED`. |
+
+`papp-depot` uses `SYNTHESIZED LIFECYCLE SUPPORT` for its selection/offer row because the static provider fixture has deterministic active-project evidence and explicit offer terms, but Phase 3.7 intentionally does not create the project yet.
+
+### Selection And Offer Mapping
+
+| Application | Challenge | Source | `selected_by` | `selected_at` | Offer status | `respond_by` | `responded_by` | `responded_at` | Hours/week | Duration | Start date | NDA required |
+|---|---|---|---|---|---|---|---|---|---:|---:|---|---|
+| `app-route` | `route-optimisation` | `DIRECT_FIXTURE` | `user:contact-org-bencang` | `2026-07-26T08:00:00Z` | `PENDING` | `2026-07-28T16:00:00Z` | `NULL` | `NULL` | 10 | 10 | `2026-08-17` | true |
+| `app-supply` | `supply-chain-dashboard` | `DIRECT_FIXTURE` | `user:contact-org-bencang` | `2026-06-18T08:00:00Z` | `ACCEPTED` | `2026-06-21T12:00:00Z` | `user:stu-jordan-lee` | `2026-06-20T10:00:00Z` | 12 | 12 | `2026-06-22` | true |
+| `app-energy` | `campus-energy-audit` | `DIRECT_FIXTURE` | `user:contact-org-facilities` | `2026-04-05T08:00:00Z` | `ACCEPTED` | `2026-04-08T12:00:00Z` | `user:stu-jordan-lee` | `2026-04-07T10:00:00Z` | 6 | 14 | `2026-04-13` | false |
+| `app-archive` | `archive-digitisation` | `DIRECT_FIXTURE` | `user:contact-org-heritage` | `2025-12-18T08:00:00Z` | `ACCEPTED` | `2025-12-21T12:00:00Z` | `user:stu-jordan-lee` | `2025-12-20T10:00:00Z` | 6 | 16 | `2026-01-12` | false |
+| `papp-depot` | `route-optimisation` | `SYNTHESIZED_LIFECYCLE_SUPPORT` | `user:contact-org-bencang` | `2026-06-05T08:00:00Z` | `ACCEPTED` | `2026-06-08T17:00:00Z` | `user:stu-bao-tran` | `2026-06-07T10:00:00Z` | 10 | 10 | `2026-06-12` | true |
+
+Offer response rules:
+
+- Pending offers have `responded_by = NULL` and `responded_at = NULL`.
+- Accepted offers use `responded_by` = the accepted application leader.
+- External partner selections use the deterministic partner contact where available instead of defaulting every `selected_by` to CAID.
+- Offer expiration remains derived from `offers.status = PENDING` plus `respond_by`; no `EXPIRED` status is stored.
+
+### Agreement Mapping
+
+Phase 3.7 seeds individual NDA agreements only for accepted-offer scenarios that need restricted/NDA coverage. It does not seed agreements for a pending offer and does not create agreements for invited members.
+
+| Application | Agreement users | Agreement type/version | Reason |
+|---|---|---|---|
+| `app-route` | none | none | Offer remains `PENDING`; no team-level acceptance and no individual NDA acceptance yet. |
+| `app-supply` | Jordan Lee, Priya Raman, Minh Anh Nguyen | `NDA` / `demo-v1` | Accepted offer with deterministic NDA/restricted-resource coverage for all accepted members. |
+| `app-energy` | none | none | Accepted offer, but no deterministic NDA requirement. |
+| `app-archive` | none | none | Accepted offer, but no deterministic NDA requirement. |
+| `papp-depot` | Bao Tran, Hoang Tran | `NDA` / `demo-v1` | Accepted provider-side offer with deterministic NDA/restricted-resource coverage for accepted members. |
+
+### Phase 3.7 Expected Counts
+
+After a clean Phase 3.7 seed, the selection/offer/agreement layer should contain:
+
+- `selections`: 5
+- `offers`: 5
+- `agreements`: 5
+- `projects`: 0
+- `match_results`: 0
+- `match_skill_details`: 0
+- `match_experience_details`: 0
+
+Offer status distribution:
+
+- `PENDING`: 1
+- `ACCEPTED`: 4
+
+Application status distribution:
+
+- `SUBMITTED`: 1
+- `ASSESSMENT`: 0
+- `SELECTION_PENDING`: 1
+- `SELECTED`: 5
+- `REJECTED`: 1
+- `WITHDRAWN`: 0
+
+Acceptance invariants verified during seeding:
+
+- Every selection references an existing seeded application.
+- Every selected application has exactly one selection.
+- Every offer references one selection, and every seeded selection has exactly one durable offer.
+- No rejected application has a selection.
+- Every accepted offer has `responded_by` and `responded_at`.
+- The accepted offer responder is the accepted application leader.
+- The `app-route` pending offer has no response actor/time, preserves one invited member, and has no agreements/projects.
+- Every seeded agreement belongs to the same challenge/application path and to an accepted application member.
+- No invited member receives an agreement.
+- Projects, project members, milestones, resources, feedback, and matching records remain zero.
 
 ### Supervision Request Mapping
 

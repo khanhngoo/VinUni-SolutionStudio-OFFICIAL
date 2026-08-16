@@ -3,7 +3,7 @@
 **Repository:** `VinUni-SolutionStudio-OFFICIAL`  
 **Project:** VinUniversity Solution Studio / AI-in-Action Platform  
 **Last updated:** 2026-08-16  
-**Current phase:** Phase 3.7 — DEMO Selections, Offers, and Agreements
+**Current phase:** Phase 3.8 — DEMO Projects, Milestones, Workspace Resources, and Feedback
 
 ---
 
@@ -703,9 +703,9 @@ The reset workflow established in Phase 3.4 is an ongoing invariant for every Ph
 - Phase 3.3: ✅ COMPLETE / HUMAN REVIEW COMPLETE — DEMO challenges and challenge-side normalized data implemented and verified.
 - Phase 3.4: ✅ COMPLETE / HUMAN REVIEW COMPLETE — canonical local reset workflow implemented as `pnpm db:reset`; migration-from-zero and seed-from-zero reproducibility verified.
 - Phase 3.5: ✅ COMPLETE / HUMAN REVIEW COMPLETE — normalized DEMO applications, application members/teams, and supervision request.
-- Phase 3.6: ✅ COMPLETE / HUMAN REVIEW PENDING — DEMO assessment definitions, attempts, responses, and scores for unambiguous scenarios.
-- Phase 3.7: 🚧 NEXT — DEMO selections, offers, and agreements.
-- Phase 3.8: ⬜ NOT STARTED — DEMO projects, project members, milestones, deliverables, milestone reviews, resources, and feedback.
+- Phase 3.6: ✅ COMPLETE / HUMAN REVIEW COMPLETE — DEMO assessment definitions, attempts, responses, and scores for unambiguous scenarios.
+- Phase 3.7: ✅ COMPLETE / HUMAN REVIEW PENDING — DEMO selections, offers, and agreements.
+- Phase 3.8: 🚧 NEXT — DEMO projects, project members, milestones, deliverables, milestone reviews, resources, and feedback.
 - Phase 3.9: ⬜ NOT STARTED — final complete seed reset/reproducibility verification and Phase 3 closeout.
 
 ## 3.0 Design the seed transformation
@@ -1076,20 +1076,32 @@ agreements
 
 Rules/checklist:
 
-- [ ] Seed at most one selection per selected compact application
-- [ ] Seed at most one durable offer per selection
-- [ ] Update selected application rows to `SELECTED` only when the corresponding selection exists
-- [ ] Preserve pending-offer scenario such as `app-route`
-- [ ] Use `responded_by` = accepted application leader for accepted/declined team-level offers
-- [ ] Preserve offer expiry as derived: `PENDING + respond_by < now()`, never an `EXPIRED` enum
-- [ ] Seed accepted offer terms for scenarios that will become active/final-review/completed projects
-- [ ] Seed required NDA/confidentiality/data-access agreements only for compact scenarios that need restricted-resource access
-- [ ] Keep consent records separate from agreements
-- [ ] Keep projects/project members/milestones/resources at zero
-- [ ] Verify application ↔ selection ↔ offer cardinality
-- [ ] Verify repeated seed idempotency
-- [ ] Run `pnpm db:reset` and verify complete Phase 3.7 state from zero
-- [ ] Update manifest/transformation plan/current plan with actual counts and transitions
+- [x] Seed at most one selection per selected compact application
+- [x] Seed at most one durable offer per selection
+- [x] Update selected application rows to `SELECTED` only when the corresponding selection exists
+- [x] Preserve pending-offer scenario such as `app-route`
+- [x] Use `responded_by` = accepted application leader for accepted/declined team-level offers
+- [x] Preserve offer expiry as derived: `PENDING + respond_by < now()`, never an `EXPIRED` enum
+- [x] Seed accepted offer terms for scenarios that will become active/final-review/completed projects
+- [x] Seed required NDA/confidentiality/data-access agreements only for compact scenarios that need restricted-resource access
+- [x] Keep consent records separate from agreements
+- [x] Keep projects/project members/milestones/resources at zero
+- [x] Verify application ↔ selection ↔ offer cardinality
+- [x] Verify repeated seed idempotency
+- [x] Run `pnpm db:reset` and verify complete Phase 3.7 state from zero
+- [x] Update manifest/transformation plan/current plan with actual counts and transitions
+
+### Phase 3.7 actual results
+
+- Seeded 5 `selections` rows for `app-route`, `app-supply`, `app-energy`, `app-archive`, and `papp-depot`.
+- Seeded 5 durable `offers` rows: 1 `PENDING` offer for `app-route` and 4 `ACCEPTED` offers for project-bound historical scenarios.
+- Seeded 5 individual NDA `agreements`: 3 for accepted `app-supply` members and 2 for accepted `papp-depot` members.
+- Transitioned selected applications to `SELECTED` only after their selection rows exist.
+- Preserved `app-triage` as `REJECTED`, `app-churn` as `SELECTION_PENDING`, and `app-outreach` as `SUBMITTED`.
+- Used deterministic partner/internal contacts as `selected_by` and accepted application leaders as `responded_by`.
+- Preserved the `app-route` pending-offer scenario with no response actor/time, one invited member, no agreements, and no project.
+- Kept projects, project members, milestones, deliverables, milestone reviews, project resources, feedback, matching outputs, notifications, and audit demo records at zero.
+- Verified guarded seed idempotency and reset-from-zero reproducibility through Phase 3.7.
 
 ## 3.8 Implement DEMO projects, milestones, workspace resources, and feedback
 
@@ -1576,7 +1588,7 @@ project files
 ## Current status
 
 **Current phase:** Phase 3 — Seed Transformation  
-**Active next checkpoint:** Phase 3.7 — DEMO Selections, Offers, and Agreements
+**Active next checkpoint:** Phase 3.8 — DEMO Projects, Milestones, Workspace Resources, and Feedback
 
 ### Latest completed work
 
@@ -1598,12 +1610,15 @@ project files
 - Phase 3.5 is COMPLETE / HUMAN REVIEW COMPLETE: 8 compact applications, 18 application members, 0 application-project evidence links, and 1 pending supervision request are seeded.
 - Phase 3.5 application set: `app-triage`, `app-route`, `app-churn`, `app-outreach`, `app-supply`, `app-energy`, `app-archive`, and `papp-depot`.
 - Phase 3.5 preserves exactly one accepted leader per application, the solo `app-triage` scenario, the `app-route` pending invited member, and the `app-outreach + inv-outreach` supervision request.
-- Phase 3.6 is COMPLETE / HUMAN REVIEW PENDING: 2 assessments, 5 assessment sections, 12 assessment questions, 2 reviewed individual attempts, 0 responses, and 2 qualitative assessment scores are seeded.
+- Phase 3.6 is COMPLETE / HUMAN REVIEW COMPLETE: 2 assessments, 5 assessment sections, 12 assessment questions, 2 reviewed individual attempts, 0 responses, and 2 qualitative assessment scores are seeded.
 - Phase 3.6 assessment set: `assessment:triage-protocol-review` for `app-triage` and `assessment:merchant-churn-model` for `app-churn`.
 - Phase 3.6 transitions `app-triage` to `REJECTED` only after its failed reviewed assessment exists and keeps `app-churn` at `SELECTION_PENDING` after its passing reviewed assessment.
 - Phase 3.6 intentionally defers ambiguous provider/team assessment results such as `papp-depot`; no TEAM-scope attempt is silently inferred.
-- Current application lifecycle distribution is `SUBMITTED = 1`, `ASSESSMENT = 0`, `SELECTION_PENDING = 6`, `SELECTED = 0`, `REJECTED = 1`, `WITHDRAWN = 0`.
-- Selections/offers, agreements, projects/milestones/resources/feedback, and matching outputs remain unseeded.
+- Phase 3.7 is COMPLETE / HUMAN REVIEW PENDING: 5 selections, 5 offers, and 5 agreements are seeded.
+- Phase 3.7 selection/offer set: `app-route` pending offer; `app-supply`, `app-energy`, `app-archive`, and `papp-depot` accepted offers.
+- Phase 3.7 seeds NDA agreements only for accepted restricted/NDA scenarios: `app-supply` accepted members and `papp-depot` accepted members.
+- Current application lifecycle distribution is `SUBMITTED = 1`, `ASSESSMENT = 0`, `SELECTION_PENDING = 1`, `SELECTED = 5`, `REJECTED = 1`, `WITHDRAWN = 0`.
+- Projects/milestones/resources/feedback, matching outputs, notifications, and audit demo records remain unseeded.
 - ERD v1 remains frozen; later structural DB changes require a new reviewed schema change.
 - `src/db/seed/skills.ts` retains the approved taxonomy and exposes conservative seed-label resolution without semantic skill merging.
 
@@ -1616,9 +1631,10 @@ project files
 - `pnpm build` passes when network access is available for Google Fonts.
 - `pnpm db:seed` refuses without `ALLOW_DB_SEED=true`.
 - `NODE_ENV=production ALLOW_DB_SEED=true pnpm db:seed` refuses before writes.
-- Repeated `ALLOW_DB_SEED=true pnpm db:seed` is idempotent for the Phase 3.6 seed state.
-- `pnpm db:reset` recreates the Phase 3.6 seed state from an empty local Docker volume.
+- Repeated `ALLOW_DB_SEED=true pnpm db:seed` is idempotent for the Phase 3.7 seed state.
+- `pnpm db:reset` recreates the Phase 3.7 seed state from an empty local Docker volume.
 - Phase 3.6 validation confirms assessment/application/challenge consistency, every individual attempt has a member owner, every attempt owner belongs to the attempt application, `papp-depot` has zero assessment attempts, and downstream leakage remains zero.
+- Phase 3.7 validation confirms one selection per selected application, one offer per selection, accepted offer responses by accepted leaders, pending offer response fields empty, agreement/application/challenge consistency, and no project or matching leakage.
 - pgvector is enabled after reset; no vector columns or vector indexes exist yet.
 - Current reproducible seed counts:
 
@@ -1649,9 +1665,9 @@ assessment_questions:           12
 assessment_attempts:             2
 assessment_responses:            0
 assessment_scores:               2
-selections:                      0
-offers:                          0
-agreements:                      0
+selections:                      5
+offers:                          5
+agreements:                      5
 projects:                        0
 project_members:                 0
 milestones:                      0
@@ -1664,9 +1680,9 @@ match_results:                   0
 
 ## Immediate next task
 
-### Phase 3.7 — DEMO Selections, Offers, and Agreements
+### Phase 3.8 — DEMO Projects, Milestones, Workspace Resources, and Feedback
 
-Phase 3.6 has implemented the compact assessment layer. Human review should confirm the assessment mappings before selection/offer/agreement DEMO seeding begins.
+Phase 3.7 has implemented the compact selected-application, offer, and agreement layer. Human review should confirm those mappings before project/workspace DEMO seeding begins.
 
 Do **not** jump to Phase 4 yet. Phase 4 begins only after Phase 3.7–3.9 complete the normalized compact DEMO workflow dataset.
 
@@ -1679,7 +1695,7 @@ Phase 3.5 applications + application members + supervision ✅
         ↓
 Phase 3.6 assessments ✅
         ↓
-Phase 3.7 selections + offers + agreements
+Phase 3.7 selections + offers + agreements ✅
         ↓
 Phase 3.8 projects + milestones + resources + feedback
         ↓
@@ -1688,18 +1704,19 @@ Phase 3.9 final reset/reproducibility closeout
 Phase 4 challenge marketplace DB read path
 ```
 
-### Immediate Phase 3.7 checklist
+### Immediate Phase 3.8 checklist
 
-- [ ] Re-read the exact Phase 3.7 section in this plan before implementation
-- [ ] Seed selections only for selected compact applications
-- [ ] Seed at most one durable offer per selection
-- [ ] Update application rows to `SELECTED` only when the corresponding selection exists
-- [ ] Use accepted application leaders as `offers.responded_by` for accepted/declined team-level offers
-- [ ] Preserve pending-offer and accepted-offer scenarios without creating projects
-- [ ] Seed agreements only where compact NDA/confidentiality coverage needs them
-- [ ] Keep projects, milestones/resources/feedback, and matching outputs deferred
+- [ ] Re-read the exact Phase 3.8 section in this plan before implementation
+- [ ] Create projects only from originating applications with accepted offers
+- [ ] Preserve `projects.application_id` as the canonical project origin
+- [ ] Seed initial project members from accepted application members
+- [ ] Map active, final-review, completed, and partner-approval project scenarios only where deterministic
+- [ ] Normalize milestones, deliverables, milestone reviews, resources, and feedback
+- [ ] Respect agreement requirements for restricted resources
+- [ ] Keep meetings/join links deferred
+- [ ] Keep matching outputs at zero
 - [ ] Verify repeated `db:seed` idempotency
-- [ ] Verify `pnpm db:reset` recreates the new Phase 3.7 state from zero
+- [ ] Verify `pnpm db:reset` recreates the new Phase 3.8 state from zero
 - [ ] Update `docs/database/demo-seed-manifest.md`
 - [ ] Update `docs/database/seed-transformation-plan.md`
 - [ ] Update this plan's status, actual counts, work log, and next checkpoint
@@ -1718,23 +1735,27 @@ Before each agent implementation task:
 
 ### Recommended next agent instruction
 
-The detailed Phase 3.7 implementation prompt should implement only:
+The detailed Phase 3.8 implementation prompt should implement only:
 
 ```text
-selections
-offers
-agreements
+projects
+project_members
+milestones
+deliverables
+milestone_reviews
+project_resources
+feedback
 ```
 
 and must stop before:
 
 ```text
-projects
-milestones
 matching
+notifications
+audit
 ```
 
-The Phase 3.7 implementation should preserve `Application -> Selection -> Offer` cardinality, use accepted leaders for team offer response actors, and keep projects deferred until Phase 3.8.
+The Phase 3.8 implementation should preserve `Application -> Selection -> Offer -> Project` lifecycle consistency, create projects only after accepted offers, and keep matching deferred until Phase 7.
 
 ---
 
@@ -1790,6 +1811,17 @@ Use this section after each development session.
 - Verified no Phase 3.7-3.8 leakage into selections/offers, agreements, projects, milestones/resources/feedback, or matching outputs
 - Verified guarded seed idempotency before reset, `pnpm db:reset` reproduction from zero, and post-reset seed idempotency through Phase 3.6
 - Updated `docs/database/demo-seed-manifest.md`, `docs/database/seed-transformation-plan.md`, and this plan with Phase 3.6 counts, mappings, deferrals, and next checkpoint
+- Phase 3.7 DEMO selections, offers, and agreements layer implemented and documented
+- Added `src/db/seed/offers.ts` for deterministic selections, durable offers, accepted-leader offer responses, and individual NDA agreements
+- Wired Phase 3.7 seeding into the guarded transaction after DEMO assessments
+- Seeded 5 selections and 5 offers for `app-route`, `app-supply`, `app-energy`, `app-archive`, and `papp-depot`
+- Preserved `app-route` as `SELECTED` with one pending offer, no response actor/time, one invited member, no agreements, and no project
+- Seeded 4 accepted offers for `app-supply`, `app-energy`, `app-archive`, and `papp-depot`, with `responded_by` set to the accepted application leader
+- Seeded 5 individual NDA agreements only for accepted restricted/NDA scenarios: three accepted `app-supply` members and two accepted `papp-depot` members
+- Preserved `app-triage` as `REJECTED`, `app-churn` as `SELECTION_PENDING`, and `app-outreach` as `SUBMITTED`
+- Verified no Phase 3.8+ leakage into projects, project members, milestones, deliverables, milestone reviews, project resources, feedback, matching outputs, notifications, or audit logs
+- Verified guarded seed idempotency before reset, `pnpm db:reset` reproduction from zero, and post-reset seed idempotency through Phase 3.7
+- Updated `docs/database/demo-seed-manifest.md`, `docs/database/seed-transformation-plan.md`, and this plan with Phase 3.7 counts, mappings, deferrals, and next checkpoint
 - Phase 3.2 compact DEMO identity and organization foundation implemented
 - `docs/database/demo-seed-manifest.md` created as the authoritative compact DEMO inventory
 - Exact compact scenario spine selected: route, churn, triage, outreach, supply, energy, archive, depot, and synthesized E-Lab challenge coverage
@@ -1836,7 +1868,7 @@ None.
 
 ### Next action
 
-Proceed with Phase 3.7 — DEMO Selections, Offers, and Agreements after human review of Phase 3.6 assessment mappings. Phase 4 is deferred until Phase 3.7–3.9 complete the compact normalized workflow seed.
+Proceed with Phase 3.8 — DEMO Projects, Milestones, Workspace Resources, and Feedback after human review of Phase 3.7 selection/offer/agreement mappings. Phase 4 is deferred until Phase 3.8–3.9 complete the compact normalized workflow seed.
 
 ## 2026-08-15
 
