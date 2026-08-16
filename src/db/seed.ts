@@ -9,6 +9,7 @@ import { seedDemoChallenges } from "./seed/challenges";
 import { SeedContext } from "./seed/context";
 import { seedDemo } from "./seed/demo";
 import { seedDemoSelectionsOffersAgreements } from "./seed/offers";
+import { seedDemoProjects } from "./seed/projects";
 import { seedReference } from "./seed/reference";
 import { formatSeedTarget, validateSeedSafety } from "./seed/safety";
 
@@ -206,6 +207,7 @@ async function main() {
     await seedDemoApplications(seedContext);
     await seedDemoAssessments(seedContext);
     await seedDemoSelectionsOffersAgreements(seedContext);
+    await seedDemoProjects(seedContext);
 
     return seedContext;
   });

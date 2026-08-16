@@ -1,6 +1,6 @@
 # Seed Transformation Plan
 
-Phase: 3.1 bootstrap/reference seed implementation  
+Phase: 3.8 project/workspace seed implementation
 Date: 2026-08-16
 
 ## Executive Summary
@@ -335,6 +335,107 @@ Phase 3.7 application status distribution:
 - `WITHDRAWN`: 0
 
 See `docs/database/demo-seed-manifest.md` for exact selection/offer timestamps, actors, terms, agreement users, invariants, and deferral notes.
+
+## Phase 3.8 Projects, Milestones, Workspace Resources, And Feedback Status
+
+Phase 3.8 implements the compact DEMO project/workspace layer only.
+
+Implemented scope:
+
+- DEMO projects: 4
+- DEMO project members: 10
+- DEMO milestones: 15
+- DEMO deliverables: 12
+- DEMO milestone reviews: 20
+- DEMO project resources: 10
+- DEMO feedback: 0
+
+Seeded project fixtures:
+
+- `application:app-supply` -> `project:app-supply`
+- `application:app-energy` -> `project:app-energy`
+- `application:app-archive` -> `project:app-archive`
+- `application:papp-depot` -> `project:papp-depot`
+
+Project creation policy as implemented:
+
+- Projects are created only for originating applications whose selection has an `ACCEPTED` offer.
+- `projects.application_id` is the canonical project origin. Challenge ownership and challenge metadata are derived through `project -> application -> challenge`.
+- `app-route` remains `SELECTED` with one `PENDING` offer, one invited member, no agreements, and no project.
+- Project creation does not mutate `applications.status`; project-bound applications remain `SELECTED`.
+- Selection, offer, and agreement counts from Phase 3.7 remain unchanged.
+
+Project status distribution:
+
+- `ACTIVE`: 2 (`app-supply`, `papp-depot`)
+- `FINAL_REVIEW`: 1 (`app-energy`)
+- `COMPLETED`: 1 (`app-archive`)
+
+Faculty supervisor mapping:
+
+- `project:app-supply` -> `user:fac-pham`
+- `project:app-energy` -> `user:fac-vu`
+- `project:app-archive` -> `user:fac-pham`
+- `project:papp-depot` -> `user:fac-nguyen-k`
+
+Supervision capacity sanity check:
+
+- Dr. Minh Pham has 1 ongoing seeded project against `max_active_supervisions = 5`; the completed archive project is not counted as ongoing.
+- Dr. Lan Vu has 1 ongoing seeded project against `max_active_supervisions = 5`.
+- Dr. Kevin Nguyen has 1 ongoing seeded project against `max_active_supervisions = 4`.
+- No persisted slots-used counter is seeded.
+
+Project member derivation:
+
+- Initial `project_members` are derived from accepted `application_members` only.
+- `app-supply` seeds 3 project members: Jordan Lee, Priya Raman, Minh Anh Nguyen.
+- `app-energy` seeds 2 project members: Jordan Lee, Hoang Tran.
+- `app-archive` seeds 3 project members: Jordan Lee, Linh Pham, Thao Ha.
+- `papp-depot` seeds 2 project members: Bao Tran, Hoang Tran.
+- `INVITED` application members are not provisioned into project membership, and application member status is not changed.
+
+Milestone and deliverable mapping:
+
+- Milestone status distribution is `PENDING = 2`, `IN_PROGRESS = 1`, `SUBMITTED = 3`, `REVISION_REQUESTED = 1`, and `COMPLETED = 8`.
+- No `OVERDUE` status is stored; overdue remains derived from deadline and state.
+- Phase 3.8 seeds 12 `TEXT` deliverables for submitted/reviewed milestones only.
+- No file payloads, object-storage clients, signed URLs, meeting records, meeting links, notifications, or audit demo records are seeded.
+
+Milestone review mapping:
+
+- Static faculty/partner approval booleans are normalized into `milestone_reviews`.
+- Formal review distribution is 11 `FACULTY / APPROVED`, 8 `PARTNER / APPROVED`, and 1 `PARTNER / REVISION_REQUESTED`.
+- Formal milestone decisions are not duplicated into generic `feedback`.
+- Managing-organization reviews are not seeded and do not gate completion in v1.
+
+Lifecycle evidence:
+
+- `app-archive` is coherent as `COMPLETED` because its final milestone is `COMPLETED` with latest required `FACULTY = APPROVED` and latest required `PARTNER = APPROVED`.
+- `app-energy` is coherent as `FINAL_REVIEW` because its final milestone is `SUBMITTED` with latest `FACULTY = APPROVED` and no partner review yet.
+- `app-supply` is coherent as `ACTIVE` because it has active workspace data, one submitted current milestone, one in-progress milestone, and no final completed-project evidence.
+- `papp-depot` preserves partner-approval workflow coverage because `Full-network run` is `SUBMITTED`, has latest `FACULTY = APPROVED`, and has no partner review yet.
+
+Resource and agreement mapping:
+
+- Resource sensitivity distribution is 6 `TEAM_ONLY / requires_agreement = false` and 4 `RESTRICTED / requires_agreement = true`.
+- Restricted resources are seeded only for `app-supply` and `papp-depot`, the two accepted-offer scenarios with Phase 3.7 NDA agreements for all accepted project members.
+- `app-energy` and `app-archive` have only agreement-free `TEAM_ONLY` resources.
+- Resource rows store metadata/access references only; no plaintext credentials, passwords, private tokens, API keys, or binary file content are seeded.
+
+Feedback and deferred content:
+
+- `feedback = 0` is intentional because the compact fixtures do not provide deterministic close-out feedback text or structured feedback metrics.
+- Matching outputs remain zero: no `match_results`, `match_skill_details`, or `match_experience_details` are seeded.
+- Ambiguous provider/team assessment results, transcript/experience conversion, meetings, resource access services, notifications, audit demo records, embeddings, and semantic matching remain deferred.
+
+Phase 3.8 verification summary:
+
+- Repeated guarded seed execution is idempotent through Phase 3.8.
+- `pnpm db:reset` recreates the Phase 3.8 project/workspace state from zero.
+- Post-reset guarded seed execution remains idempotent.
+- Seed safety still refuses without `ALLOW_DB_SEED=true`, and production safety still refuses with `NODE_ENV=production`.
+
+See `docs/database/demo-seed-manifest.md` for exact project public IDs, milestone titles, project members, resource mappings, and acceptance invariants.
 
 ## Seed Categories
 

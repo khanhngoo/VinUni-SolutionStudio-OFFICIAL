@@ -1,11 +1,11 @@
 # DEMO Seed Manifest
 
-Phase: 3.7 compact DEMO selections, offers, and agreements layer
+Phase: 3.8 compact DEMO projects, milestones, workspace resources, and feedback layer
 Date: 2026-08-16
 
 ## Scope
 
-This manifest is the authoritative compact DEMO identity, organization, challenge, application, assessment, selection, offer, and agreement inventory for Phase 3.2+.
+This manifest is the authoritative compact DEMO identity, organization, challenge, application, assessment, selection, offer, agreement, project, and workspace inventory for Phase 3.2+.
 
 Phase 3.2 seeds only:
 
@@ -43,7 +43,17 @@ Phase 3.7 adds only selected-application commercial/legal lifecycle records:
 - DEMO `offers`
 - DEMO `agreements`
 
-Phase 3.6 intentionally keeps `assessment_responses = 0` because the selected fixtures provide qualitative reviewed results but no response-level answers. `application_projects` remains 0 because structured student-project evidence conversion is deferred. Phase 3.7 still does not seed projects, project members, milestones, deliverables, feedback, matching records, notifications, or audit demo records.
+Phase 3.8 adds only accepted-offer project/workspace records:
+
+- DEMO `projects`
+- DEMO `project_members`
+- DEMO `milestones`
+- DEMO `deliverables`
+- DEMO `milestone_reviews`
+- DEMO `project_resources`
+- DEMO `feedback`
+
+Phase 3.6 intentionally keeps `assessment_responses = 0` because the selected fixtures provide qualitative reviewed results but no response-level answers. `application_projects` remains 0 because structured student-project evidence conversion is deferred. Phase 3.8 intentionally keeps `feedback = 0` because the compact fixtures do not provide deterministic close-out feedback text. Matching records, notifications, audit demo records, meetings, and object-storage access logic remain deferred.
 
 ## Compact Scenario Spine
 
@@ -337,16 +347,16 @@ Leader `responded_at` uses the deterministic application `appliedAt` timestamp b
 
 ### Static To Staged Lifecycle Matrix
 
-| Source fixture | Static display state | Phase 3.5 authoritative database state | Phase 3.6 authoritative database state | Phase 3.7 authoritative database state | Phase 3.8+ database state |
+| Source fixture | Static display state | Phase 3.5 authoritative database state | Phase 3.6 authoritative database state | Phase 3.7 authoritative database state | Phase 3.8 authoritative database state |
 |---|---|---|---|---|---|
 | `app-triage` | `NOT_SELECTED` after failed assessment | `applications.status = ASSESSMENT`; no assessment rows yet | `applications.status = REJECTED`; reviewed failed INDIVIDUAL assessment attempt exists | unchanged; no selection/offer/agreement rows | Terminal rejected scenario unless later fixtures explicitly add history |
 | `app-route` | `INVITED` / pending offer | `applications.status = SELECTION_PENDING`; no selection/offer rows yet | unchanged; no assessment attempt seeded | `applications.status = SELECTED`; one selection plus one `PENDING` offer; invited member remains `INVITED`; no agreements | Phase 3.8 still creates no project unless an accepted offer exists |
 | `app-churn` | `TEST_SUBMITTED` with passing visible result | `applications.status = SELECTION_PENDING`; no assessment rows yet | `applications.status = SELECTION_PENDING`; reviewed passed INDIVIDUAL assessment attempt exists | unchanged; no selection/offer/agreement rows | Later phase may advance only if explicit selected evidence is approved |
 | `app-outreach` | `APPLIED` / waiting on supervisor | `applications.status = SUBMITTED`; pending supervision request exists | unchanged; no assessment attempt seeded | unchanged; no selection/offer/agreement rows | Later phase may advance after supervision and assessment/selection rows exist |
-| `app-supply` | `ACTIVE` project workspace | `applications.status = SELECTION_PENDING`; no selection/offer/project rows yet | unchanged; project-bound assessment history remains deferred | `applications.status = SELECTED`; one accepted selection/offer plus NDA agreements for accepted members | Phase 3.8 creates active project |
-| `app-energy` | `IN_REVIEW` project | `applications.status = SELECTION_PENDING`; no selection/offer/project rows yet | unchanged; project-bound assessment history remains deferred | `applications.status = SELECTED`; one accepted selection/offer; no agreements | Phase 3.8 creates final-review project |
-| `app-archive` | `COMPLETED` project | `applications.status = SELECTION_PENDING`; no selection/offer/project rows yet | unchanged; project-bound assessment history remains deferred | `applications.status = SELECTED`; one accepted selection/offer; no agreements | Phase 3.8 creates completed project and close-out data |
-| `papp-depot` | `ACTIVE` partner approval workflow | `applications.status = SELECTION_PENDING`; no selection/offer/project rows yet | unchanged; provider/team `testResult` ownership is ambiguous and deferred | `applications.status = SELECTED`; one accepted selection/offer plus NDA agreements for accepted members | Phase 3.8 creates active project with pending partner approval |
+| `app-supply` | `ACTIVE` project workspace | `applications.status = SELECTION_PENDING`; no selection/offer/project rows yet | unchanged; project-bound assessment history remains deferred | `applications.status = SELECTED`; one accepted selection/offer plus NDA agreements for accepted members | `projects.status = ACTIVE`; accepted members become project members; restricted resources require agreements |
+| `app-energy` | `IN_REVIEW` project | `applications.status = SELECTION_PENDING`; no selection/offer/project rows yet | unchanged; project-bound assessment history remains deferred | `applications.status = SELECTED`; one accepted selection/offer; no agreements | `projects.status = FINAL_REVIEW`; final milestone is submitted with faculty approval and partner review pending |
+| `app-archive` | `COMPLETED` project | `applications.status = SELECTION_PENDING`; no selection/offer/project rows yet | unchanged; project-bound assessment history remains deferred | `applications.status = SELECTED`; one accepted selection/offer; no agreements | `projects.status = COMPLETED`; final milestone has latest faculty and partner approvals; `feedback = 0` |
+| `papp-depot` | `ACTIVE` partner approval workflow | `applications.status = SELECTION_PENDING`; no selection/offer/project rows yet | unchanged; provider/team `testResult` ownership is ambiguous and deferred | `applications.status = SELECTED`; one accepted selection/offer plus NDA agreements for accepted members | `projects.status = ACTIVE`; current milestone has faculty approval and partner review pending |
 
 Phase 3.5 intentionally seeds no `SELECTED` applications because `selections = 0`. It also avoids `REJECTED` for `app-triage` until the failed assessment result exists as durable assessment data.
 
@@ -500,6 +510,106 @@ Acceptance invariants verified during seeding:
 - Every seeded agreement belongs to the same challenge/application path and to an accepted application member.
 - No invited member receives an agreement.
 - Projects, project members, milestones, resources, feedback, and matching records remain zero.
+
+## Phase 3.8 Project And Workspace DEMO Records
+
+Phase 3.8 seeds only downstream project/workspace records for applications with accepted offers. `projects.application_id` is the canonical project origin, and challenge context is derived through `project -> application -> challenge`.
+
+### Project Mapping
+
+| Stable seed key | Source fixture | Originating application | Derived challenge | Accepted offer prerequisite | Public ID | Status | Supervisor | Start date | End date |
+|---|---|---|---|---|---|---|---|---|---|
+| `project:app-supply` | `app-supply` | `application:app-supply` | `supply-chain-dashboard` | `ACCEPTED` | `55555555-5555-4555-8555-000000000001` | `ACTIVE` | `user:fac-pham` | `2026-06-22` | `NULL` |
+| `project:app-energy` | `app-energy` | `application:app-energy` | `campus-energy-audit` | `ACCEPTED` | `55555555-5555-4555-8555-000000000002` | `FINAL_REVIEW` | `user:fac-vu` | `2026-04-13` | `NULL` |
+| `project:app-archive` | `app-archive` | `application:app-archive` | `archive-digitisation` | `ACCEPTED` | `55555555-5555-4555-8555-000000000003` | `COMPLETED` | `user:fac-pham` | `2026-01-12` | `2026-05-29` |
+| `project:papp-depot` | `papp-depot` | `application:papp-depot` | `route-optimisation` | `ACCEPTED` | `55555555-5555-4555-8555-000000000004` | `ACTIVE` | `user:fac-nguyen-k` | `2026-06-12` | `NULL` |
+
+`app-route` remains `SELECTED` with a `PENDING` offer, one invited application member, no agreements, and no project/workspace.
+
+### Project Members
+
+| Project | Seeded project members | Source rule |
+|---|---|---|
+| `project:app-supply` | Jordan Lee, Priya Raman, Minh Anh Nguyen | All accepted `application_members` for `app-supply`; preferred roles are copied to `project_members.project_role`. |
+| `project:app-energy` | Jordan Lee, Hoang Tran | All accepted `application_members` for `app-energy`. |
+| `project:app-archive` | Jordan Lee, Linh Pham, Thao Ha | All accepted `application_members` for `app-archive`. |
+| `project:papp-depot` | Bao Tran, Hoang Tran | All accepted `application_members` for `papp-depot`. |
+
+No `INVITED`, `DECLINED`, or `REMOVED` application member is converted into a project member. Application member status is not mutated during project provisioning.
+
+### Milestones, Deliverables, And Reviews
+
+| Project | Milestones seeded | Important status evidence |
+|---|---:|---|
+| `project:app-supply` | 5 | `Data audit and source mapping` is `COMPLETED`; `Warehouse schema and ingestion` is `REVISION_REQUESTED`; `Forecast module` is `SUBMITTED`; `Dashboard build` is `IN_PROGRESS`; `Handover pack and walkthrough` is `PENDING`. |
+| `project:app-energy` | 3 | Final `Retrofit recommendations` milestone is `SUBMITTED` with latest `FACULTY = APPROVED` and no partner review yet, so the project coherently remains `FINAL_REVIEW`. |
+| `project:app-archive` | 3 | Final `Searchable archive handover` milestone is `COMPLETED` with latest `FACULTY = APPROVED` and latest `PARTNER = APPROVED`, supporting completed-project state. |
+| `project:papp-depot` | 4 | `Full-network run` is `SUBMITTED` with latest `FACULTY = APPROVED` and no partner review yet, preserving partner-approval workflow coverage. |
+
+Phase 3.8 seeds 12 `TEXT` deliverables for submitted/reviewed milestones only. No binary payloads, file uploads, or external URLs are seeded.
+
+Formal approval/revision decisions are stored only in `milestone_reviews`: 11 `FACULTY / APPROVED`, 8 `PARTNER / APPROVED`, and 1 `PARTNER / REVISION_REQUESTED`. No `feedback.type = MILESTONE_REVIEW` row exists.
+
+### Project Resources And Feedback
+
+| Project | Resources | Agreement-gated resources |
+|---|---:|---:|
+| `project:app-supply` | 4 | 2 `RESTRICTED` resources requiring agreements; all 3 project members have accepted Phase 3.7 NDA agreements. |
+| `project:app-energy` | 2 | 0; all resources are `TEAM_ONLY`. |
+| `project:app-archive` | 2 | 0; all resources are `TEAM_ONLY`. |
+| `project:papp-depot` | 2 | 2 `RESTRICTED` resources requiring agreements; both project members have accepted Phase 3.7 NDA agreements. |
+
+Resource records are metadata/access references only. Masked/static credential concepts are represented as descriptions without storing hostnames, passwords, API keys, private tokens, or plaintext sensitive configuration.
+
+`feedback = 0` is intentional for Phase 3.8 because selected compact fixtures do not provide deterministic close-out feedback text or structured metrics. Formal milestone reviews are not represented as generic feedback.
+
+### Phase 3.8 Expected Counts
+
+After a clean Phase 3.8 seed, the project/workspace layer should contain:
+
+- `projects`: 4
+- `project_members`: 10
+- `milestones`: 15
+- `deliverables`: 12
+- `milestone_reviews`: 20
+- `project_resources`: 10
+- `feedback`: 0
+- `match_results`: 0
+- `match_skill_details`: 0
+- `match_experience_details`: 0
+
+Project status distribution:
+
+- `ACTIVE`: 2
+- `FINAL_REVIEW`: 1
+- `COMPLETED`: 1
+
+Milestone status distribution:
+
+- `PENDING`: 2
+- `IN_PROGRESS`: 1
+- `SUBMITTED`: 3
+- `REVISION_REQUESTED`: 1
+- `COMPLETED`: 8
+
+Resource sensitivity distribution:
+
+- `TEAM_ONLY / requires_agreement = false`: 6
+- `RESTRICTED / requires_agreement = true`: 4
+
+Acceptance invariants verified during seeding:
+
+- Every project originates from one application with an accepted offer.
+- Every project application has at most one project.
+- Every project member corresponds to an accepted application member.
+- No invited application member becomes a project member.
+- Project challenge context resolves through `project -> application -> challenge`.
+- Faculty supervisors resolve to deterministic seeded faculty profiles.
+- Ongoing project counts remain below seeded faculty `max_active_supervisions`.
+- Project and milestone dates are coherent.
+- Completed milestones have latest required faculty and partner approvals.
+- Agreement-gated resources are present only on projects whose members have accepted agreements.
+- Matching outputs, notifications, audits, meetings, object-storage access logic, and semantic matching remain deferred.
 
 ### Supervision Request Mapping
 
