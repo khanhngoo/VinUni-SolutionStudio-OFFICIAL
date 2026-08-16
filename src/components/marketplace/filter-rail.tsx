@@ -2,17 +2,16 @@ import Link from "next/link";
 import { FilterAutoSubmit } from "@/components/marketplace/filter-auto-submit";
 import { FilterGroup } from "@/components/marketplace/filter-group";
 import { Chip } from "@/components/ui/chip";
-import { SORT_OPTIONS, type FilterState } from "@/lib/filters";
 import {
-  COLLEGES,
-  COLLEGE_NAMES,
-  COMPENSATIONS,
-  SUB_TYPES,
-  WORK_MODES,
-} from "@/lib/types";
+  CHALLENGE_TYPE_OPTIONS,
+  COLLEGE_OPTIONS,
+  COMPENSATION_OPTIONS,
+  MARKETPLACE_SORT_OPTIONS,
+  type MarketplaceFilterState,
+} from "@/lib/challenge-marketplace";
 
 interface FilterRailProps {
-  filters: FilterState;
+  filters: MarketplaceFilterState;
 }
 
 export function FilterRail({ filters }: FilterRailProps) {
@@ -35,9 +34,10 @@ export function FilterRail({ filters }: FilterRailProps) {
         <h3 className="mb-2.5">Search</h3>
         <input
           type="search"
-          disabled
+          name="search"
+          defaultValue={filters.search}
           placeholder="Search challenges"
-          className="w-full h-8 px-2.5 rounded-card border border-line bg-paper text-meta text-ink-3 placeholder:text-ink-3 cursor-not-allowed"
+          className="w-full h-8 px-2.5 rounded-card border border-line bg-card text-meta text-ink-2 placeholder:text-ink-3 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
         />
       </div>
 
@@ -45,24 +45,21 @@ export function FilterRail({ filters }: FilterRailProps) {
         label="College fit"
         name="college"
         selected={filters.college}
-        options={COLLEGES.map((c) => ({
-          value: c,
-          label: `${c} · ${COLLEGE_NAMES[c]}`,
-        }))}
+        options={COLLEGE_OPTIONS}
       />
 
       <FilterGroup
         label="Challenge type"
         name="type"
         selected={filters.type}
-        options={SUB_TYPES.map((t) => ({ value: t, label: t }))}
+        options={CHALLENGE_TYPE_OPTIONS}
       />
 
       <FilterGroup
         label="Compensation"
         name="comp"
         selected={filters.comp}
-        options={COMPENSATIONS.map((c) => ({ value: c, label: c }))}
+        options={COMPENSATION_OPTIONS}
       />
 
       <div className="mb-5">
@@ -72,7 +69,7 @@ export function FilterRail({ filters }: FilterRailProps) {
           defaultValue={filters.sort}
           className="w-full h-8 px-2 rounded-card border border-line bg-card text-meta text-ink-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
         >
-          {SORT_OPTIONS.map((option) => (
+          {MARKETPLACE_SORT_OPTIONS.map((option) => (
             <option key={option.value} value={option.value}>
               {option.label}
             </option>
@@ -90,7 +87,11 @@ export function FilterRail({ filters }: FilterRailProps) {
           name="mode"
           selected={[]}
           disabled
-          options={WORK_MODES.map((m) => ({ value: m, label: m }))}
+          options={[
+            { value: "ONSITE", label: "On-site" },
+            { value: "HYBRID", label: "Hybrid" },
+            { value: "REMOTE", label: "Remote" },
+          ]}
         />
         <label className="flex items-start gap-2.5 text-ink-3 cursor-not-allowed">
           <input

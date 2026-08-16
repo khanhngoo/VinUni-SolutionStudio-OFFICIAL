@@ -3,7 +3,7 @@
 **Repository:** `VinUni-SolutionStudio-OFFICIAL`  
 **Project:** VinUniversity Solution Studio / AI-in-Action Platform  
 **Last updated:** 2026-08-16  
-**Current phase:** Phase 4.2 Challenge Business Layer complete / awaiting human review
+**Current phase:** Phase 4.3 Challenge Marketplace UI Migration complete / awaiting human review
 
 ---
 
@@ -1287,13 +1287,28 @@ This should be the first production-data vertical slice.
 
 ## 4.3 UI migration
 
-- [ ] Replace challenge list mock query
-- [ ] Replace challenge detail mock query
-- [ ] Preserve current UI where possible
-- [ ] Add loading state
-- [ ] Add empty state
-- [ ] Add database error handling
-- [ ] Verify static and DB-backed visual behavior match
+- [x] Replace challenge list mock query
+- [x] Replace challenge detail mock query
+- [x] Preserve current UI where possible
+- [x] Add loading/error-safe route behavior where appropriate
+- [x] Add empty state
+- [x] Add database error handling
+- [x] Verify static and DB-backed visual behavior match
+
+### Phase 4.3 actual results
+
+- Migrated `src/app/challenges/page.tsx` from static challenge helpers to `listMarketplaceChallenges(...)`.
+- Migrated `src/app/challenges/[id]/page.tsx` from static challenge helpers to `getMarketplaceChallengeBySlug(...)`, using the dynamic segment value as the canonical challenge slug.
+- Added `src/lib/challenge-marketplace.ts` as a UI presentation/helper boundary for URL filter parsing, service-option mapping, href construction, and display formatting.
+- Added a temporary pre-auth marketplace context with `audience: "VINUNI_MEMBER"`; the UI no longer hard-codes Jordan Lee as the marketplace viewer.
+- Updated marketplace cards, filter rail, results header, pagination, detail header, summary, eligibility, and assessment display components to consume service-backed marketplace models.
+- Preserved the current marketplace visual structure where practical while replacing fixture-derived fields with normalized PostgreSQL-backed fields.
+- Preserved confidential marketplace redaction: ordinary reads for `merchant-churn-model` show the masked owner label and do not render the confidential owner organization name or contact.
+- Preserved CAID/E-Lab organization semantics in the UI: owner and managing organization display remain separate, and the synthesized E-Lab demo challenge renders E-Lab as both owner and manager.
+- Preserved downstream write boundaries: `/challenges/[id]/apply` remains the static MVP application flow; no application, assessment, offer, project, matching, auth, or RBAC runtime migration was performed.
+- Added a challenge route error boundary with user-safe database/unavailable-state copy.
+- Retained true invalid-slug 404 behavior; a segment-level loading boundary was not kept because it caused streamed not-found responses to return HTTP `200`.
+- Documented Phase 4.3 runtime UI flow, URL filter mapping, caching/rendering behavior, remaining static boundaries, and local route verification in `docs/database/challenge-read-path.md`.
 
 ## 4.4 Write operations
 
@@ -1309,10 +1324,10 @@ When challenge creation/editing is introduced:
 
 ## Phase 4 exit criteria
 
-- [ ] Challenge marketplace no longer depends on `src/lib/data`
-- [ ] Challenge reads come from PostgreSQL
+- [x] Challenge marketplace no longer depends on `src/lib/data`
+- [x] Challenge reads come from PostgreSQL
 - [ ] Core challenge writes are transaction-safe
-- [ ] Business rules are outside React components
+- [x] Business rules are outside React components
 
 ---
 
@@ -1649,7 +1664,7 @@ project files
 ## Current status
 
 **Current phase:** Phase 4 — Challenge Marketplace → Real DB
-**Active next checkpoint:** Phase 4.3 — Challenge Marketplace UI Migration, after Phase 4.2 human review
+**Active next checkpoint:** Phase 4.4 — Challenge Write Operations, after Phase 4.3 human review
 
 ### Latest completed work
 
@@ -1693,6 +1708,10 @@ project files
 - Phase 4.2 centralizes challenge publication, ordinary marketplace discoverability, visibility audience, `PRIVATE + HIGH_CONFIDENTIALITY` redaction, owner/managing/faculty access predicates, contact disclosure, and deterministic eligibility evaluation.
 - Phase 4.2 defines `INVITE_ONLY` as hidden from ordinary marketplace methods; direct authorized invite-only access remains deferred.
 - Phase 4.2 keeps authentication, full RBAC, challenge writes, applications, matching, and UI migration deferred.
+- Phase 4.3 is COMPLETE / READY FOR HUMAN REVIEW: the visible `/challenges` marketplace list and `/challenges/[id]` detail routes now read from PostgreSQL through `listMarketplaceChallenges(...)` and `getMarketplaceChallengeBySlug(...)`.
+- Phase 4.3 adds `src/lib/challenge-marketplace.ts` as the UI presentation/query-param boundary and updates the marketplace/detail components to consume service-backed read models.
+- Phase 4.3 preserves ordinary confidential preview redaction for `merchant-churn-model`, preserves separate owner/managing organization display including the E-Lab owner/manager demo, and avoids hard-coding Jordan Lee as the marketplace viewer.
+- Phase 4.3 leaves `/challenges/[id]/apply` and downstream application, assessment, selection, offer, agreement, project/workspace, matching, auth, RBAC, notification, and audit flows on their existing deferred/static boundaries.
 - Current application lifecycle distribution is `SUBMITTED = 1`, `ASSESSMENT = 0`, `SELECTION_PENDING = 1`, `SELECTED = 5`, `REJECTED = 1`, `WITHDRAWN = 0`.
 - Matching outputs, notifications, meetings, resource access services, and audit demo records remain unseeded.
 - ERD v1 remains frozen; later structural DB changes require a new reviewed schema change.
@@ -1719,6 +1738,10 @@ project files
 - Phase 4.1 query verification confirms canonical skill joins for `route-optimisation` and `merchant-churn-model`, normalized E-Lab eligibility rules, nonexistent slug -> `null`, pagination boundaries, filters, search, deterministic sorting, and Phase 3 row-count preservation.
 - Phase 4.2 policy verification covers publication status, `PUBLIC_PREVIEW`/`VINUNI_ONLY`/`PRIVATE`/`INVITE_ONLY` discoverability, owner-organization access, managing-organization access, assigned-faculty access, required/optional eligibility rules, GPA scale incompatibility, school/study-year rules, and explicit available-hours rules.
 - Phase 4.2 service verification confirms default VinUni marketplace list count = 8, `route-optimisation` owner = Bến Cảng Logistics and manager = CAID, `merchant-churn-model` ordinary reads redact owner/contact while admin context can see owner/contact display, E-Lab owner = manager, nonexistent slug returns `null`, `INVITE_ONLY` marketplace filter returns zero, pagination/filtering still work, and Phase 3 row counts remain unchanged.
+- Phase 4.3 static-reference audit confirms migrated `/challenges` list/detail routes no longer import `src/lib/data/challenges.ts` or `src/lib/queries.ts`; remaining static challenge references are limited to deferred application/provider/supervision/workspace flows.
+- Phase 4.3 local route verification confirms `/challenges`, filtered/search marketplace URLs, `route-optimisation`, `merchant-churn-model`, and `demo-elab-venture-readiness-dashboard` return HTTP `200`; invalid slug `/challenges/not-real-slug` returns HTTP `404`.
+- Phase 4.3 redaction verification confirms `merchant-churn-model` ordinary UI output contains the masked label `Logistics group, Hai Phong` and does not render `Bến Cảng Logistics`.
+- Phase 4.3 read-only verification confirms full public-table counts remain at the Phase 3 compact seed state after local marketplace route checks.
 - Current reproducible seed counts:
 
 ```text
@@ -1771,11 +1794,11 @@ Full 45-domain-table pre-reset/post-reset/post-idempotency count equality is rec
 
 ## Immediate next task
 
-### Phase 4.3 — Challenge Marketplace UI Migration
+### Phase 4.4 — Challenge Write Operations
 
-Phase 4.2 has implemented the challenge marketplace service and policy layer. Do **not** begin Phase 4.3 until Phase 4.2 human review is approved.
+Phase 4.3 has migrated the visible challenge marketplace list/detail UI to PostgreSQL-backed service reads. Do **not** begin Phase 4.4 until Phase 4.3 human review is approved.
 
-After approval, Phase 4.3 should migrate the `/challenges` list/detail UI from static mock reads to the service APIs while preserving the current user-facing behavior where possible.
+After approval, Phase 4.4 should introduce challenge write operations only, with server-side validation and transaction-safe multi-table writes.
 
 Immediate sequence:
 
@@ -1796,17 +1819,19 @@ Phase 4.1 challenge marketplace DB read path ✅
         ↓
 Phase 4.2 challenge business layer ✅
         ↓
-Phase 4.3 challenge marketplace UI migration after human approval
+Phase 4.3 challenge marketplace UI migration ✅
+        ↓
+Phase 4.4 challenge write operations after human approval
 ```
 
-### Immediate Phase 4.3 checklist
+### Immediate Phase 4.4 checklist
 
-- [ ] Wait for human approval of Phase 4.2 service/policy implementation
-- [ ] Re-read the exact Phase 4.3 section in this plan before implementation
-- [ ] Replace challenge list mock query with `listMarketplaceChallenges(...)`
-- [ ] Replace challenge detail mock query with `getMarketplaceChallengeBySlug(...)`
-- [ ] Preserve current UI behavior where possible and keep policy decisions out of React components
-- [ ] Do not begin Phase 4.4 writes until explicitly requested
+- [ ] Wait for human approval of Phase 4.3 marketplace UI migration
+- [ ] Re-read the exact Phase 4.4 section in this plan before implementation
+- [ ] Create challenge write service/API boundary
+- [ ] Validate create/update server-side
+- [ ] Use transactions for multi-table challenge writes and skill changes
+- [ ] Do not migrate application, assessment, offer, project, matching, auth, or RBAC runtime flows unless explicitly requested
 
 ### Agent sequencing rule
 
@@ -1822,7 +1847,7 @@ Before each agent implementation task:
 
 ### Recommended next agent instruction
 
-After human approval of Phase 4.2, proceed with Phase 4.3 — Challenge Marketplace UI Migration only. Do not modify Phase 3 seed behavior, authentication, matching, notifications, audit demo records, challenge writes, or non-challenge runtime paths unless explicitly requested.
+After human approval of Phase 4.3, proceed with Phase 4.4 — Challenge Write Operations only. Do not modify Phase 3 seed behavior, application submission, assessment runtime flows, offer runtime flows, project/workspace runtime flows, authentication, matching, notifications, audit demo records, or non-challenge runtime paths unless explicitly requested.
 
 ---
 
@@ -1834,6 +1859,13 @@ Use this section after each development session.
 
 ### Completed
 
+- Phase 4.3 Challenge Marketplace UI Migration completed and ready for human review
+- Migrated `/challenges` and `/challenges/[id]` from static challenge reads to `listMarketplaceChallenges(...)` and `getMarketplaceChallengeBySlug(...)`
+- Added marketplace UI helpers for URL parsing, service-option mapping, display formatting, pagination hrefs, and the temporary pre-auth VinUni-member context
+- Updated marketplace list/detail components to render service-backed challenge read models while preserving confidential owner redaction, E-Lab owner/manager display, empty state, and invalid-slug 404 behavior
+- Preserved `/challenges/[id]/apply` and downstream application/assessment/offer/project flows as static/deferred boundaries for later phases
+- Updated `docs/database/challenge-read-path.md` with Phase 4.3 runtime UI behavior, URL filter mapping, cache/rendering notes, remaining static boundaries, and local route verification
+- Verified Phase 4.3 with TypeScript, lint, database/schema checks, production build, diff whitespace checks, local route checks through `pnpm dev`, static-reference audit, and post-read row-count verification
 - Phase 4.2 Challenge Business Layer completed and ready for human review
 - Added `src/services/challenge.service.ts` with `listMarketplaceChallenges(...)` and `getMarketplaceChallengeBySlug(...)`
 - Added `src/services/challenge-policy.ts` with centralized pure challenge publication, visibility/discoverability, confidentiality/redaction, owner/managing/faculty access, contact disclosure, and eligibility policies
@@ -1978,7 +2010,7 @@ None.
 
 ### Next action
 
-After human approval of Phase 4.2, proceed with Phase 4.3 — Challenge Marketplace UI Migration only. Do not begin Phase 4.4 writes.
+After human approval of Phase 4.3, proceed with Phase 4.4 — Challenge Write Operations only. Do not begin later Phase 4/5 checkpoints unless explicitly requested.
 
 ## 2026-08-15
 

@@ -1,27 +1,16 @@
 import { Section } from "@/components/ui/section";
 import { CheckIcon } from "@/components/ui/icons";
-import type { Challenge, EligibilityResult } from "@/lib/types";
+import {
+  challengeEligibilityLabels,
+  type MarketplaceChallengeDetailModel,
+} from "@/lib/challenge-marketplace";
 
 interface EligibilitySectionProps {
-  challenge: Challenge;
-  result: EligibilityResult;
+  challenge: MarketplaceChallengeDetailModel;
 }
 
-export function EligibilitySection({
-  challenge,
-  result,
-}: EligibilitySectionProps) {
-  const rules: string[] = [
-    challenge.eligibleYears.length === 4
-      ? "Open to all years"
-      : `Year ${challenge.eligibleYears.join(", ")} students`,
-    challenge.eligibleColleges === null
-      ? "Open to all colleges"
-      : `${challenge.eligibleColleges.join(", ")} students`,
-    challenge.minGpa === null
-      ? "No GPA requirement"
-      : `Minimum GPA ${challenge.minGpa.toFixed(2)}`,
-  ];
+export function EligibilitySection({ challenge }: EligibilitySectionProps) {
+  const rules = challengeEligibilityLabels(challenge);
 
   return (
     <Section title="Eligibility">
@@ -36,16 +25,6 @@ export function EligibilitySection({
           </p>
         ))}
       </div>
-
-      {!result.eligible ? (
-        <div className="mt-2.5 bg-warn-soft rounded-card px-4 py-3">
-          {result.reasons.map((reason) => (
-            <p key={reason} className="text-warn">
-              {reason}
-            </p>
-          ))}
-        </div>
-      ) : null}
     </Section>
   );
 }

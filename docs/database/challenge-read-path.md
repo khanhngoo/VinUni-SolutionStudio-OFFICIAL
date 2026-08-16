@@ -1,11 +1,13 @@
 # Challenge Read Path
 
 Date: 2026-08-16
-Phase: 4.2 Challenge Business Layer
+Phase: 4.3 Challenge Marketplace UI Migration
 
 ## Scope
 
-Phase 4.1 added a server-side PostgreSQL/Drizzle read path for challenge marketplace data. Phase 4.2 adds a small business/service layer above that query layer. It does not switch the UI from static fixtures yet, does not add writes, and does not implement authentication or full RBAC.
+Phase 4.1 added a server-side PostgreSQL/Drizzle read path for challenge marketplace data. Phase 4.2 added a small business/service layer above that query layer. Phase 4.3 migrates the visible `/challenges` marketplace list and `/challenges/[id]` detail routes to consume that service boundary at runtime.
+
+Phase 4.3 does not add challenge writes, application submission writes, authentication, full RBAC, matching, assessment runtime migration, offer runtime migration, or project/workspace runtime migration.
 
 Implemented module:
 
@@ -38,7 +40,15 @@ The query layer remains responsible for SQL/Drizzle access, joins, filtering pri
 
 The service/policy layer owns publication, marketplace discoverability, audience visibility, confidentiality/redaction, contact exposure, owner/managing-organization access predicates, faculty-assignment access predicates, and deterministic eligibility interpretation.
 
-After Phase 4.2, React components should consume the service boundary during Phase 4.3 instead of deciding marketplace visibility, private disclosure, or eligibility rules themselves.
+After Phase 4.3, React components consume the service boundary instead of deciding marketplace visibility, private disclosure, or eligibility rules themselves.
+
+The migrated UI boundary is:
+
+- `src/app/challenges/page.tsx` calls `listMarketplaceChallenges(...)`.
+- `src/app/challenges/[id]/page.tsx` calls `getMarketplaceChallengeBySlug(...)`.
+- React components consume display-shaped marketplace models from `src/lib/challenge-marketplace.ts`; they do not import static challenge fixtures or low-level database query functions.
+
+The temporary pre-auth marketplace context is centralized as `TEMPORARY_PRE_AUTH_MARKETPLACE_CONTEXT` with audience `VINUNI_MEMBER`. This preserves the current student/VinUni-facing demo posture without hard-coding Jordan Lee or introducing fake authentication.
 
 ## Marketplace Read Semantics
 
@@ -94,6 +104,8 @@ Safe marketplace preview fields include title, summary, domain, subtype, status,
 Full marketplace detail additionally includes challenge description, expected deliverables, eligibility rules, and display-level faculty routing data.
 
 Restricted/private fields are not exposed through ordinary marketplace service methods. Contact exposure remains conservative: the read model can carry contact display name only, never email, private user ID, or membership metadata. For `PRIVATE + HIGH_CONFIDENTIALITY` ordinary marketplace reads, contact display is redacted to `null`.
+
+Phase 4.3 UI behavior uses the service-redacted owner/contact fields directly. The `merchant-churn-model` detail page displays the masked owner label and "Revealed after selection" contact copy; it does not render the confidential owner organization name for ordinary VinUni marketplace reads.
 
 ## Owner, Manager, And Faculty Policy
 
@@ -158,7 +170,7 @@ Internal bigint IDs are used only inside query/service internals and are not exp
 
 Contact email, private user IDs, project resources, agreement records, and downstream restricted content are not exposed by this read path.
 
-## Static UI Field Mapping
+## UI Field Mapping
 
 | Current static UI field | Phase 4.1 DB read source |
 |---|---|
@@ -185,6 +197,51 @@ Contact email, private user IDs, project resources, agreement records, and downs
 | `challenge.lockedBlocks` | presentation-only/deferred |
 | `challenge.assessmentTrack/assessmentMinutes` | assessment tables, deferred from Phase 4.1 challenge detail shape |
 | `challenge.interviewFormat` | deferred; interview workflow is not modeled in ERD v1 |
+
+## Phase 4.3 Runtime UI Flow
+
+The migrated marketplace routes are runtime database reads:
+
+- `/challenges` parses URL search parameters, maps them to service list options, and renders the returned PostgreSQL-backed marketplace page.
+- `/challenges/[id]` treats the dynamic segment value as the challenge slug, resolves it through `getMarketplaceChallengeBySlug(...)`, and calls `notFound()` when the service returns `null`.
+- `/challenges/[id]/apply` remains the static MVP application flow and is intentionally not migrated in Phase 4.3.
+
+Supported UI URL parameters:
+
+- `search`
+- `college`
+- `type`
+- `comp`
+- `sort`
+- `page`
+
+UI parameter mapping:
+
+| UI parameter | Service/query mapping |
+|---|---|
+| `search` | `search` |
+| `college` | `school` eligibility-rule filter |
+| `type` | `subtype` |
+| `comp=Paid` | `compensationType = PAID` |
+| `comp=Credit` | `compensationType = CREDIT` |
+| `comp=Unpaid` | `compensationType = UNPAID` |
+| `comp=Work-study` | `compensationType = OTHER` |
+| `sort=deadline` | `sortBy = applicationDeadline` |
+| `sort=newest` | `sortBy = newest` |
+| `sort=duration` | `sortBy = durationWeeks` |
+| `sort=start` | `sortBy = startDate` |
+
+Invalid or unknown UI filter values are ignored and fall back to the default marketplace query. Page values below `1` also fall back to page `1`.
+
+The migrated list includes an empty state for zero matching results and pagination controls based on service response metadata. The challenge segment includes a route-level error boundary with a user-safe database/unavailable-state message.
+
+The migrated detail page keeps downstream application, assessment, offer, and workspace state out of the database-backed route. Assessment details are shown as deferred application-flow information rather than being reconstructed from static challenge fixture fields.
+
+## Caching And Rendering
+
+The Phase 4.3 list and detail pages set `dynamic = "force-dynamic"` so marketplace reads happen at request time against PostgreSQL during the demo. No long-lived static cache, generated static params, or build-time challenge fixture snapshot is used for these routes.
+
+The segment-level loading boundary was not retained because it caused streamed invalid-slug responses to render the correct not-found UI with HTTP `200`. Without that loading boundary, an invalid challenge slug returns HTTP `404` while preserving the custom not-found content.
 
 ## Pagination
 
@@ -249,13 +306,39 @@ It avoids Cartesian multiplication by not joining skills, eligibility rules, and
 
 ## Deferred Boundaries
 
-Phase 4.2 intentionally does not implement:
+Phase 4.3 intentionally does not implement:
 
 - authentication/session lookup;
 - full RBAC or a global permission engine;
 - invitation tables or invite-only direct authorization;
 - challenge writes or review transitions;
 - application creation/deadline validation;
+- application, assessment, selection, offer, agreement, project, milestone, workspace, notification, or audit-log runtime migration;
 - matching, embeddings, or match result queries.
 
-Phase 4.3 should migrate the actual `/challenges` UI to this read path.
+## Remaining Static Boundaries
+
+The migrated marketplace list/detail runtime no longer reads from `src/lib/data/challenges.ts`. Static challenge helpers and fixtures remain in the repository for non-migrated MVP flows, including:
+
+- `src/app/challenges/[id]/apply/page.tsx`
+- `src/lib/queries.ts`
+- `src/lib/provider.ts`
+- `src/lib/supervision.ts`
+- `src/lib/workspace.ts`
+
+These remaining static boundaries are expected until later checkpoints migrate applications, assessments, offers, and workspace flows.
+
+## Phase 4.3 Verification Notes
+
+Manual/local route checks against `pnpm dev` confirmed:
+
+- `/challenges` returns HTTP `200` and renders the PostgreSQL-backed marketplace list.
+- `/challenges?search=route` returns HTTP `200` and renders the filtered route challenge result.
+- `/challenges?search=zzzznope` returns HTTP `200` and renders `0 matching challenges`.
+- `/challenges?college=CECS&comp=Work-study&sort=duration` returns HTTP `200` with service-backed filtering/sorting.
+- `/challenges/route-optimisation` returns HTTP `200`.
+- `/challenges/merchant-churn-model` returns HTTP `200`, renders the masked owner label, and does not render `Bến Cảng Logistics`.
+- `/challenges/demo-elab-venture-readiness-dashboard` returns HTTP `200` and renders the E-Lab owner/manager path.
+- `/challenges/not-real-slug` returns HTTP `404` with the custom not-found content.
+
+Full public-table row counts remained at the Phase 3 compact seed state after these read-only UI checks.
