@@ -2,6 +2,7 @@ import "dotenv/config";
 
 import { count, sql } from "drizzle-orm";
 
+import { seedDemoApplications } from "./seed/applications";
 import { seedBootstrap } from "./seed/bootstrap";
 import { seedDemoChallenges } from "./seed/challenges";
 import { SeedContext } from "./seed/context";
@@ -14,19 +15,38 @@ type Schema = typeof import("./schema");
 
 async function readCounts(db: Database, schema: Schema) {
   const {
+    agreements,
+    applicationMembers,
+    applicationProjects,
+    applications,
+    assessmentAttempts,
+    assessments,
     challengeEligibilityRules,
     challengeFacultyAssignments,
     challengeReviews,
     challenges,
     challengeSkills,
+    deliverables,
+    feedback,
+    matchExperienceDetails,
+    matchResults,
+    matchSkillDetails,
+    milestoneReviews,
+    milestones,
+    offers,
     organizationMemberships,
     organizations,
+    projectMembers,
+    projectResources,
+    projects,
+    selections,
     skillAliases,
     skillCategories,
     skillRelationships,
     skills,
     studentProfiles,
     studentSkills,
+    supervisionRequests,
     users,
   } = schema;
 
@@ -45,6 +65,25 @@ async function readCounts(db: Database, schema: Schema) {
     relationshipCount,
     studentProfileCount,
     studentSkillCount,
+    applicationCount,
+    applicationMemberCount,
+    applicationProjectCount,
+    supervisionRequestCount,
+    assessmentCount,
+    assessmentAttemptCount,
+    selectionCount,
+    offerCount,
+    agreementCount,
+    projectCount,
+    projectMemberCount,
+    milestoneCount,
+    deliverableCount,
+    milestoneReviewCount,
+    projectResourceCount,
+    feedbackCount,
+    matchResultCount,
+    matchSkillDetailCount,
+    matchExperienceDetailCount,
   ] = await Promise.all([
     db.select({ count: count() }).from(challenges),
     db.select({ count: count() }).from(challengeSkills),
@@ -60,6 +99,25 @@ async function readCounts(db: Database, schema: Schema) {
     db.select({ count: count() }).from(skillRelationships),
     db.select({ count: count() }).from(studentProfiles),
     db.select({ count: count() }).from(studentSkills),
+    db.select({ count: count() }).from(applications),
+    db.select({ count: count() }).from(applicationMembers),
+    db.select({ count: count() }).from(applicationProjects),
+    db.select({ count: count() }).from(supervisionRequests),
+    db.select({ count: count() }).from(assessments),
+    db.select({ count: count() }).from(assessmentAttempts),
+    db.select({ count: count() }).from(selections),
+    db.select({ count: count() }).from(offers),
+    db.select({ count: count() }).from(agreements),
+    db.select({ count: count() }).from(projects),
+    db.select({ count: count() }).from(projectMembers),
+    db.select({ count: count() }).from(milestones),
+    db.select({ count: count() }).from(deliverables),
+    db.select({ count: count() }).from(milestoneReviews),
+    db.select({ count: count() }).from(projectResources),
+    db.select({ count: count() }).from(feedback),
+    db.select({ count: count() }).from(matchResults),
+    db.select({ count: count() }).from(matchSkillDetails),
+    db.select({ count: count() }).from(matchExperienceDetails),
   ]);
 
   return {
@@ -76,6 +134,25 @@ async function readCounts(db: Database, schema: Schema) {
     skills: skillCount[0].count,
     studentProfiles: studentProfileCount[0].count,
     studentSkills: studentSkillCount[0].count,
+    applications: applicationCount[0].count,
+    applicationMembers: applicationMemberCount[0].count,
+    applicationProjects: applicationProjectCount[0].count,
+    supervisionRequests: supervisionRequestCount[0].count,
+    assessments: assessmentCount[0].count,
+    assessmentAttempts: assessmentAttemptCount[0].count,
+    selections: selectionCount[0].count,
+    offers: offerCount[0].count,
+    agreements: agreementCount[0].count,
+    projects: projectCount[0].count,
+    projectMembers: projectMemberCount[0].count,
+    milestones: milestoneCount[0].count,
+    deliverables: deliverableCount[0].count,
+    milestoneReviews: milestoneReviewCount[0].count,
+    projectResources: projectResourceCount[0].count,
+    feedback: feedbackCount[0].count,
+    matchResults: matchResultCount[0].count,
+    matchSkillDetails: matchSkillDetailCount[0].count,
+    matchExperienceDetails: matchExperienceDetailCount[0].count,
     users: userCount[0].count,
   };
 }
@@ -108,6 +185,7 @@ async function main() {
     await seedReference(seedContext);
     await seedDemo(seedContext);
     await seedDemoChallenges(seedContext);
+    await seedDemoApplications(seedContext);
 
     return seedContext;
   });
@@ -140,6 +218,41 @@ async function main() {
   );
   console.log(`  student profiles: ${before.studentProfiles} -> ${after.studentProfiles}`);
   console.log(`  student skills: ${before.studentSkills} -> ${after.studentSkills}`);
+  console.log(`  applications: ${before.applications} -> ${after.applications}`);
+  console.log(
+    `  application members: ${before.applicationMembers} -> ${after.applicationMembers}`
+  );
+  console.log(
+    `  application projects: ${before.applicationProjects} -> ${after.applicationProjects}`
+  );
+  console.log(
+    `  supervision requests: ${before.supervisionRequests} -> ${after.supervisionRequests}`
+  );
+  console.log(`  assessments: ${before.assessments} -> ${after.assessments}`);
+  console.log(
+    `  assessment attempts: ${before.assessmentAttempts} -> ${after.assessmentAttempts}`
+  );
+  console.log(`  selections: ${before.selections} -> ${after.selections}`);
+  console.log(`  offers: ${before.offers} -> ${after.offers}`);
+  console.log(`  agreements: ${before.agreements} -> ${after.agreements}`);
+  console.log(`  projects: ${before.projects} -> ${after.projects}`);
+  console.log(`  project members: ${before.projectMembers} -> ${after.projectMembers}`);
+  console.log(`  milestones: ${before.milestones} -> ${after.milestones}`);
+  console.log(`  deliverables: ${before.deliverables} -> ${after.deliverables}`);
+  console.log(
+    `  milestone reviews: ${before.milestoneReviews} -> ${after.milestoneReviews}`
+  );
+  console.log(
+    `  project resources: ${before.projectResources} -> ${after.projectResources}`
+  );
+  console.log(`  feedback: ${before.feedback} -> ${after.feedback}`);
+  console.log(`  match results: ${before.matchResults} -> ${after.matchResults}`);
+  console.log(
+    `  match skill details: ${before.matchSkillDetails} -> ${after.matchSkillDetails}`
+  );
+  console.log(
+    `  match experience details: ${before.matchExperienceDetails} -> ${after.matchExperienceDetails}`
+  );
 
   if (after.skillRelationships !== 0) {
     throw new Error(

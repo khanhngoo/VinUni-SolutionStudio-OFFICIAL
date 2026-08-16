@@ -156,6 +156,67 @@ Migration-from-zero verification confirmed pgvector is enabled through migration
 
 Static UI equivalence note: the database now contains enough seeded data to later recreate the approved compact marketplace/challenge demo content. Application/team, assessment, offer, and project UI equivalence still depends on future workflow seed/database-backed phases.
 
+## Phase 3.5 Application And Team Foundation Status
+
+Phase 3.5 implements the compact DEMO application/team foundation only.
+
+Implemented scope:
+
+- DEMO applications: 8
+- DEMO application members: 18
+- DEMO application project evidence links: 0
+- DEMO supervision requests: 1
+
+Seeded application fixtures:
+
+- `app-triage`
+- `app-route`
+- `app-churn`
+- `app-outreach`
+- `app-supply`
+- `app-energy`
+- `app-archive`
+- `papp-depot`
+
+Seeded supervision fixture:
+
+- `inv-outreach` -> `supervision_requests`
+
+Phase 3.5 normalizes every selected static team into `applications -> application_members`. Every application has exactly one accepted leader, and `submitted_by` is the application leader/member rather than an organization or contact user.
+
+Important fixture normalization decisions:
+
+- `app-triage` is preserved as the solo scenario: one application, one accepted leader, no artificial member row.
+- `app-route` is preserved as the pending invite scenario: Jordan Lee is accepted leader, Priya Raman is accepted member, and Minh Anh Nguyen remains `MEMBER / INVITED`.
+- `papp-depot` uses the same application/member model as student-facing fixtures: Bao Tran is accepted leader and Hoang Tran is accepted member.
+- `app-outreach + inv-outreach` creates one pending application-level supervision request for Dr. Minh Pham, requested by Jordan Lee.
+- `application_projects` remains zero because transcript/experience-to-`student_projects` conversion is still deferred.
+
+Phase 3.5 staged status policy as implemented:
+
+| Fixture | Static/final scenario | Phase 3.5 status | Later phase |
+|---|---|---|---|
+| `app-triage` | failed assessment / not selected | `ASSESSMENT` | Phase 3.6 assessment result can support `REJECTED` |
+| `app-churn` | reviewed passing assessment | `SELECTION_PENDING` | Phase 3.6 assessment history |
+| `app-route` | pending offer | `SELECTION_PENDING` | Phase 3.7 selection + offer |
+| `app-outreach` | early pending supervision | `SUBMITTED` | Future downstream transition |
+| `app-supply` | active project | `SELECTION_PENDING` | Phase 3.7 selection/offer, Phase 3.8 project |
+| `app-energy` | final-review project | `SELECTION_PENDING` | Phase 3.7 selection/offer, Phase 3.8 project |
+| `app-archive` | completed project | `SELECTION_PENDING` | Phase 3.7 selection/offer, Phase 3.8 project/close-out |
+| `papp-depot` | partner approval workflow | `SELECTION_PENDING` | Phase 3.7 selection/offer, Phase 3.8 project |
+
+Phase 3.5 deliberately does not seed `SELECTED` while `selections = 0`, and it does not seed `REJECTED` for `app-triage` until the failed assessment result is represented in Phase 3.6.
+
+Committed-hour and narrative decisions:
+
+- `application_members.committed_hours_per_week` remains `NULL` for every member because no selected fixture provides a distinct per-application commitment.
+- `student_profiles.available_hours_per_week` remains the general profile availability source.
+- `applications.motivation` and `applications.relevant_experience` remain `NULL` because the selected static fixtures do not contain submitted draft narratives.
+
+Phase 3.5 keeps assessments, assessment attempts, selections, offers, agreements, projects, project members, milestones, deliverables, milestone reviews, project resources, feedback, and matching outputs deferred.
+
+See `docs/database/demo-seed-manifest.md` for exact public IDs, member mappings, lifecycle matrix, and supervision-request details.
+
 ## Seed Categories
 
 | Category | Meaning | Proposed records |
@@ -698,5 +759,7 @@ Phase 3.2 has resolved the compact DEMO identity/org fixture list and seeded onl
 Phase 3.3 has seeded the compact DEMO challenge-side foundation: challenge records, normalized challenge skills, eligibility rules, and pending faculty routing assignments.
 
 Phase 3.4 has verified that the database can be recreated from zero using only Docker Compose, version-controlled migrations, and the guarded seed pipeline.
+
+Phase 3.5 has seeded the compact application/team foundation: 8 applications, 18 application members, 0 application-project evidence links, and 1 pending supervision request.
 
 Remaining REVIEW items do not block the next existing roadmap checkpoint.

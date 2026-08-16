@@ -3,7 +3,7 @@
 **Repository:** `VinUni-SolutionStudio-OFFICIAL`  
 **Project:** VinUniversity Solution Studio / AI-in-Action Platform  
 **Last updated:** 2026-08-16  
-**Current phase:** Phase 3.5 — DEMO Application and Team Foundation
+**Current phase:** Phase 3.6 — DEMO Assessment Layer
 
 ---
 
@@ -702,8 +702,8 @@ The reset workflow established in Phase 3.4 is an ongoing invariant for every Ph
 - Phase 3.2: ✅ COMPLETE / HUMAN REVIEW COMPLETE — compact DEMO identity and organization foundation implemented and documented.
 - Phase 3.3: ✅ COMPLETE / HUMAN REVIEW COMPLETE — DEMO challenges and challenge-side normalized data implemented and verified.
 - Phase 3.4: ✅ COMPLETE / HUMAN REVIEW COMPLETE — canonical local reset workflow implemented as `pnpm db:reset`; migration-from-zero and seed-from-zero reproducibility verified.
-- Phase 3.5: 🚧 NEXT — normalized DEMO applications, application members/teams, and supervision request.
-- Phase 3.6: ⬜ NOT STARTED — DEMO assessment definitions, attempts, responses, and scores for unambiguous scenarios.
+- Phase 3.5: ✅ COMPLETE / HUMAN REVIEW PENDING — normalized DEMO applications, application members/teams, and supervision request.
+- Phase 3.6: 🚧 NEXT — DEMO assessment definitions, attempts, responses, and scores for unambiguous scenarios.
 - Phase 3.7: ⬜ NOT STARTED — DEMO selections, offers, and agreements.
 - Phase 3.8: ⬜ NOT STARTED — DEMO projects, project members, milestones, deliverables, milestone reviews, resources, and feedback.
 - Phase 3.9: ⬜ NOT STARTED — final complete seed reset/reproducibility verification and Phase 3 closeout.
@@ -918,21 +918,21 @@ Every fixture must be validated against the actual static source and must resolv
 
 ### Application/team rules
 
-- [ ] Seed only the approved compact application fixtures
-- [ ] Use deterministic seed keys/public IDs; never hard-code bigint PKs
-- [ ] Preserve `applications → application_members`; do not restore `applications.student_id`
-- [ ] Resolve `submitted_by` to the actual initiating user
-- [ ] Normalize embedded team members into `application_members`
-- [ ] Preserve separate `member_role` and `status`
-- [ ] Require exactly one `LEADER` per application and that leader is `ACCEPTED`
-- [ ] Preserve solo application as one accepted leader member
-- [ ] Preserve `app-route` pending-invite member as `MEMBER / INVITED`
-- [ ] Preserve `team_name`, `preferred_role`, `committed_hours_per_week` only when deterministically supported
-- [ ] Keep general profile availability separate from application commitment
-- [ ] Map motivation/relevant-experience narrative only from appropriate fixture fields
-- [ ] Do not fabricate `application_projects`; expected count remains 0 while student-project evidence is deferred
-- [ ] Seed `app-outreach + inv-outreach` as `supervision_requests`
-- [ ] Keep challenge faculty routing, supervision requests, and future project supervisor distinct
+- [x] Seed only the approved compact application fixtures
+- [x] Use deterministic seed keys/public IDs; never hard-code bigint PKs
+- [x] Preserve `applications → application_members`; do not restore `applications.student_id`
+- [x] Resolve `submitted_by` to the actual initiating user
+- [x] Normalize embedded team members into `application_members`
+- [x] Preserve separate `member_role` and `status`
+- [x] Require exactly one `LEADER` per application and that leader is `ACCEPTED`
+- [x] Preserve solo application as one accepted leader member
+- [x] Preserve `app-route` pending-invite member as `MEMBER / INVITED`
+- [x] Preserve `team_name`, `preferred_role`, `committed_hours_per_week` only when deterministically supported
+- [x] Keep general profile availability separate from application commitment
+- [x] Map motivation/relevant-experience narrative only from appropriate fixture fields
+- [x] Do not fabricate `application_projects`; expected count remains 0 while student-project evidence is deferred
+- [x] Seed `app-outreach + inv-outreach` as `supervision_requests`
+- [x] Keep challenge faculty routing, supervision requests, and future project supervisor distinct
 
 ### Phase-consistent staged application statuses
 
@@ -989,18 +989,28 @@ match_experience_details = 0
 
 ### Phase 3.5 verification
 
-- [ ] Validate every application references an existing seeded challenge
-- [ ] Validate every member references an existing seeded student/profile
-- [ ] Validate exactly one accepted leader per application
-- [ ] Validate no duplicate `(application_id, student_id)`
-- [ ] Validate `submitted_by` membership where required by fixture semantics
-- [ ] Validate pending invite scenario
-- [ ] Validate supervision request relationships/timestamps
-- [ ] Run seed twice and verify idempotency
-- [ ] Run `pnpm db:reset` and verify Phase 3.5 state can be recreated from zero
-- [ ] Update `docs/database/demo-seed-manifest.md`
-- [ ] Update `docs/database/seed-transformation-plan.md`
-- [ ] Update this plan with actual counts and next checkpoint
+- [x] Validate every application references an existing seeded challenge
+- [x] Validate every member references an existing seeded student/profile
+- [x] Validate exactly one accepted leader per application
+- [x] Validate no duplicate `(application_id, student_id)`
+- [x] Validate `submitted_by` membership where required by fixture semantics
+- [x] Validate pending invite scenario
+- [x] Validate supervision request relationships/timestamps
+- [x] Run seed twice and verify idempotency
+- [x] Run `pnpm db:reset` and verify Phase 3.5 state can be recreated from zero
+- [x] Update `docs/database/demo-seed-manifest.md`
+- [x] Update `docs/database/seed-transformation-plan.md`
+- [x] Update this plan with actual counts and next checkpoint
+
+### Phase 3.5 actual results
+
+- Seeded 8 compact applications: `app-triage`, `app-route`, `app-churn`, `app-outreach`, `app-supply`, `app-energy`, `app-archive`, and `papp-depot`.
+- Seeded 18 `application_members`, preserving one accepted leader per application, the solo `app-triage` scenario, and the `app-route` pending invited member.
+- Seeded 1 pending `supervision_requests` row for `app-outreach + inv-outreach`.
+- Kept `application_projects = 0`; structured experience evidence remains deferred.
+- Kept assessments, selections, offers, agreements, projects, milestones, deliverables, resources, feedback, and matching outputs at zero.
+- Verified repeated guarded seeding is idempotent.
+- Verified `pnpm db:reset` recreates Phase 3.5 from zero.
 
 ## 3.6 Implement DEMO assessment layer
 
@@ -1553,7 +1563,7 @@ project files
 ## Current status
 
 **Current phase:** Phase 3 — Seed Transformation  
-**Active next checkpoint:** Phase 3.5 — DEMO Application and Team Foundation
+**Active next checkpoint:** Phase 3.6 — DEMO Assessment Layer
 
 ### Latest completed work
 
@@ -1572,6 +1582,11 @@ project files
 - Phase 3.4 seed-from-zero verification recreated the Phase 3.3 state exactly and a second seed run remained idempotent.
 - Phase 3.4 representative queries verified public/confidential challenge behavior, external owner + CAID manager, E-Lab owner = manager, canonical challenge-skill joins, eligibility rules, and faculty routing.
 - Downstream workflow records remain intentionally unseeded through Phase 3.4: applications, assessment history, selections/offers, agreements, projects/milestones/resources/feedback, and matching outputs remain zero.
+- Phase 3.5 is COMPLETE / HUMAN REVIEW PENDING: 8 compact applications, 18 application members, 0 application-project evidence links, and 1 pending supervision request are seeded.
+- Phase 3.5 application set: `app-triage`, `app-route`, `app-churn`, `app-outreach`, `app-supply`, `app-energy`, `app-archive`, and `papp-depot`.
+- Phase 3.5 preserves exactly one accepted leader per application, the solo `app-triage` scenario, the `app-route` pending invited member, and the `app-outreach + inv-outreach` supervision request.
+- Phase 3.5 intentionally stages downstream lifecycle states before selections/offers/projects exist: `SUBMITTED = 1`, `ASSESSMENT = 1`, `SELECTION_PENDING = 6`, `SELECTED = 0`, `REJECTED = 0`, `WITHDRAWN = 0`.
+- Phase 3.5 keeps assessments, selections/offers, agreements, projects/milestones/resources/feedback, and matching outputs unseeded.
 - ERD v1 remains frozen; later structural DB changes require a new reviewed schema change.
 - `src/db/seed/skills.ts` retains the approved taxonomy and exposes conservative seed-label resolution without semantic skill merging.
 
@@ -1584,8 +1599,9 @@ project files
 - `pnpm build` passes when network access is available for Google Fonts.
 - `pnpm db:seed` refuses without `ALLOW_DB_SEED=true`.
 - `NODE_ENV=production ALLOW_DB_SEED=true pnpm db:seed` refuses before writes.
-- Repeated `ALLOW_DB_SEED=true pnpm db:seed` is idempotent for the Phase 3.3 seed state.
-- `pnpm db:reset` recreates the Phase 3.3 seed state from an empty local Docker volume.
+- Repeated `ALLOW_DB_SEED=true pnpm db:seed` is idempotent for the Phase 3.5 seed state.
+- `pnpm db:reset` recreates the Phase 3.5 seed state from an empty local Docker volume.
+- Phase 3.5 validation confirms exactly one accepted leader per seeded application, zero duplicate application members, one invited member, zero applications for the synthesized E-Lab challenge, and zero downstream leakage.
 - pgvector is enabled after reset; no vector columns or vector indexes exist yet.
 - Current reproducible seed counts:
 
@@ -1606,9 +1622,10 @@ challenge_eligibility_rules:    17
 challenge_faculty_assignments:  14
 challenge_reviews:               0
 
-applications:                    0
-application_members:             0
-supervision_requests:            0
+applications:                    8
+application_members:            18
+application_projects:            0
+supervision_requests:            1
 assessments:                     0
 assessment_attempts:             0
 selections:                      0
@@ -1626,9 +1643,9 @@ match_results:                   0
 
 ## Immediate next task
 
-### Phase 3.5 — DEMO Application and Team Foundation
+### Phase 3.6 — DEMO Assessment Layer
 
-Phase 3.4 has been human-reviewed and the reset/reproducibility workflow is now a standing invariant for the rest of Phase 3.
+Phase 3.5 has implemented the compact application/team foundation. Human review should confirm the Phase 3.5 application mappings before assessment DEMO seeding begins.
 
 Do **not** jump to Phase 4 yet. Phase 4 begins only after Phase 3.5–3.9 complete the normalized compact DEMO workflow dataset.
 
@@ -1637,7 +1654,7 @@ Immediate sequence:
 ```text
 Phase 3.4 reset/reproducibility baseline ✅
         ↓
-Phase 3.5 applications + application members + supervision
+Phase 3.5 applications + application members + supervision ✅
         ↓
 Phase 3.6 assessments
         ↓
@@ -1650,20 +1667,15 @@ Phase 3.9 final reset/reproducibility closeout
 Phase 4 challenge marketplace DB read path
 ```
 
-### Immediate Phase 3.5 checklist
+### Immediate Phase 3.6 checklist
 
-- [ ] Re-read the exact Phase 3.5 section in this plan before implementation
-- [ ] Validate compact application fixtures against `docs/database/demo-seed-manifest.md`
-- [ ] Seed `applications`
-- [ ] Normalize team membership into `application_members`
-- [ ] Preserve exactly one accepted leader per application
-- [ ] Preserve solo and pending-invite scenarios
-- [ ] Seed `app-outreach` supervision request
-- [ ] Keep `application_projects = 0` unless valid seeded student-project evidence already exists
-- [ ] Use phase-consistent staged statuses; do not create `SELECTED` without a selection row
-- [ ] Keep assessments, selections/offers, agreements, projects, milestones/resources/feedback, and matching outputs deferred
+- [ ] Re-read the exact Phase 3.6 section in this plan before implementation
+- [ ] Seed assessment definitions, sections, and questions only for approved DEMO scenarios
+- [ ] Seed assessment attempts/responses/scores only where ownership is unambiguous
+- [ ] Preserve `assessments.scope` semantics for team versus individual ownership
+- [ ] Keep selections, offers, agreements, projects, milestones/resources/feedback, and matching outputs deferred
 - [ ] Verify repeated `db:seed` idempotency
-- [ ] Verify `pnpm db:reset` recreates the new Phase 3.5 state from zero
+- [ ] Verify `pnpm db:reset` recreates the new Phase 3.6 state from zero
 - [ ] Update `docs/database/demo-seed-manifest.md`
 - [ ] Update `docs/database/seed-transformation-plan.md`
 - [ ] Update this plan's status, actual counts, work log, and next checkpoint
@@ -1682,19 +1694,20 @@ Before each agent implementation task:
 
 ### Recommended next agent instruction
 
-The detailed Phase 3.5 implementation prompt should implement only:
+The detailed Phase 3.6 implementation prompt should implement only:
 
 ```text
-applications
-application_members
-supervision_requests
-application_projects only if valid evidence already exists
+assessments
+assessment_sections
+assessment_questions
+assessment_attempts
+assessment_responses
+assessment_scores
 ```
 
 and must stop before:
 
 ```text
-assessments
 selections
 offers
 agreements
@@ -1703,7 +1716,7 @@ milestones
 matching
 ```
 
-The Phase 3.5 implementation should use the exact staged-status rules documented in Section 7 rather than the static MVP's monolithic `Application.stage`.
+The Phase 3.6 implementation should use `assessments.scope` carefully and must not seed provider/team assessment attempts where the static fixture does not identify the assessed member or team ownership unambiguously.
 
 ---
 
@@ -1736,6 +1749,16 @@ Use this section after each development session.
 - Verified Phase 3.3 relationship queries for public/VinUni marketplace rows, confidential merchant ownership, CAID management, E-Lab owner/manager routing, canonical skill joins, eligibility rules, and faculty assignment joins
 - Verified Jordan Lee passes the synthesized E-Lab `MIN_GPA = 3.5` eligibility sanity check
 - Verified Phase 3.3 did not seed applications, application members, supervision requests, assessments, selections/offers, agreements, projects, milestones, matching records, notifications, or audit logs
+- Phase 3.5 DEMO application and team foundation implemented and documented
+- Added `src/db/seed/applications.ts` for deterministic compact application, application-member, and supervision-request seeding
+- Wired Phase 3.5 seeding into the guarded transaction after DEMO challenges
+- Seeded 8 compact applications, 18 application members, 0 application-project evidence links, and 1 pending supervision request
+- Preserved exactly one accepted leader per application and `submitted_by` as an application member
+- Preserved solo `app-triage`, pending-invite `app-route`, provider-side `papp-depot`, and pending supervision `app-outreach + inv-outreach`
+- Staged application statuses before downstream rows: `SUBMITTED = 1`, `ASSESSMENT = 1`, `SELECTION_PENDING = 6`
+- Verified no Phase 3.6-3.8 leakage into assessments, selections/offers, agreements, projects, milestones/resources/feedback, or matching outputs
+- Verified guarded seed idempotency before reset, `pnpm db:reset` reproduction from zero, and post-reset seed idempotency
+- Updated `docs/database/demo-seed-manifest.md`, `docs/database/seed-transformation-plan.md`, and this plan with Phase 3.5 counts, mappings, and next checkpoint
 - Validation passed: `pnpm exec tsc --noEmit`, `pnpm lint`, `pnpm db:check`, `pnpm exec drizzle-kit check`, and network-enabled `pnpm build`
 - Phase 3.2 compact DEMO identity and organization foundation implemented
 - `docs/database/demo-seed-manifest.md` created as the authoritative compact DEMO inventory
@@ -1783,7 +1806,7 @@ None.
 
 ### Next action
 
-Proceed with Phase 3.5 — DEMO Application and Team Foundation. Phase 4 is deferred until Phase 3.5–3.9 complete the compact normalized workflow seed.
+Proceed with Phase 3.6 — DEMO Assessment Layer after human review of Phase 3.5 application mappings. Phase 4 is deferred until Phase 3.5–3.9 complete the compact normalized workflow seed.
 
 ## 2026-08-15
 

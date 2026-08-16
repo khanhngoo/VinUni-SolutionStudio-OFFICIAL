@@ -1,6 +1,6 @@
 # DEMO Seed Manifest
 
-Phase: 3.3 compact DEMO challenge foundation  
+Phase: 3.5 compact DEMO application and team foundation  
 Date: 2026-08-16
 
 ## Scope
@@ -23,7 +23,13 @@ Phase 3.3 adds only challenge-side DEMO records:
 - DEMO `challenge_eligibility_rules`
 - DEMO `challenge_faculty_assignments`
 
-Phase 3.3 does not seed applications, application members, application evidence, supervision requests, assessments, assessment attempts, selections, offers, agreements, projects, milestones, deliverables, feedback, matching records, notifications, or audit demo records.
+Phase 3.5 adds only application/team foundation records:
+
+- DEMO `applications`
+- DEMO `application_members`
+- DEMO `supervision_requests`
+
+Phase 3.5 intentionally keeps `application_projects = 0` because structured student-project evidence conversion is deferred. It does not seed assessments, assessment attempts, selections, offers, agreements, projects, milestones, deliverables, feedback, matching records, notifications, or audit demo records.
 
 ## Compact Scenario Spine
 
@@ -179,7 +185,7 @@ Alias/normalization examples used:
 
 | Item | Status | Notes |
 |---|---|---|
-| E-Lab internal challenge | SYNTHESIZED DEMO / DEFERRED | Future challenge will use `owner_organization = E-Lab` and `managing_organization = E-Lab`. The challenge record is intentionally deferred to the challenge DEMO seed phase. |
+| E-Lab internal challenge | SYNTHESIZED DEMO / SEEDED IN PHASE 3.3 | Uses `owner_organization = E-Lab` and `managing_organization = E-Lab`. No Phase 3.5 applications are seeded for this challenge. |
 | E-Lab people prerequisites | BOOTSTRAP SUFFICIENT | `user:elab-admin-dev` already exists as an E-Lab admin. No additional E-Lab contact/profile is required for Phase 3.2. |
 | Skill relationships | DEFERRED | Remain zero until conservative relationships are explicitly approved. |
 | Matching outputs | DEFERRED | Belong to Phase 7, not DEMO seed identity setup. |
@@ -267,6 +273,106 @@ CAID-managed challenge assignments are assigned by `user:caid-admin-dev`. The E-
 ### Challenge Reviews
 
 Phase 3.3 intentionally seeds zero `challenge_reviews`. The selected static challenge fixtures already appear as marketplace/published records, but they do not contain durable review history with reviewer decisions/comments. Review rows remain deferred until a later checkpoint explicitly requires challenge approval history.
+
+## Phase 3.5 Application DEMO Records
+
+Phase 3.5 seeds the compact application spine only. Static `Application.stage` remains source material, not production authority. Application rows use stable DEMO UUID `public_id` values and are keyed in seed code by `application:<source fixture id>`.
+
+### Application Selection
+
+| Stable seed key | Source fixture | Public ID | Challenge slug | `submitted_by` | Team name | Phase 3.5 status |
+|---|---|---|---|---|---|---|
+| `application:app-triage` | `app-triage` | `44444444-4444-4444-8444-000000000001` | `triage-protocol-review` | `user:stu-jordan-lee` | `Triage Review` | `ASSESSMENT` |
+| `application:app-route` | `app-route` | `44444444-4444-4444-8444-000000000002` | `route-optimisation` | `user:stu-jordan-lee` | `Last Mile` | `SELECTION_PENDING` |
+| `application:app-churn` | `app-churn` | `44444444-4444-4444-8444-000000000003` | `merchant-churn-model` | `user:stu-jordan-lee` | `Retention Two` | `SELECTION_PENDING` |
+| `application:app-outreach` | `app-outreach` | `44444444-4444-4444-8444-000000000004` | `community-health-outreach` | `user:stu-jordan-lee` | `Outreach Metrics` | `SUBMITTED` |
+| `application:app-supply` | `app-supply` | `44444444-4444-4444-8444-000000000005` | `supply-chain-dashboard` | `user:stu-jordan-lee` | `Warehouse Four` | `SELECTION_PENDING` |
+| `application:app-energy` | `app-energy` | `44444444-4444-4444-8444-000000000006` | `campus-energy-audit` | `user:stu-jordan-lee` | `Kilowatt` | `SELECTION_PENDING` |
+| `application:app-archive` | `app-archive` | `44444444-4444-4444-8444-000000000007` | `archive-digitisation` | `user:stu-jordan-lee` | `Long Record` | `SELECTION_PENDING` |
+| `application:papp-depot` | `papp-depot` | `44444444-4444-4444-8444-000000000008` | `route-optimisation` | `user:stu-bao-tran` | `Depot` | `SELECTION_PENDING` |
+
+Every seeded application references an existing Phase 3.3 challenge. No application is seeded for the synthesized E-Lab challenge; that challenge remains application-free until a later fixture explicitly requires it.
+
+### Application Member Mapping
+
+| Application | Leader | Accepted members | Invited members | Preferred-role source |
+|---|---|---|---|---|
+| `app-triage` | Jordan Lee / `Research` | none | none | `soloTeam("Triage Review", "Research")` |
+| `app-route` | Jordan Lee / `Data & ML` | Priya Raman / `Backend` | Minh Anh Nguyen / `Domain expert` | `lastMileTeam` |
+| `app-churn` | Jordan Lee / `Data & ML` | Priya Raman / `Analysis` | none | `churnTeam` |
+| `app-outreach` | Jordan Lee / `Analysis` | Hoang Tran / `Coordination` | none | `outreachTeam` |
+| `app-supply` | Jordan Lee / `Data & ML` | Priya Raman / `Backend`; Minh Anh Nguyen / `Analysis` | none | `supplyTeam` |
+| `app-energy` | Jordan Lee / `Analysis` | Hoang Tran / `Coordination` | none | `energyTeam` |
+| `app-archive` | Jordan Lee / `Backend` | Linh Pham / `Design`; Thao Ha / `Research` | none | `archiveTeam` |
+| `papp-depot` | Bao Tran / `Data & ML` | Hoang Tran / `Coordination` | none | `providerApplications` `depotTeam` |
+
+Static member states map as follows:
+
+- `leader` -> `member_role = LEADER`, `status = ACCEPTED`
+- `accepted` -> `member_role = MEMBER`, `status = ACCEPTED`
+- `invited` -> `member_role = MEMBER`, `status = INVITED`
+
+Leader `responded_at` uses the deterministic application `appliedAt` timestamp because the leader is the submitting actor and has no team invitation timestamp. Accepted member `responded_at` uses the static `invitedAt` timestamp when no better source exists. Pending invited members keep `responded_at = NULL`.
+
+`committed_hours_per_week` remains `NULL` for every member in Phase 3.5. Static `hoursAvailable` is general profile availability and was already seeded on `student_profiles.available_hours_per_week`; no fixture provides a distinct per-application commitment. `availability_confirmed` also remains `NULL` because the fixtures do not carry an explicit confirmation value separate from member status.
+
+`applications.motivation` and `applications.relevant_experience` remain `NULL` for every Phase 3.5 application because the selected static application fixtures do not contain the submitted draft narrative. Profile bios, challenge descriptions, and project full briefs are not copied into application narratives.
+
+`application_projects = 0` in Phase 3.5. Transcript/experience-to-`student_projects` conversion remains deferred, and no fake structured evidence links are created.
+
+### Static To Staged Lifecycle Matrix
+
+| Source fixture | Static display state | Phase 3.5 authoritative database state | Future database state |
+|---|---|---|---|
+| `app-triage` | `NOT_SELECTED` after failed assessment | `applications.status = ASSESSMENT`; no assessment rows yet | Phase 3.6 seeds reviewed failed assessment and may transition to `REJECTED` |
+| `app-route` | `INVITED` / pending offer | `applications.status = SELECTION_PENDING`; no selection/offer rows yet | Phase 3.7 creates selection plus pending offer and transitions to `SELECTED` |
+| `app-churn` | `TEST_SUBMITTED` with passing visible result | `applications.status = SELECTION_PENDING`; no assessment rows yet | Phase 3.6 seeds reviewed individual assessment history |
+| `app-outreach` | `APPLIED` / waiting on supervisor | `applications.status = SUBMITTED`; pending supervision request exists | Later phase may advance after supervision and assessment/selection rows exist |
+| `app-supply` | `ACTIVE` project workspace | `applications.status = SELECTION_PENDING`; no selection/offer/project rows yet | Phase 3.7 creates accepted selection/offer; Phase 3.8 creates active project |
+| `app-energy` | `IN_REVIEW` project | `applications.status = SELECTION_PENDING`; no selection/offer/project rows yet | Phase 3.7 creates accepted selection/offer; Phase 3.8 creates final-review project |
+| `app-archive` | `COMPLETED` project | `applications.status = SELECTION_PENDING`; no selection/offer/project rows yet | Phase 3.7 creates accepted selection/offer; Phase 3.8 creates completed project and close-out data |
+| `papp-depot` | `ACTIVE` partner approval workflow | `applications.status = SELECTION_PENDING`; no selection/offer/project rows yet | Phase 3.7 creates accepted selection/offer; Phase 3.8 creates active project with pending partner approval |
+
+Phase 3.5 intentionally seeds no `SELECTED` applications because `selections = 0`. It also avoids `REJECTED` for `app-triage` until the failed assessment result exists as durable assessment data.
+
+### Supervision Request Mapping
+
+| Stable seed key | Source fixture | Application | Faculty | Requested by | Status | Requested at | Respond by | Responded at |
+|---|---|---|---|---|---|---|---|---|
+| `supervision-request:inv-outreach` | `inv-outreach` | `application:app-outreach` | `user:fac-pham` | `user:stu-jordan-lee` | `PENDING` | `2026-07-25` | `2026-08-01` | `NULL` |
+
+`supervision_requests` records faculty asked to supervise a specific application/team. It is distinct from `challenge_faculty_assignments`, which records challenge-side faculty routing suggestions, and from future `projects.faculty_supervisor_id`, which records the project supervisor after project creation.
+
+`requested_by` is Jordan Lee for `inv-outreach` because the fixture describes a student/team nomination at application time and Jordan is the application leader/submitting actor.
+
+### Phase 3.5 Expected Counts
+
+After a clean Phase 3.5 seed, the application/team DEMO layer should contain:
+
+- `applications`: 8
+- `application_members`: 18
+- `application_projects`: 0
+- `supervision_requests`: 1
+
+Status distribution:
+
+- `SUBMITTED`: 1
+- `ASSESSMENT`: 1
+- `SELECTION_PENDING`: 6
+- `SELECTED`: 0
+- `REJECTED`: 0
+- `WITHDRAWN`: 0
+
+Acceptance invariants verified during seeding:
+
+- Every application references an existing seeded challenge.
+- Every member references an existing seeded student profile.
+- Every seeded application has exactly one `LEADER`, and that leader is `ACCEPTED`.
+- Every student/team-initiated application has `submitted_by` among its application members.
+- `app-triage` remains a solo application with one accepted leader and no artificial member row.
+- `app-route` preserves one pending invited member.
+- No duplicate `(application_id, student_id)` membership exists.
+- No assessments, selections, offers, agreements, projects, milestones, resources, feedback, or matching records are seeded in Phase 3.5.
 
 ### Phase 3.3 Expected Counts
 
