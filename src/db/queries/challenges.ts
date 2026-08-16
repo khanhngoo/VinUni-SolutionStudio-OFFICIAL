@@ -357,44 +357,16 @@ function organizationSummary(
     name: string;
     organizationType: OrganizationType;
     verificationStatus: OrganizationVerificationStatus;
-  },
-  options: { maskName?: boolean } = {}
+  }
 ): ChallengeOrganizationSummary {
-  const nameIsPublic = !options.maskName;
-
   return {
-    displayName: nameIsPublic
-      ? row.name
-      : row.industry ?? "Confidential organization",
+    displayName: row.name,
     industry: row.industry,
-    name: nameIsPublic ? row.name : null,
-    nameIsPublic,
+    name: row.name,
+    nameIsPublic: true,
     organizationType: row.organizationType,
     verificationStatus: row.verificationStatus,
   };
-}
-
-function shouldMaskOwnerOrganizationName(row: {
-  confidentialityLevel: string | null;
-  visibility: ChallengeVisibility;
-}) {
-  return (
-    row.visibility === "PRIVATE" &&
-    row.confidentialityLevel === "HIGH_CONFIDENTIALITY"
-  );
-}
-
-function ownerOrganizationSummary(row: {
-  confidentialityLevel: string | null;
-  industry: string | null;
-  name: string;
-  organizationType: OrganizationType;
-  visibility: ChallengeVisibility;
-  verificationStatus: OrganizationVerificationStatus;
-}) {
-  return organizationSummary(row, {
-    maskName: shouldMaskOwnerOrganizationName(row),
-  });
 }
 
 async function selectBaseChallengeRows(
@@ -499,12 +471,10 @@ async function selectBaseChallengeRows(
           verificationStatus:
             row.managingOrganizationVerificationStatus ?? "PENDING",
         }),
-        ownerOrganization: ownerOrganizationSummary({
-          confidentialityLevel: row.confidentialityLevel,
+        ownerOrganization: organizationSummary({
           industry: row.ownerOrganizationIndustry,
           name: row.ownerOrganizationName,
           organizationType: row.ownerOrganizationType,
-          visibility: row.visibility ?? "VINUNI_ONLY",
           verificationStatus: row.ownerOrganizationVerificationStatus ?? "PENDING",
         }),
         publicId: row.publicId,
@@ -611,12 +581,10 @@ async function selectBaseChallengeRowBySlug(slug: string) {
       organizationType: row.managingOrganizationType,
       verificationStatus: row.managingOrganizationVerificationStatus ?? "PENDING",
     }),
-    ownerOrganization: ownerOrganizationSummary({
-      confidentialityLevel: row.confidentialityLevel,
+    ownerOrganization: organizationSummary({
       industry: row.ownerOrganizationIndustry,
       name: row.ownerOrganizationName,
       organizationType: row.ownerOrganizationType,
-      visibility: row.visibility ?? "VINUNI_ONLY",
       verificationStatus: row.ownerOrganizationVerificationStatus ?? "PENDING",
     }),
     publicId: row.publicId,
