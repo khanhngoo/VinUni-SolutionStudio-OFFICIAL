@@ -672,8 +672,9 @@ Do not re-design the schema from mock objects during seeding.
 ## Phase 3 checkpoint status
 
 - Phase 3.0: COMPLETE. HUMAN REVIEW COMPLETE. Seed transformation design and approved review corrections recorded at `docs/database/seed-transformation-plan.md`.
-- Phase 3.1: COMPLETE. Seed safety/context infrastructure, BOOTSTRAP data, and REFERENCE skill taxonomy implemented and verified.
-- Phase 3.2: NEXT. Define the compact DEMO seed dataset and deterministic scenario records.
+- Phase 3.1: COMPLETE. HUMAN REVIEW COMPLETE. Seed safety/context infrastructure, BOOTSTRAP data, and REFERENCE skill taxonomy implemented and verified.
+- Phase 3.2: COMPLETE. Compact DEMO identity and organization foundation implemented and documented.
+- Phase 3.3: NEXT. DEMO challenges and challenge-side normalized data.
 
 ## 3.0 Design the seed transformation
 
@@ -708,31 +709,28 @@ Do not re-design the schema from mock objects during seeding.
 - [x] Confirm no DEMO challenge/application/assessment/offer/project rows are seeded in Phase 3.1
 - [x] Create reference taxonomy review artifact at `docs/database/reference-skill-seed.md`
 
-## 3.2 Define seed dataset
+## 3.2 Define compact DEMO identity and organization foundation
 
-Create deterministic development examples for:
+Create deterministic development examples for the compact DEMO prerequisite layer:
 
-- [ ] Select useful existing demo records to preserve
-- [ ] Transform denormalized mock objects into normalized ERD records
-- [ ] Supply ERD-required fields missing from current mocks with intentional development values
-- [ ] Remove mock-only/presentation-only fields from persistence
-- [ ] Preserve useful names/content that make the current demo recognizable
-- [ ] CAID admin
-- [ ] E-Lab admin
-- [ ] Faculty
-- [ ] Students
-- [ ] Partner organizations
-- [ ] Partner representatives/contact people
-- [ ] Skills
-- [ ] Student skills
-- [ ] Challenges
-- [ ] Challenge skill requirements
-- [ ] Applications
-- [ ] Assessments
-- [ ] Offers
-- [ ] Projects where applicable
+- [x] Select useful existing demo records to preserve
+- [x] Resolve the exact compact fixture list after excluding ambiguous organizations
+- [x] Create `docs/database/demo-seed-manifest.md`
+- [x] Supply ERD-required identity/profile fields missing from current mocks with intentional development values
+- [x] Remove mock-only/presentation-only fields from persistence
+- [x] Preserve useful names/content that make the current demo recognizable
+- [x] Reuse existing CAID admin BOOTSTRAP identity
+- [x] Reuse existing E-Lab admin BOOTSTRAP identity
+- [x] Seed selected faculty users and profiles
+- [x] Seed selected student users and profiles
+- [x] Seed selected partner/internal DEMO organizations
+- [x] Seed selected partner/internal contact users
+- [x] Seed contact organization memberships
+- [x] Reuse existing REFERENCE skills without expanding taxonomy
+- [x] Seed selected student skill claims against existing canonical skills
+- [x] Confirm no challenges, challenge skills/rules, applications, assessments, offers, projects, milestones, matching outputs, notifications, or audit demo records are seeded in this phase
 
-## 3.3 Implement seeding
+## 3.3 Implement DEMO challenges and challenge-side normalized data
 
 Target:
 
@@ -742,12 +740,15 @@ src/db/seed.ts
 
 Checklist:
 
-- [ ] Make seed deterministic
-- [ ] Make repeated seed execution safe where practical
+- [ ] Seed selected DEMO challenges
+- [ ] Seed challenge skill requirements
+- [ ] Seed challenge eligibility rules
+- [ ] Seed challenge faculty assignments/reviews only where approved
+- [ ] Preserve challenge referential integrity to Phase 3.2 organizations, contacts, faculty, and REFERENCE skills
+- [ ] Make repeated challenge-side seed execution safe where practical
 - [ ] Preserve referential integrity
-- [ ] Seed useful lifecycle states
-- [ ] Add `pnpm db:seed`
-- [ ] Test seed on fresh DB
+- [ ] Keep applications, assessments, selections/offers, projects, milestones, matching outputs, notifications, and audit demo records deferred unless this checkpoint explicitly expands scope
+- [ ] Test challenge-side seed on current DB
 - [ ] Verify seeded data through Drizzle Studio
 
 ## 3.4 Establish reset workflow
@@ -1169,7 +1170,7 @@ project files
 ## Current status
 
 **Current phase:** Phase 3 — Seed Transformation  
-**Active next phase:** Phase 3.2 — define the compact DEMO seed dataset and deterministic scenario records
+**Active next phase:** Phase 3.3 — DEMO challenges and challenge-side normalized data
 
 ### Latest completed work
 
@@ -1194,6 +1195,14 @@ project files
 - Reference taxonomy review artifact created at `docs/database/reference-skill-seed.md`
 - Phase 3.1 idempotency verified by repeated seed execution with stable row counts
 - Phase 3.1 confirmed no challenge/application/assessment/offer/project DEMO rows are seeded
+- Phase 3.2 compact DEMO fixture list resolved after organization classification review
+- Phase 3.2 manifest created at `docs/database/demo-seed-manifest.md`
+- Phase 3.2 DEMO organizations implemented: Bến Cảng Logistics, Vietnam Health Foundation, VinUni Facilities, National Heritage Archive, and VinUni Health Sciences
+- Phase 3.2 ambiguous `org-vinai` fixture excluded; public technical coverage shifted to `route-optimisation`
+- Phase 3.2 DEMO contact users normalized with `CONTACT_PERSON` organization memberships
+- Phase 3.2 DEMO student and faculty users/profiles seeded with deterministic `example.test` emails
+- Phase 3.2 DEMO student skill claims linked only to the existing Phase 3.1 canonical taxonomy
+- Phase 3.2 keeps `skill_relationships = 0` and seeds no challenges, applications, assessments, selections/offers, projects, milestones, matching records, notifications, or audit demo records
 - `src/db/index.ts` now exposes the shared node-postgres Drizzle client with the production schema
 - ERD v1 remains frozen; future structural changes require a new reviewed schema change
 
@@ -1226,6 +1235,10 @@ Previous completed work:
 - `NODE_ENV=production ALLOW_DB_SEED=true pnpm db:seed` refuses before seed writes
 - `ALLOW_DB_SEED=true pnpm db:seed` first run produced 2 organizations, 2 users, 2 memberships, 9 skill categories, 58 skills, 4 aliases after final cleanup, and 0 skill relationships
 - Repeated `ALLOW_DB_SEED=true pnpm db:seed` kept all Phase 3.1 row counts unchanged
+- Phase 3.2 first seed run produced 7 organizations, 20 users, 7 memberships, 7 student profiles, 6 faculty profiles, 33 student skill claims, 9 skill categories, 58 skills, 4 aliases, and 0 skill relationships
+- Repeated `ALLOW_DB_SEED=true pnpm db:seed` kept all Phase 3.2 row counts unchanged
+- Phase 3.2 safety checks verified `pnpm db:seed` refuses without `ALLOW_DB_SEED=true` and refuses with `NODE_ENV=production`
+- Phase 3.2 workflow leakage check verified 0 challenges, applications, assessments, assessment attempts, selections, offers, projects, milestones, deliverables, milestone reviews, feedback, matching rows, and notifications
 - DBML to Drizzle comparison: 45 tables and 41 enums implemented; no missing or extra domain tables/enums
 - Fresh PostgreSQL migration replay creates 45 public tables, 41 enums, 82 foreign keys, 35 CHECK constraints, and 11 partial indexes
 - Drizzle migration journal contains one applied migration after repeated `pnpm db:migrate`
@@ -1262,40 +1275,41 @@ port:
 
 ## Immediate next task
 
-### Begin Phase 3.2 compact DEMO seed dataset definition.
+### Begin Phase 3.3 DEMO challenges and challenge-side normalized data.
 
-Phase 3.1 seed safety/context infrastructure, BOOTSTRAP data, and REFERENCE skill taxonomy are complete and ready for human review. The next checkpoint is to define the compact DEMO seed dataset and deterministic scenario records before implementing scenario inserts.
+Phase 3.2 compact DEMO identity and organization foundation is complete and ready for human review. The next checkpoint is to seed selected DEMO challenge records and challenge-side normalized data using the stable identity/org/skill keys from `docs/database/demo-seed-manifest.md`.
 
 Immediate sequence:
 
 ```text
 1. Review docs/database/seed-transformation-plan.md
       ↓
-2. Review docs/database/reference-skill-seed.md
+2. Review docs/database/demo-seed-manifest.md
       ↓
-3. Select the compact DEMO challenge/application/project scenarios
+3. Seed selected DEMO challenges only
       ↓
-4. Confirm deterministic organization classifications for selected DEMO fixtures
+4. Seed challenge skills, eligibility rules, and approved faculty routing
       ↓
-5. Prepare Phase 3.2 implementation instructions without seeding records yet
+5. Verify no application/assessment/offer/project workflow rows are seeded unless Phase 3.3 scope explicitly expands
 ```
 
 ### Immediate checklist
 
 - [ ] Review `docs/database/seed-transformation-plan.md`
 - [ ] Review `docs/database/reference-skill-seed.md`
-- [ ] Choose final compact DEMO fixture list
-- [ ] Confirm deterministic organization classifications
+- [ ] Review `docs/database/demo-seed-manifest.md`
+- [ ] Use the Phase 3.2 compact DEMO fixture list
+- [ ] Seed challenge-side records for selected compact fixtures
 - [ ] Confirm any seed-specific demo timestamps or scenario reference date
 - [ ] Keep matching outputs, embeddings, transcript conversion, and ambiguous provider/team assessment results deferred unless explicitly approved
 - [ ] Preserve Phase 2 migration history unchanged
 - [ ] Do not change the frozen ERD without a reviewed schema change
-- [ ] Do not seed full demo application/project scenarios until Phase 3.2 decisions are reviewed
+- [ ] Do not seed applications, assessments, offers, projects, milestones, or matching outputs unless an explicit later checkpoint authorizes them
 
 ### Recommended first agent instruction
 
 ```text
-Proceed with Phase 3.2 only.
+Proceed with Phase 3.3 only.
 
 Read:
 - AGENTS.md
@@ -1306,13 +1320,16 @@ Read:
 - docs/database/mvp-erd-reconciliation.md
 - docs/database/seed-transformation-plan.md
 - docs/database/reference-skill-seed.md
+- docs/database/demo-seed-manifest.md
 - src/db/schema/**
-- src/lib/data/**
+- src/db/seed/**
+- src/db/seed.ts
+- challenge-relevant src/lib/data/** fixtures
 - src/lib/types.ts
 
-Define the compact DEMO seed dataset and deterministic scenario records only.
+Implement DEMO challenges and challenge-side normalized seed data only.
 
-Do not implement DEMO seed inserts unless explicitly requested for the next checkpoint.
+Do not seed applications, assessments, selections/offers, projects, milestones, matching records, notifications, or audit demo records unless explicitly requested for a later checkpoint.
 Do not change the frozen ERD unless a new reviewed schema change is explicitly approved.
 ```
 
@@ -1326,6 +1343,13 @@ Use this section after each development session.
 
 ### Completed
 
+- Phase 3.2 compact DEMO identity and organization foundation implemented
+- `docs/database/demo-seed-manifest.md` created as the authoritative compact DEMO inventory
+- Exact compact scenario spine selected: route, churn, triage, outreach, supply, energy, archive, depot, and synthesized E-Lab challenge coverage
+- Ambiguous `org-vinai` fixture excluded and `route-optimisation` selected for public technical challenge coverage
+- DEMO seed now inserts selected organizations, contacts, students, faculty, student/faculty profiles, contact memberships, and student skill claims only
+- Student skill claims resolve to the frozen Phase 3.1 canonical taxonomy; no new skills, skill relationships, or embeddings are generated
+- Phase 3.2 intentionally seeds no challenges, applications, assessments, selections/offers, projects, milestones, matching records, notifications, or audit demo records
 - Phase 3.1 seed safety/context infrastructure, BOOTSTRAP data, and REFERENCE skill taxonomy implemented
 - `src/db/seed.ts` and modular seed helpers created under `src/db/seed/**`
 - `pnpm db:seed` added as non-destructive/idempotent local seed command
@@ -1345,7 +1369,7 @@ Use this section after each development session.
 - Approved seed safety convention: `pnpm db:seed` must be non-destructive/idempotent and destructive reset remains a separate explicit local workflow
 - Static fixture sources classified into BOOTSTRAP, REFERENCE, and DEMO seed categories
 - Source-to-seed mapping, lifecycle mapping, team-application mapping, assessment mapping, project/milestone mapping, skill/reference strategy, eligibility mapping, dependency order, and idempotency/safety strategy documented
-- Remaining REVIEW items limited to exact compact fixture list after excluding ambiguous organizations and optional approved skill relationships
+- Remaining REVIEW item limited to optional approved skill relationships
 - Phase 2.8 initial migration generated, reviewed, applied, and fresh-tested
 - `drizzle/0000_empty_gladiator.sql` created with `CREATE EXTENSION IF NOT EXISTS vector;` before schema objects
 - Fresh database replay verified with `docker compose down -v`, `docker compose up -d`, `pnpm db:migrate`, and repeated no-op `pnpm db:migrate`
@@ -1365,7 +1389,7 @@ None.
 
 ### Next action
 
-Proceed to Phase 3.2: define the compact DEMO seed dataset and deterministic scenario records.
+Proceed to Phase 3.3: DEMO challenges and challenge-side normalized data.
 
 ## 2026-08-15
 

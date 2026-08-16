@@ -65,6 +65,23 @@ Final alias cleanup:
 
 Skill relationships remain deferred pending explicit human review. No `skill_relationships` rows are seeded in Phase 3.1, and no embeddings are generated.
 
+## Phase 3.2 Implementation Status
+
+Phase 3.2 establishes the compact DEMO identity and organization foundation required by later challenge/workflow seeding.
+
+Implemented scope:
+
+- DEMO organizations: 5
+- DEMO organization contact users: 5
+- DEMO student users/profiles: 7
+- DEMO faculty users/profiles: 6
+- DEMO contact memberships: 5
+- DEMO student skill claims: 33
+
+Phase 3.2 still seeds no challenges, applications, assessments, selections, offers, agreements, projects, milestones, deliverables, feedback, matching records, notifications, or audit demo records.
+
+The compact manifest is now recorded at `docs/database/demo-seed-manifest.md`.
+
 ## Seed Categories
 
 | Category | Meaning | Proposed records |
@@ -498,15 +515,17 @@ Recommended insertion order:
 28. Insert notifications/consent/audit demo rows only if needed for UI testing.
 29. Commit transaction.
 
-## Recommended Compact Scenario Dataset
+## Compact Scenario Dataset
 
 The compact initial DEMO scenario strategy is APPROVED. Do not seed every static fixture in the initial demo dataset.
 
-| Scenario | Suggested fixture | Why preserve |
+Phase 3.2 resolved the exact compact fixture list after excluding ambiguous organizations for identity/org prerequisites. The workflow records below remain deferred to later DEMO phases.
+
+| Scenario | Selected fixture | Why preserve |
 |---|---|---|
-| Marketplace published challenge | `multimodal-perception` | Public research challenge, technical assessment, GPA-gated eligibility failure for Jordan |
+| Marketplace published challenge | `route-optimisation` | Public technical challenge with deterministic external partner classification; replaces `multimodal-perception` because `org-vinai` is excluded as ambiguous. |
 | Confidential partner challenge | `merchant-churn-model` | Confidential display, partner pipeline, case assessment |
-| Solo application | `app-perception` | Solo leader-only team, assessment pending |
+| Solo application | `app-triage` | Solo leader-only team and rejected assessment outcome using deterministic internal-unit classification. |
 | Team application with pending invite | `app-route` | Team members accepted/invited, pending offer, NDA required |
 | Assessment submitted/reviewed | `app-churn` | Passing reviewed assessment |
 | Rejected/not-selected application | `app-triage` | Failed assessment to rejected outcome |
@@ -514,11 +533,24 @@ The compact initial DEMO scenario strategy is APPROVED. Do not seed every static
 | Pending offer | `app-route` or `papp-churn-signal` | Selection + durable offer `PENDING` |
 | Active project | `app-supply` | Workspace, resources, milestone statuses, NDA-tier data |
 | Final-review project | `app-energy` | Project `FINAL_REVIEW`, submitted milestone |
-| Completed project | `app-archive` or `papp-meridian` | Close-out feedback path |
+| Completed project | `app-archive` | Close-out feedback path |
 | Partner approvals queue | `papp-depot` | Partner milestone approval pending |
 | E-Lab-managed challenge | synthesized DEMO challenge | Approved internal-unit path coverage with owner and manager both E-Lab |
 
 This gives broad coverage without seeding all 22 application-like fixtures.
+
+Selected Phase 3.2 prerequisite identities:
+
+- Organizations: `org-bencang`, `org-vhf`, `org-facilities`, `org-heritage`, `org-health`.
+- Contacts: Dung Tran, Ngoc Bui, Hai Do, Thu Hoang, Dr. Lan Nguyen.
+- Students: Jordan Lee, Priya Raman, Minh Anh Nguyen, Hoang Tran, Bao Tran, Linh Pham, Thao Ha.
+- Faculty: Dr. Minh Pham, Dr. Kevin Nguyen, Dr. Diane Osei, Dr. Lan Vu, Dr. Thu Le, Dr. Bao Tran.
+
+Excluded or deferred organizations:
+
+- `org-vinai` is excluded as ambiguous; fixture content does not deterministically classify it as an internal VinUni unit or external partner.
+- `org-consumer`, `org-mekong`, and `org-green` are unambiguous external partners but outside the compact scenario set.
+- `org-materials` is outside the compact scenario set after `app-spectro` is excluded.
 
 ## Idempotency And Safety Strategy
 
@@ -562,9 +594,10 @@ src/db/
 
 Human review correction resolved the prior Phase 3.0 review items for compact dataset size, provider-side assessment ownership, E-Lab demo coverage, organization classification policy, skill alias granularity, matching seed records, student experience conversion, and challenge description convention.
 
+Phase 3.2 resolved the exact compact fixture list after excluding ambiguous organizations. See `docs/database/demo-seed-manifest.md`.
+
 | Item | Decision needed | Blocking next step? |
 |---|---|---|
-| Exact compact fixture list after excluding ambiguous organizations | Choose final challenge/application fixtures once deterministic organization classifications are known. | Not blocking Phase 3.1 bootstrap/reference infrastructure. |
 | Explicit approved skill relationships | Decide which, if any, conservative `skill_relationships` should be seeded as REFERENCE data. | Not blocking categories/canonical skills/lexical aliases. |
 
 ## Recommended Phase 3.1+ Implementation Sequence
@@ -586,4 +619,6 @@ Human review correction resolved the prior Phase 3.0 review items for compact da
 
 Phase 3.0 seed transformation design is complete and human review corrections are applied.
 
-Remaining REVIEW items do not block starting Phase 3.1 with seed safety/context infrastructure, BOOTSTRAP data, and REFERENCE skill taxonomy.
+Phase 3.2 has resolved the compact DEMO identity/org fixture list and seeded only prerequisite identity/profile/contact/student-skill records.
+
+Remaining REVIEW items do not block the next DEMO challenge-side seed checkpoint.

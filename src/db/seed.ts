@@ -4,6 +4,7 @@ import { count, sql } from "drizzle-orm";
 
 import { seedBootstrap } from "./seed/bootstrap";
 import { SeedContext } from "./seed/context";
+import { seedDemo } from "./seed/demo";
 import { seedReference } from "./seed/reference";
 import { formatSeedTarget, validateSeedSafety } from "./seed/safety";
 
@@ -18,6 +19,8 @@ async function readCounts(db: Database, schema: Schema) {
     skillCategories,
     skillRelationships,
     skills,
+    studentProfiles,
+    studentSkills,
     users,
   } = schema;
 
@@ -29,6 +32,8 @@ async function readCounts(db: Database, schema: Schema) {
     skillCount,
     aliasCount,
     relationshipCount,
+    studentProfileCount,
+    studentSkillCount,
   ] = await Promise.all([
     db.select({ count: count() }).from(organizations),
     db.select({ count: count() }).from(users),
@@ -37,6 +42,8 @@ async function readCounts(db: Database, schema: Schema) {
     db.select({ count: count() }).from(skills),
     db.select({ count: count() }).from(skillAliases),
     db.select({ count: count() }).from(skillRelationships),
+    db.select({ count: count() }).from(studentProfiles),
+    db.select({ count: count() }).from(studentSkills),
   ]);
 
   return {
@@ -46,6 +53,8 @@ async function readCounts(db: Database, schema: Schema) {
     organizations: organizationCount[0].count,
     skillRelationships: relationshipCount[0].count,
     skills: skillCount[0].count,
+    studentProfiles: studentProfileCount[0].count,
+    studentSkills: studentSkillCount[0].count,
     users: userCount[0].count,
   };
 }
@@ -53,7 +62,7 @@ async function readCounts(db: Database, schema: Schema) {
 function printSummary(ctx: SeedContext) {
   const rows = ctx.summary();
 
-  for (const section of ["BOOTSTRAP", "REFERENCE"] as const) {
+  for (const section of ["BOOTSTRAP", "DEMO", "REFERENCE"] as const) {
     console.log(section);
 
     for (const row of rows.filter((entry) => entry.section === section)) {
@@ -76,6 +85,7 @@ async function main() {
 
     await seedBootstrap(seedContext);
     await seedReference(seedContext);
+    await seedDemo(seedContext);
 
     return seedContext;
   });
@@ -95,6 +105,8 @@ async function main() {
   console.log(
     `  skill relationships: ${before.skillRelationships} -> ${after.skillRelationships}`
   );
+  console.log(`  student profiles: ${before.studentProfiles} -> ${after.studentProfiles}`);
+  console.log(`  student skills: ${before.studentSkills} -> ${after.studentSkills}`);
 
   if (after.skillRelationships !== 0) {
     throw new Error(

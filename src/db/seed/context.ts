@@ -2,7 +2,7 @@ import type { db } from "../index";
 
 export type SeedTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
-type SeedSection = "BOOTSTRAP" | "REFERENCE";
+type SeedSection = "BOOTSTRAP" | "REFERENCE" | "DEMO";
 
 export class SeedContext {
   private readonly ids = new Map<string, bigint>();
