@@ -3,7 +3,7 @@
 **Repository:** `VinUni-SolutionStudio-OFFICIAL`  
 **Project:** VinUniversity Solution Studio / AI-in-Action Platform  
 **Last updated:** 2026-08-16  
-**Current phase:** Phase 3.9 — Final Phase 3 seed verification and closeout
+**Current phase:** Phase 3 final verification complete / awaiting human review
 
 ---
 
@@ -93,7 +93,8 @@ VinUni-SolutionStudio-OFFICIAL/
 │       ├── mvp-erd-reconciliation.md      # reviewed MVP ↔ ERD mapping
 │       ├── seed-transformation-plan.md    # reviewed Phase 3 seed design
 │       ├── reference-skill-seed.md        # canonical skill taxonomy review artifact
-│       └── demo-seed-manifest.md          # compact DEMO scenario/fixture authority
+│       ├── demo-seed-manifest.md          # compact DEMO scenario/fixture authority
+│       └── phase-3-seed-verification.md   # final Phase 3 verification artifact
 │
 ├── docker-compose.yml
 ├── drizzle.config.ts
@@ -138,7 +139,7 @@ VinUni-SolutionStudio-OFFICIAL/
 |---|---|---|
 | Phase 1 | Database infrastructure | ✅ Complete |
 | Phase 2 | Audit MVP + reconcile with ERD → Drizzle schema + migrations | ✅ Complete |
-| Phase 3 | Reconciled static mock data → production-valid database seed | 🚧 In progress |
+| Phase 3 | Reconciled static mock data → production-valid database seed | ✅ Complete / ready for human review |
 | Phase 4 | Challenge marketplace → real DB | ⬜ Not started |
 | Phase 5 | Applications, assessments, offers, workspace → real DB | ⬜ Not started |
 | Phase 6 | Authentication + RBAC | ⬜ Not started |
@@ -705,8 +706,8 @@ The reset workflow established in Phase 3.4 is an ongoing invariant for every Ph
 - Phase 3.5: ✅ COMPLETE / HUMAN REVIEW COMPLETE — normalized DEMO applications, application members/teams, and supervision request.
 - Phase 3.6: ✅ COMPLETE / HUMAN REVIEW COMPLETE — DEMO assessment definitions, attempts, responses, and scores for unambiguous scenarios.
 - Phase 3.7: ✅ COMPLETE / HUMAN REVIEW COMPLETE — DEMO selections, offers, and agreements.
-- Phase 3.8: ✅ COMPLETE / HUMAN REVIEW PENDING — DEMO projects, project members, milestones, deliverables, milestone reviews, resources, and feedback.
-- Phase 3.9: 🚧 NEXT — final complete seed reset/reproducibility verification and Phase 3 closeout.
+- Phase 3.8: ✅ COMPLETE / HUMAN REVIEW COMPLETE — DEMO projects, project members, milestones, deliverables, milestone reviews, resources, and feedback.
+- Phase 3.9: ✅ COMPLETE / READY FOR HUMAN REVIEW — final complete seed reset/reproducibility verification and Phase 3 closeout.
 
 ## 3.0 Design the seed transformation
 
@@ -1173,26 +1174,36 @@ pnpm db:reset
 
 Final verification:
 
-- [ ] Reset from an empty Docker volume succeeds with no manual DB step
-- [ ] Migrations recreate pgvector + frozen schema
-- [ ] Seed recreates BOOTSTRAP, REFERENCE, and all approved DEMO layers
-- [ ] Second `ALLOW_DB_SEED=true pnpm db:seed` is idempotent
-- [ ] Compact marketplace scenarios are queryable
-- [ ] Compact application/team scenarios are queryable
-- [ ] Assessment scenarios are queryable
-- [ ] Selection/offer/agreement scenarios are queryable
-- [ ] Active/final-review/completed project scenarios are queryable
-- [ ] Milestone review/resource/feedback scenarios are queryable
-- [ ] All seeded FKs resolve
-- [ ] Lifecycle states are internally coherent
-- [ ] `skill_relationships` remains 0 unless separately human-approved
-- [ ] Matching output tables remain 0; matching belongs to Phase 7
-- [ ] Embeddings/vector columns remain deferred to Phase 7
-- [ ] Ambiguous provider/team assessment ownership remains deferred unless separately resolved
-- [ ] Transcript/experience conversion remains deferred unless separately approved
-- [ ] Update `docs/database/demo-seed-manifest.md` with final actual counts
-- [ ] Update `docs/database/seed-transformation-plan.md` with final implementation facts
-- [ ] Mark Phase 3 COMPLETE only after all checks pass
+- [x] Reset from an empty Docker volume succeeds with no manual DB step
+- [x] Migrations recreate pgvector + frozen schema
+- [x] Seed recreates BOOTSTRAP, REFERENCE, and all approved DEMO layers
+- [x] Second `ALLOW_DB_SEED=true pnpm db:seed` is idempotent
+- [x] Compact marketplace scenarios are queryable
+- [x] Compact application/team scenarios are queryable
+- [x] Assessment scenarios are queryable
+- [x] Selection/offer/agreement scenarios are queryable
+- [x] Active/final-review/completed project scenarios are queryable
+- [x] Milestone review/resource/feedback scenarios are queryable
+- [x] All seeded FKs resolve
+- [x] Lifecycle states are internally coherent
+- [x] `skill_relationships` remains 0 unless separately human-approved
+- [x] Matching output tables remain 0; matching belongs to Phase 7
+- [x] Embeddings/vector columns remain deferred to Phase 7
+- [x] Ambiguous provider/team assessment ownership remains deferred unless separately resolved
+- [x] Transcript/experience conversion remains deferred unless separately approved
+- [x] Update `docs/database/demo-seed-manifest.md` with final actual counts
+- [x] Update `docs/database/seed-transformation-plan.md` with final implementation facts
+- [x] Mark Phase 3 COMPLETE only after all checks pass
+
+### Phase 3.9 actual results
+
+- Created final verification artifact: `docs/database/phase-3-seed-verification.md`.
+- Verified `pnpm db:reset` recreates the complete Phase 3 dataset from an empty local Docker volume using only the version-controlled migration plus guarded seed.
+- Verified migration replay produces pgvector, 45 public domain tables, 41 public enums, 82 foreign keys, 35 PostgreSQL CHECK constraints, 11 partial indexes, one Drizzle migration journal row, and no vector columns/indexes.
+- Verified pre-reset, post-reset, and post-idempotency counts match across all 45 domain tables.
+- Verified the compact scenario spine across challenge, application/team, assessment, selection/offer/agreement, and project/workspace layers.
+- Verified safety refusals for `pnpm db:seed` without opt-in, `NODE_ENV=production ALLOW_DB_SEED=true pnpm db:seed`, and `NODE_ENV=production pnpm db:reset`.
+- Validation passed: `pnpm exec tsc --noEmit`, `pnpm lint`, `pnpm db:check`, `pnpm exec drizzle-kit check`, `pnpm build`, and `git diff --check`.
 
 ## Phase 3 exit criteria
 
@@ -1205,10 +1216,10 @@ Phase 3 is complete when:
 - [x] Approved assessment scenarios are normalized and seeded
 - [x] Approved selection/offer/agreement scenarios are normalized and seeded
 - [x] Approved project/milestone/resource/feedback scenarios are normalized and seeded
-- [ ] The complete compact seed dataset is reproducible from zero through `pnpm db:reset`
-- [ ] Repeated non-destructive seed execution is idempotent after the complete Phase 3 dataset exists
-- [ ] Static mock objects are no longer required to reconstruct the compact development database
-- [ ] Phase 4/5 can migrate UI/business read/write paths onto a representative production-valid database without inventing missing demo workflow state
+- [x] The complete compact seed dataset is reproducible from zero through `pnpm db:reset`
+- [x] Repeated non-destructive seed execution is idempotent after the complete Phase 3 dataset exists
+- [x] Static mock objects are no longer required to reconstruct the production data model or normalized compact development database, although temporary UI code may still consume them until Phase 4/5 migration
+- [x] Phase 4/5 can migrate UI/business read/write paths onto a representative production-valid database without inventing missing demo workflow state
 
 ---
 
@@ -1603,8 +1614,8 @@ project files
 
 ## Current status
 
-**Current phase:** Phase 3 — Seed Transformation  
-**Active next checkpoint:** Phase 3.9 — Final Phase 3 seed verification and closeout
+**Current phase:** Phase 3 final verification complete / awaiting human review
+**Active next checkpoint:** Phase 4.1 — Challenge Marketplace Read Path, after Phase 3.9 human approval
 
 ### Latest completed work
 
@@ -1633,11 +1644,13 @@ project files
 - Phase 3.7 is COMPLETE / HUMAN REVIEW COMPLETE: 5 selections, 5 offers, and 5 agreements are seeded.
 - Phase 3.7 selection/offer set: `app-route` pending offer; `app-supply`, `app-energy`, `app-archive`, and `papp-depot` accepted offers.
 - Phase 3.7 seeds NDA agreements only for accepted restricted/NDA scenarios: `app-supply` accepted members and `papp-depot` accepted members.
-- Phase 3.8 is COMPLETE / HUMAN REVIEW PENDING: 4 projects, 10 project members, 15 milestones, 12 deliverables, 20 milestone reviews, 10 project resources, and 0 feedback rows are seeded.
+- Phase 3.8 is COMPLETE / HUMAN REVIEW COMPLETE: 4 projects, 10 project members, 15 milestones, 12 deliverables, 20 milestone reviews, 10 project resources, and 0 feedback rows are seeded.
 - Phase 3.8 project set: `app-supply` active project, `app-energy` final-review project, `app-archive` completed project, and `papp-depot` active partner-approval workflow project.
 - Phase 3.8 preserves `projects.application_id` as the canonical origin, derives challenge through application, and creates project members only from accepted application members.
 - Phase 3.8 stores formal faculty/partner milestone decisions only in `milestone_reviews`; generic `feedback` remains 0 because deterministic fixture feedback text is unavailable.
 - Phase 3.8 validates agreement-gated restricted resources only for `app-supply` and `papp-depot`, whose accepted project members have Phase 3.7 NDA agreements.
+- Phase 3.9 is COMPLETE / READY FOR HUMAN REVIEW: final reset-from-zero verification, full 45-table count inventory, lifecycle-integrity checks, idempotency, safety checks, and repository validation passed.
+- Phase 3.9 artifact: `docs/database/phase-3-seed-verification.md`.
 - Current application lifecycle distribution is `SUBMITTED = 1`, `ASSESSMENT = 0`, `SELECTION_PENDING = 1`, `SELECTED = 5`, `REJECTED = 1`, `WITHDRAWN = 0`.
 - Matching outputs, notifications, meetings, resource access services, and audit demo records remain unseeded.
 - ERD v1 remains frozen; later structural DB changes require a new reviewed schema change.
@@ -1649,14 +1662,16 @@ project files
 - `pnpm exec drizzle-kit check` passes.
 - `pnpm db:check` passes against PostgreSQL 18.4.
 - `pnpm lint` passes.
-- `pnpm build` passes when network access is available for Google Fonts.
+- `pnpm build` passes.
 - `pnpm db:seed` refuses without `ALLOW_DB_SEED=true`.
 - `NODE_ENV=production ALLOW_DB_SEED=true pnpm db:seed` refuses before writes.
-- Repeated `ALLOW_DB_SEED=true pnpm db:seed` is idempotent for the Phase 3.8 seed state.
-- `pnpm db:reset` recreates the Phase 3.8 seed state from an empty local Docker volume.
+- Repeated `ALLOW_DB_SEED=true pnpm db:seed` is idempotent for the complete Phase 3 seed state.
+- `pnpm db:reset` recreates the complete Phase 3 seed state from an empty local Docker volume.
 - Phase 3.6 validation confirms assessment/application/challenge consistency, every individual attempt has a member owner, every attempt owner belongs to the attempt application, `papp-depot` has zero assessment attempts, and downstream leakage remains zero.
 - Phase 3.7 validation confirms one selection per selected application, one offer per selection, accepted offer responses by accepted leaders, pending offer response fields empty, agreement/application/challenge consistency, and no project or matching leakage.
 - Phase 3.8 validation confirms accepted-offer project creation, project/application/challenge consistency, accepted-member-only project membership, app-route no-project behavior, coherent milestone review evidence, agreement-gated resource coverage, and no matching leakage.
+- Phase 3.9 validation confirms all 45 domain table counts match before reset, after reset, and after a repeated guarded seed run.
+- `NODE_ENV=production pnpm db:reset` refuses before destructive Docker work.
 - pgvector is enabled after reset; no vector columns or vector indexes exist yet.
 - Current reproducible seed counts:
 
@@ -1702,17 +1717,19 @@ match_skill_details:             0
 match_experience_details:        0
 ```
 
+Full 45-domain-table pre-reset/post-reset/post-idempotency count equality is recorded in `docs/database/phase-3-seed-verification.md`.
+
 ---
 
 # 14. Upcoming Task
 
 ## Immediate next task
 
-### Phase 3.9 — Final Phase 3 seed verification and closeout
+### Phase 4.1 — Challenge Marketplace Read Path
 
-Phase 3.8 has implemented the compact project/workspace layer. Human review should confirm those mappings before final whole-seed closeout begins.
+Phase 3.9 has completed final seed verification. Do **not** begin Phase 4 until Phase 3.9 human review is approved.
 
-Do **not** jump to Phase 4 yet. Phase 4 begins only after Phase 3.7–3.9 complete the normalized compact DEMO workflow dataset.
+After approval, Phase 4.1 should migrate the challenge marketplace read path onto the verified database-backed seed.
 
 Immediate sequence:
 
@@ -1727,23 +1744,18 @@ Phase 3.7 selections + offers + agreements ✅
         ↓
 Phase 3.8 projects + milestones + resources + feedback ✅
         ↓
-Phase 3.9 final reset/reproducibility closeout
+Phase 3.9 final reset/reproducibility closeout ✅
         ↓
-Phase 4 challenge marketplace DB read path
+Phase 4.1 challenge marketplace DB read path after human approval
 ```
 
-### Immediate Phase 3.9 checklist
+### Immediate Phase 4.1 checklist
 
-- [ ] Re-read the exact Phase 3.9 section in this plan before implementation
-- [ ] Run final reset from an empty Docker volume
-- [ ] Verify migrations recreate pgvector and the frozen schema
-- [ ] Verify the complete compact seed dataset is recreated
-- [ ] Verify a second guarded seed run remains idempotent
-- [ ] Verify marketplace, application/team, assessment, selection/offer/agreement, and project/workspace scenarios are queryable
-- [ ] Verify all seeded FKs and lifecycle states remain coherent
-- [ ] Confirm matching outputs, embeddings/vector columns, ambiguous provider/team assessments, and transcript conversion remain deferred
-- [ ] Update final Phase 3 counts and closeout documentation
-- [ ] Mark Phase 3 complete only after all Phase 3.9 checks pass
+- [ ] Wait for human approval of Phase 3.9 final verification
+- [ ] Re-read the exact Phase 4.1 section in this plan before implementation
+- [ ] Keep Phase 3 seed and schema behavior unchanged unless a reviewed blocker is found
+- [ ] Start with the challenge marketplace read path only
+- [ ] Do not begin later Phase 4/5 paths until their checkpoints are explicitly requested
 
 ### Agent sequencing rule
 
@@ -1759,7 +1771,7 @@ Before each agent implementation task:
 
 ### Recommended next agent instruction
 
-The detailed Phase 3.9 implementation prompt should perform final verification and documentation closeout only. It should not implement Phase 4 database-backed UI read paths, authentication, matching, notifications, audit demo records, or schema changes.
+After human approval of Phase 3.9, proceed with Phase 4.1 — Challenge Marketplace Read Path only. Do not modify Phase 3 seed behavior, authentication, matching, notifications, audit demo records, or unrelated UI/runtime paths unless explicitly requested.
 
 ---
 
@@ -1771,6 +1783,17 @@ Use this section after each development session.
 
 ### Completed
 
+- Phase 3.9 final seed verification and closeout completed
+- Created `docs/database/phase-3-seed-verification.md` with canonical authority, reset workflow, migration facts, full 45-table count matrix, lifecycle integrity results, deferred-zero tables, idempotency, safety checks, validation commands, known limitations, and Phase 4 readiness conclusion
+- Verified pre-reset, post-reset, and post-idempotency counts match across all 45 public domain tables
+- Verified `pnpm db:reset` recreates the complete Phase 3 dataset from an empty local Docker volume using version-controlled migration plus guarded seed only
+- Verified migration replay recreates pgvector, 45 public domain tables, 41 public enums, 82 foreign keys, 35 PostgreSQL CHECK constraints, 11 partial indexes, one Drizzle migration journal row, and zero vector columns/indexes
+- Verified compact lifecycle spine: public route challenge, confidential merchant challenge, E-Lab owner/manager challenge, triage rejection, route pending invite/pending offer/no project, churn reviewed assessment, outreach supervision request, supply active project, energy final review, archive completion, and depot partner approval
+- Verified application/team, assessment, selection/offer/agreement, project/member/milestone/review/resource, agreement-gated access, feedback-zero, matching-zero, and deferred-zero invariants
+- Verified seed safety refusals for `pnpm db:seed` without opt-in and `NODE_ENV=production ALLOW_DB_SEED=true pnpm db:seed`
+- Verified reset safety refusal for `NODE_ENV=production pnpm db:reset`
+- Validation passed: `pnpm exec tsc --noEmit`, `pnpm lint`, `pnpm db:check`, `pnpm exec drizzle-kit check`, `pnpm build`, and `git diff --check`
+- Updated `docs/database/demo-seed-manifest.md`, `docs/database/seed-transformation-plan.md`, and this plan with final Phase 3 counts, verification status, deferrals, and Phase 4.1-after-human-approval handoff
 - Human-reviewed Phase 3.4 and corrected the roadmap so Phase 3 does not jump prematurely to Phase 4
 - Added explicit Phase 3.5–3.9 checkpoints for application/team, assessment, selection/offer/agreement, project/workspace, and final seed closeout
 - Established that `PRODUCTION_TRANSFORMATION_PLAN.md` phase numbering/titles are authoritative for agent task sequencing
@@ -1884,7 +1907,7 @@ None.
 
 ### Next action
 
-Proceed with Phase 3.9 — Final Phase 3 seed verification and closeout after human review of Phase 3.8 project/workspace mappings. Phase 4 is deferred until Phase 3.9 completes the compact normalized workflow seed closeout.
+After human approval of Phase 3.9, proceed with Phase 4.1 — Challenge Marketplace Read Path only. Do not begin Phase 4 before that approval.
 
 ## 2026-08-15
 

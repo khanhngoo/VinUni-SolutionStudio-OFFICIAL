@@ -1,15 +1,17 @@
 # Seed Transformation Plan
 
-Phase: 3.8 project/workspace seed implementation
+Phase: 3.9 final seed verification complete
 Date: 2026-08-16
 
 ## Executive Summary
 
-Phase 2 froze the production ERD, implemented the Drizzle schema, and verified the initial migration from a fresh PostgreSQL volume. Phase 3 should now transform useful static MVP fixtures into deterministic development seed data without treating the static TypeScript object shapes as production schema authority.
+Phase 2 froze the production ERD, implemented the Drizzle schema, and verified the initial migration from a fresh PostgreSQL volume. Phase 3 transformed useful static MVP fixtures into deterministic development seed data without treating the static TypeScript object shapes as production schema authority.
 
-The seed should preserve recognizable demo scenarios while normalizing data into the frozen production tables. Static fixture fields that are UI-only, denormalized, duplicated, or derived must be excluded from persistence and recreated later through queries/services.
+The seed preserves recognizable demo scenarios while normalizing data into the frozen production tables. Static fixture fields that are UI-only, denormalized, duplicated, or derived are excluded from persistence and can be recreated later through queries/services.
 
 Human review correction: the compact initial DEMO scenario strategy is approved. Phase 3.1 should implement seed safety/context infrastructure, BOOTSTRAP records, and REFERENCE skill taxonomy first. Do not seed every static fixture.
+
+Phase 3 implementation is complete and ready for human approval. The verified database seed is now authoritative for the production-valid compact DEMO dataset, while current UI/runtime code may still use static mock data until Phase 4/5 migration.
 
 ## Phase 3.1 Implementation Status
 
@@ -436,6 +438,49 @@ Phase 3.8 verification summary:
 - Seed safety still refuses without `ALLOW_DB_SEED=true`, and production safety still refuses with `NODE_ENV=production`.
 
 See `docs/database/demo-seed-manifest.md` for exact project public IDs, milestone titles, project members, resource mappings, and acceptance invariants.
+
+## Phase 3.9 Final Verification Status
+
+Phase 3.9 verified the complete compact normalized Phase 3 seed dataset from a clean local reset and did not change seed behavior.
+
+Final verification artifact:
+
+- `docs/database/phase-3-seed-verification.md`
+
+Final actual counts:
+
+| Area | Counts |
+|---|---|
+| Identity and organizations | `organizations = 7`, `users = 20`, `organization_memberships = 7`, `student_profiles = 7`, `faculty_profiles = 6` |
+| Reference taxonomy | `skill_categories = 9`, `skills = 58`, `skill_aliases = 4`, `student_skills = 33`, `skill_relationships = 0` |
+| Challenges | `challenges = 8`, `challenge_skills = 26`, `challenge_eligibility_rules = 17`, `challenge_faculty_assignments = 14`, `challenge_reviews = 0` |
+| Applications | `applications = 8`, `application_members = 18`, `application_projects = 0`, `supervision_requests = 1` |
+| Assessments | `assessments = 2`, `assessment_sections = 5`, `assessment_questions = 12`, `assessment_attempts = 2`, `assessment_responses = 0`, `assessment_scores = 2` |
+| Selection/offer/agreements | `selections = 5`, `offers = 5`, `agreements = 5` |
+| Projects/workspace | `projects = 4`, `project_members = 10`, `milestones = 15`, `deliverables = 12`, `milestone_reviews = 20`, `project_resources = 10`, `feedback = 0` |
+| Matching | `match_results = 0`, `match_skill_details = 0`, `match_experience_details = 0` |
+
+Verification results:
+
+- `pnpm db:reset` recreated the complete Phase 3 dataset from an empty local Docker volume.
+- Migration replay produced 45 public domain tables, 41 public enums, 82 foreign keys, 35 PostgreSQL CHECK constraints, 11 partial indexes, one Drizzle migration journal row, enabled `pgvector`, and zero vector columns/indexes.
+- A repeated `ALLOW_DB_SEED=true pnpm db:seed` run was idempotent across all 45 domain tables.
+- Application, assessment, selection/offer/agreement, project/member/milestone/review/resource, and deferred-zero table invariants passed.
+- Seed safety refused both `pnpm db:seed` without opt-in and `NODE_ENV=production ALLOW_DB_SEED=true pnpm db:seed`.
+- Reset safety refused `NODE_ENV=production pnpm db:reset` before destructive Docker work.
+- Repository validation passed: `pnpm exec tsc --noEmit`, `pnpm lint`, `pnpm db:check`, `pnpm exec drizzle-kit check`, `pnpm build`, and `git diff --check`.
+
+Remaining intentional deferrals:
+
+| Deferred area | Later owner |
+|---|---|
+| Skill relationships | Phase 7 or a separately approved taxonomy review |
+| Embeddings/vector columns and indexes | Phase 7 after model and dimension selection |
+| Matching outputs | Phase 7 |
+| Transcript/experience conversion to `student_projects` and `application_projects` | Later DEMO seed/runtime data work |
+| Ambiguous provider/team assessment results | Later assessment ownership review |
+| Notifications and audit demo data | Later workflow/governance implementation |
+| Runtime UI migration away from static mock reads | Phase 4 and Phase 5 |
 
 ## Seed Categories
 

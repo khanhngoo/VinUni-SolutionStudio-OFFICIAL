@@ -1,6 +1,6 @@
 # DEMO Seed Manifest
 
-Phase: 3.8 compact DEMO projects, milestones, workspace resources, and feedback layer
+Phase: 3.9 final verified compact DEMO seed dataset
 Date: 2026-08-16
 
 ## Scope
@@ -53,7 +53,31 @@ Phase 3.8 adds only accepted-offer project/workspace records:
 - DEMO `project_resources`
 - DEMO `feedback`
 
+Phase 3.9 verified the complete compact normalized DEMO dataset from a clean reset. The final verification artifact is `docs/database/phase-3-seed-verification.md`.
+
 Phase 3.6 intentionally keeps `assessment_responses = 0` because the selected fixtures provide qualitative reviewed results but no response-level answers. `application_projects` remains 0 because structured student-project evidence conversion is deferred. Phase 3.8 intentionally keeps `feedback = 0` because the compact fixtures do not provide deterministic close-out feedback text. Matching records, notifications, audit demo records, meetings, and object-storage access logic remain deferred.
+
+## Final Phase 3.9 Verification Status
+
+Phase 3.9 confirmed:
+
+- `pnpm db:reset` recreates the complete Phase 3 dataset from zero using only version-controlled migrations plus guarded seed.
+- A second `ALLOW_DB_SEED=true pnpm db:seed` leaves all 45 domain table counts unchanged.
+- The compact scenario spine is queryable across challenge, application/team, assessment, selection/offer/agreement, and project/workspace layers.
+- Matching outputs, skill relationships, vector columns/indexes, feedback, notifications, audit logs, and other deferred tables remain intentionally zero.
+
+Final normalized row counts:
+
+| Area | Counts |
+|---|---|
+| Identity and organizations | `organizations = 7`, `users = 20`, `organization_memberships = 7`, `student_profiles = 7`, `faculty_profiles = 6` |
+| Reference taxonomy | `skill_categories = 9`, `skills = 58`, `skill_aliases = 4`, `student_skills = 33`, `skill_relationships = 0` |
+| Challenges | `challenges = 8`, `challenge_skills = 26`, `challenge_eligibility_rules = 17`, `challenge_faculty_assignments = 14`, `challenge_reviews = 0` |
+| Applications | `applications = 8`, `application_members = 18`, `application_projects = 0`, `supervision_requests = 1` |
+| Assessments | `assessments = 2`, `assessment_sections = 5`, `assessment_questions = 12`, `assessment_attempts = 2`, `assessment_responses = 0`, `assessment_scores = 2` |
+| Selection/offer/agreements | `selections = 5`, `offers = 5`, `agreements = 5` |
+| Projects/workspace | `projects = 4`, `project_members = 10`, `milestones = 15`, `deliverables = 12`, `milestone_reviews = 20`, `project_resources = 10`, `feedback = 0` |
+| Matching | `match_results = 0`, `match_skill_details = 0`, `match_experience_details = 0` |
 
 ## Compact Scenario Spine
 
