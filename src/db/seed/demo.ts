@@ -9,7 +9,7 @@ import {
   users,
 } from "../schema";
 import type { SeedContext } from "./context";
-import { normalizeSkillLookup, SKILL_ALIASES, SKILL_SEEDS } from "./skills";
+import { resolveCanonicalSkillSeedLabel } from "./skills";
 
 type OrganizationType = "INTERNAL_UNIT" | "EXTERNAL_PARTNER";
 type StudentSchool = "CAS" | "CBM" | "CECS" | "CHS";
@@ -341,36 +341,6 @@ export const DEMO_FACULTY: DemoFacultySeed[] = [
   },
 ];
 
-const canonicalSkillByNormalizedLabel = new Map(
-  SKILL_SEEDS.flatMap((seed) =>
-    [seed.name, ...seed.sourceLabels].map((label) => [
-      normalizeSkillLookup(label),
-      seed.name,
-    ])
-  )
-);
-
-for (const alias of SKILL_ALIASES) {
-  canonicalSkillByNormalizedLabel.set(
-    normalizeSkillLookup(alias.alias),
-    alias.skillName
-  );
-}
-
-function canonicalSkillNameFor(rawSkillName: string): string {
-  const canonicalName = canonicalSkillByNormalizedLabel.get(
-    normalizeSkillLookup(rawSkillName)
-  );
-
-  if (!canonicalName) {
-    throw new Error(
-      `DEMO student skill "${rawSkillName}" does not resolve to the Phase 3.1 taxonomy.`
-    );
-  }
-
-  return canonicalName;
-}
-
 async function ensureDemoOrganization(
   ctx: SeedContext,
   seed: DemoOrganizationSeed
@@ -549,7 +519,7 @@ async function ensureDemoStudentSkills(ctx: SeedContext, seed: DemoStudentSeed) 
   const studentId = ctx.getId(seed.key);
 
   for (const rawSkillName of seed.skills) {
-    const canonicalName = canonicalSkillNameFor(rawSkillName);
+    const { canonicalName } = resolveCanonicalSkillSeedLabel(rawSkillName);
     const skillId = ctx.getId(`skill:${canonicalName}`);
 
     const existing = await ctx.tx

@@ -82,6 +82,41 @@ Phase 3.2 still seeds no challenges, applications, assessments, selections, offe
 
 The compact manifest is now recorded at `docs/database/demo-seed-manifest.md`.
 
+## Phase 3.3 Implementation Status
+
+Phase 3.3 implements the compact DEMO challenge foundation only.
+
+Implemented scope:
+
+- DEMO challenges: 8
+- DEMO challenge skill requirements: 26
+- DEMO challenge eligibility rules: 17
+- DEMO challenge faculty assignments: 14
+- DEMO challenge reviews: 0
+
+Seeded challenge-side fixtures:
+
+- `merchant-churn-model`
+- `route-optimisation`
+- `triage-protocol-review`
+- `community-health-outreach`
+- `supply-chain-dashboard`
+- `campus-energy-audit`
+- `archive-digitisation`
+- `demo-elab-venture-readiness-dashboard`
+
+Challenge ownership/management choices:
+
+- External partner challenges use the DEMO partner as `owner_organization_id` and CAID as `managing_organization_id`.
+- Internal CAID-routed unit challenges use their DEMO internal unit as owner and CAID as manager.
+- The synthesized E-Lab challenge uses E-Lab as both owner and manager.
+
+Phase 3.3 keeps applications, application members, application project evidence, supervision requests, assessments, assessment attempts, selections, offers, agreements, projects, milestones, deliverables, feedback, matching records, notifications, and audit demo records deferred.
+
+Phase 3.3 does not seed `challenge_reviews` because the static challenge-side fixtures do not contain durable review decisions/comments. Published/open challenge status is seeded directly without inventing approval history.
+
+See `docs/database/demo-seed-manifest.md` for field mapping, visibility/confidentiality choices, skill normalization, eligibility rule representation, and faculty routing details.
+
 ## Seed Categories
 
 | Category | Meaning | Proposed records |
@@ -498,7 +533,7 @@ Recommended insertion order:
 11. Insert student projects/evidence where approved.
 12. Insert student skills and project skills.
 13. Insert challenges.
-14. Insert challenge skills, eligibility rules, faculty assignments, and review rows.
+14. Insert challenge skills, eligibility rules, faculty assignments, and review rows only where explicitly scoped; Phase 3.3 seeds zero review rows.
 15. Insert applications.
 16. Insert application members and application project evidence links.
 17. Insert supervision requests.
@@ -535,7 +570,7 @@ Phase 3.2 resolved the exact compact fixture list after excluding ambiguous orga
 | Final-review project | `app-energy` | Project `FINAL_REVIEW`, submitted milestone |
 | Completed project | `app-archive` | Close-out feedback path |
 | Partner approvals queue | `papp-depot` | Partner milestone approval pending |
-| E-Lab-managed challenge | synthesized DEMO challenge | Approved internal-unit path coverage with owner and manager both E-Lab |
+| E-Lab-managed challenge | `demo-elab-venture-readiness-dashboard` | Approved internal-unit path coverage with owner and manager both E-Lab |
 
 This gives broad coverage without seeding all 22 application-like fixtures.
 
@@ -621,4 +656,6 @@ Phase 3.0 seed transformation design is complete and human review corrections ar
 
 Phase 3.2 has resolved the compact DEMO identity/org fixture list and seeded only prerequisite identity/profile/contact/student-skill records.
 
-Remaining REVIEW items do not block the next DEMO challenge-side seed checkpoint.
+Phase 3.3 has seeded the compact DEMO challenge-side foundation: challenge records, normalized challenge skills, eligibility rules, and pending faculty routing assignments.
+
+Remaining REVIEW items do not block the next application/team DEMO seed checkpoint.

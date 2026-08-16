@@ -1,11 +1,11 @@
 # DEMO Seed Manifest
 
-Phase: 3.2 compact DEMO identity and organization foundation  
+Phase: 3.3 compact DEMO challenge foundation  
 Date: 2026-08-16
 
 ## Scope
 
-This manifest is the authoritative compact DEMO identity/org inventory for Phase 3.2+.
+This manifest is the authoritative compact DEMO identity, organization, and challenge-side inventory for Phase 3.2+.
 
 Phase 3.2 seeds only:
 
@@ -16,7 +16,14 @@ Phase 3.2 seeds only:
 - DEMO contact `organization_memberships`
 - DEMO `student_skills` linked to existing Phase 3.1 canonical skills
 
-Phase 3.2 does not seed challenges, challenge-side normalization, applications, assessments, selections, offers, agreements, projects, milestones, deliverables, feedback, matching records, notifications, or audit demo records.
+Phase 3.3 adds only challenge-side DEMO records:
+
+- DEMO `challenges`
+- DEMO `challenge_skills`
+- DEMO `challenge_eligibility_rules`
+- DEMO `challenge_faculty_assignments`
+
+Phase 3.3 does not seed applications, application members, application evidence, supervision requests, assessments, assessment attempts, selections, offers, agreements, projects, milestones, deliverables, feedback, matching records, notifications, or audit demo records.
 
 ## Compact Scenario Spine
 
@@ -35,7 +42,7 @@ The compact future DEMO workflow set is:
 | Final-review project | `app-energy` |
 | Completed project | `app-archive` |
 | Partner approval workflow | `papp-depot` |
-| Internal E-Lab-managed challenge | SYNTHESIZED DEMO, challenge deferred |
+| Internal E-Lab-managed challenge | `demo-elab-venture-readiness-dashboard` |
 
 `multimodal-perception` is not used as the public technical challenge because `org-vinai` is excluded until organization classification is explicitly approved. `route-optimisation` preserves public technical coverage through deterministic partner `org-bencang`.
 
@@ -176,3 +183,97 @@ Alias/normalization examples used:
 | E-Lab people prerequisites | BOOTSTRAP SUFFICIENT | `user:elab-admin-dev` already exists as an E-Lab admin. No additional E-Lab contact/profile is required for Phase 3.2. |
 | Skill relationships | DEFERRED | Remain zero until conservative relationships are explicitly approved. |
 | Matching outputs | DEFERRED | Belong to Phase 7, not DEMO seed identity setup. |
+
+## Challenge DEMO Records
+
+Phase 3.3 seeds the challenge-side records needed by the compact scenario spine. Challenge rows are keyed by stable slugs and stable DEMO UUID `public_id` values. Existing rows with the same slug are updated in place; child challenge-side rows are inserted or updated by deterministic challenge/skill, challenge/rule-type, and challenge/faculty combinations.
+
+### Challenge Selection
+
+| Stable slug | Source fixture | Owner organization | Managing organization | Contact user | Visibility | Confidentiality | Status |
+|---|---|---|---|---|---|---|---|
+| `merchant-churn-model` | `merchant-churn-model` | `org:demo-bencang` | `org:caid` | `user:contact-org-bencang` | `PRIVATE` | `HIGH_CONFIDENTIALITY` | `APPLICATIONS_OPEN` |
+| `route-optimisation` | `route-optimisation` | `org:demo-bencang` | `org:caid` | `user:contact-org-bencang` | `VINUNI_ONLY` | `STANDARD` | `APPLICATIONS_OPEN` |
+| `triage-protocol-review` | `triage-protocol-review` | `org:demo-health` | `org:caid` | `user:contact-org-health` | `VINUNI_ONLY` | `STANDARD` | `APPLICATIONS_OPEN` |
+| `community-health-outreach` | `community-health-outreach` | `org:demo-vhf` | `org:caid` | `user:contact-org-vhf` | `VINUNI_ONLY` | `STANDARD` | `APPLICATIONS_OPEN` |
+| `supply-chain-dashboard` | `supply-chain-dashboard` | `org:demo-bencang` | `org:caid` | `user:contact-org-bencang` | `VINUNI_ONLY` | `STANDARD` | `APPLICATIONS_OPEN` |
+| `campus-energy-audit` | `campus-energy-audit` | `org:demo-facilities` | `org:caid` | `user:contact-org-facilities` | `VINUNI_ONLY` | `STANDARD` | `APPLICATIONS_OPEN` |
+| `archive-digitisation` | `archive-digitisation` | `org:demo-heritage` | `org:caid` | `user:contact-org-heritage` | `VINUNI_ONLY` | `STANDARD` | `APPLICATIONS_OPEN` |
+| `demo-elab-venture-readiness-dashboard` | synthesized DEMO | `org:elab` | `org:elab` | `user:elab-admin-dev` | `VINUNI_ONLY` | `DEMO_INTERNAL` | `APPLICATIONS_OPEN` |
+
+`APPLICATIONS_OPEN` is the Phase 3.3 marketplace-ready status for seeded DEMO challenges. Public marketplace examples are visible to VinUni users through `VINUNI_ONLY`; the confidential merchant challenge remains discoverable only through the private/confidential path represented by the seed data.
+
+### Field Mapping Conventions
+
+- `challenges.summary` is copied from the static challenge summary.
+- `challenges.description` uses the explicit challenge-level description when available; otherwise it uses the deterministic summary fallback. Phase 3.3 does not read application `project.fullBrief`.
+- `challenges.expected_deliverables` is a newline bullet list from static challenge responsibilities.
+- `challenges.domain` is the comma-joined static `domainTags` list.
+- `application_deadline` uses the fixture deadline at Vietnam end-of-day represented as `16:59:00.000Z`.
+- Static `Work-study` compensation maps to `compensation_type = OTHER` with `compensation_description = Work-study`.
+- Static `applicantCount`, `lockedBlocks`, assessment track/minutes, and interview format remain derived, deferred, or presentation-only and are not persisted in Phase 3.3.
+
+### Challenge Skills
+
+All challenge skill requirements resolve to the existing Phase 3.1 canonical taxonomy. Phase 3.3 creates no new skills, aliases, relationships, or embeddings.
+
+| Challenge slug | Required skills | Preferred skills |
+|---|---|---|
+| `merchant-churn-model` | Python, Data Analysis, SQL | Business Modelling |
+| `route-optimisation` | Python, Algorithms | Data Analysis, Operations Research |
+| `triage-protocol-review` | Literature Review, Clinical Reasoning | Statistics |
+| `community-health-outreach` | Programme Evaluation, Statistics | Fieldwork |
+| `supply-chain-dashboard` | SQL, Data Visualization | Stakeholder Interviews |
+| `campus-energy-audit` | Data Analysis, Energy Systems | Python |
+| `archive-digitisation` | Archival Research, Metadata Standards | Vietnamese |
+| `demo-elab-venture-readiness-dashboard` | Data Analysis, Business Modelling | Data Visualization |
+
+British spelling fixture labels such as `Data visualisation` resolve through the approved canonical/source-label normalization to `Data Visualization`; no semantic equivalence is inferred from category membership.
+
+### Eligibility Rules
+
+Phase 3.3 seeds only hard gates represented by the current static eligibility logic: `MIN_GPA`, `STUDY_YEAR`, and `SCHOOL`.
+
+| Challenge slug | Rules |
+|---|---|
+| `merchant-churn-model` | `STUDY_YEAR = [2,3,4]`; `SCHOOL = [CBM,CECS]` |
+| `route-optimisation` | `STUDY_YEAR = [2,3,4]`; `SCHOOL = [CECS]` |
+| `triage-protocol-review` | `STUDY_YEAR = [3,4]`; `SCHOOL = [CHS]` |
+| `community-health-outreach` | `STUDY_YEAR = [2,3,4]`; `SCHOOL = [CHS]` |
+| `supply-chain-dashboard` | `STUDY_YEAR = [2,3,4]`; `SCHOOL = [CECS,CBM]` |
+| `campus-energy-audit` | `STUDY_YEAR = [2,3,4]`; `SCHOOL = [CECS]` |
+| `archive-digitisation` | `STUDY_YEAR = [4]`; `SCHOOL = [CAS]` |
+| `demo-elab-venture-readiness-dashboard` | `MIN_GPA = 3.5/4`; `STUDY_YEAR = [2,3,4]`; `SCHOOL = [CBM,CECS]` |
+
+`AVAILABLE_HOURS` is not seeded as a challenge eligibility rule in Phase 3.3 because the current MVP eligibility function does not treat weekly hours as a hard gate. `weekly_hours` remains challenge display/expectation metadata.
+
+### Faculty Routing
+
+Phase 3.3 seeds pending `challenge_faculty_assignments` only for suggested faculty IDs already selected in Phase 3.2. These records represent challenge-side routing suggestions, not supervision requests and not project supervision.
+
+| Challenge slug | Faculty assignments |
+|---|---|
+| `merchant-churn-model` | `user:fac-osei`, `user:fac-pham` |
+| `route-optimisation` | `user:fac-pham`, `user:fac-nguyen-k` |
+| `triage-protocol-review` | `user:fac-vu` |
+| `community-health-outreach` | `user:fac-vu`, `user:fac-le` |
+| `supply-chain-dashboard` | `user:fac-pham`, `user:fac-osei` |
+| `campus-energy-audit` | `user:fac-nguyen-k`, `user:fac-le` |
+| `archive-digitisation` | `user:fac-le`, `user:fac-tran` |
+| `demo-elab-venture-readiness-dashboard` | `user:fac-pham` |
+
+CAID-managed challenge assignments are assigned by `user:caid-admin-dev`. The E-Lab-managed synthesized challenge is assigned by `user:elab-admin-dev`.
+
+### Challenge Reviews
+
+Phase 3.3 intentionally seeds zero `challenge_reviews`. The selected static challenge fixtures already appear as marketplace/published records, but they do not contain durable review history with reviewer decisions/comments. Review rows remain deferred until a later checkpoint explicitly requires challenge approval history.
+
+### Phase 3.3 Expected Counts
+
+After a clean Phase 3.3 seed, the challenge-side DEMO layer should contain:
+
+- `challenges`: 8
+- `challenge_skills`: 26
+- `challenge_eligibility_rules`: 17
+- `challenge_faculty_assignments`: 14
+- `challenge_reviews`: 0

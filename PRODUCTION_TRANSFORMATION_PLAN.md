@@ -674,7 +674,7 @@ Do not re-design the schema from mock objects during seeding.
 - Phase 3.0: COMPLETE. HUMAN REVIEW COMPLETE. Seed transformation design and approved review corrections recorded at `docs/database/seed-transformation-plan.md`.
 - Phase 3.1: COMPLETE. HUMAN REVIEW COMPLETE. Seed safety/context infrastructure, BOOTSTRAP data, and REFERENCE skill taxonomy implemented and verified.
 - Phase 3.2: COMPLETE. Compact DEMO identity and organization foundation implemented and documented.
-- Phase 3.3: NEXT. DEMO challenges and challenge-side normalized data.
+- Phase 3.3: COMPLETE. DEMO challenges and challenge-side normalized data implemented; ready for human review.
 
 ## 3.0 Design the seed transformation
 
@@ -740,16 +740,16 @@ src/db/seed.ts
 
 Checklist:
 
-- [ ] Seed selected DEMO challenges
-- [ ] Seed challenge skill requirements
-- [ ] Seed challenge eligibility rules
-- [ ] Seed challenge faculty assignments/reviews only where approved
-- [ ] Preserve challenge referential integrity to Phase 3.2 organizations, contacts, faculty, and REFERENCE skills
-- [ ] Make repeated challenge-side seed execution safe where practical
-- [ ] Preserve referential integrity
-- [ ] Keep applications, assessments, selections/offers, projects, milestones, matching outputs, notifications, and audit demo records deferred unless this checkpoint explicitly expands scope
-- [ ] Test challenge-side seed on current DB
-- [ ] Verify seeded data through Drizzle Studio
+- [x] Seed selected DEMO challenges
+- [x] Seed challenge skill requirements
+- [x] Seed challenge eligibility rules
+- [x] Seed challenge faculty assignments/reviews only where approved
+- [x] Preserve challenge referential integrity to Phase 3.2 organizations, contacts, faculty, and REFERENCE skills
+- [x] Make repeated challenge-side seed execution safe where practical
+- [x] Preserve referential integrity
+- [x] Keep applications, assessments, selections/offers, projects, milestones, matching outputs, notifications, and audit demo records deferred unless this checkpoint explicitly expands scope
+- [x] Test challenge-side seed on current DB
+- [x] Verify seeded data through Drizzle queries
 
 ## 3.4 Establish reset workflow
 
@@ -1170,7 +1170,7 @@ project files
 ## Current status
 
 **Current phase:** Phase 3 — Seed Transformation  
-**Active next phase:** Phase 3.3 — DEMO challenges and challenge-side normalized data
+**Active next phase:** Phase 3.3 human review before application/team DEMO seeding
 
 ### Latest completed work
 
@@ -1203,6 +1203,11 @@ project files
 - Phase 3.2 DEMO student and faculty users/profiles seeded with deterministic `example.test` emails
 - Phase 3.2 DEMO student skill claims linked only to the existing Phase 3.1 canonical taxonomy
 - Phase 3.2 keeps `skill_relationships = 0` and seeds no challenges, applications, assessments, selections/offers, projects, milestones, matching records, notifications, or audit demo records
+- Phase 3.3 DEMO challenge-side foundation implemented: 8 challenges, 26 challenge skills, 17 eligibility rules, 14 faculty assignments, and 0 challenge reviews
+- Phase 3.3 selected challenge fixtures: `merchant-churn-model`, `route-optimisation`, `triage-protocol-review`, `community-health-outreach`, `supply-chain-dashboard`, `campus-energy-audit`, `archive-digitisation`, and synthesized `demo-elab-venture-readiness-dashboard`
+- Phase 3.3 challenge ownership verified: confidential Bến Cảng challenge is private/high-confidentiality; external challenges are managed by CAID; synthesized E-Lab challenge has E-Lab as both owner and manager
+- Phase 3.3 challenge skills resolve only to the existing Phase 3.1 canonical taxonomy; no new skills, aliases, relationships, or embeddings were seeded
+- Phase 3.3 keeps applications, application members, supervision requests, assessments, selections/offers, agreements, projects, milestones, matching records, notifications, and audit demo records deferred
 - `src/db/index.ts` now exposes the shared node-postgres Drizzle client with the production schema
 - ERD v1 remains frozen; future structural changes require a new reviewed schema change
 
@@ -1239,6 +1244,10 @@ Previous completed work:
 - Repeated `ALLOW_DB_SEED=true pnpm db:seed` kept all Phase 3.2 row counts unchanged
 - Phase 3.2 safety checks verified `pnpm db:seed` refuses without `ALLOW_DB_SEED=true` and refuses with `NODE_ENV=production`
 - Phase 3.2 workflow leakage check verified 0 challenges, applications, assessments, assessment attempts, selections, offers, projects, milestones, deliverables, milestone reviews, feedback, matching rows, and notifications
+- Phase 3.3 first seed run changed challenge-side counts from 0 to 8 challenges, 0 to 26 challenge skills, 0 to 17 eligibility rules, 0 to 14 faculty assignments, and kept challenge reviews at 0
+- Repeated `ALLOW_DB_SEED=true pnpm db:seed` kept Phase 3.3 challenge-side row counts unchanged
+- Phase 3.3 SQL verification confirmed public/VinUni marketplace rows, confidential merchant ownership, external-owner/CAID-manager routing, E-Lab owner/manager routing, canonical skill joins, eligibility rules, faculty assignment joins, and Jordan Lee passing the synthesized E-Lab `MIN_GPA` rule
+- Phase 3.3 workflow leakage check verified 0 applications, application members, application projects, supervision requests, assessments, assessment attempts, selections, offers, agreements, projects, milestones, deliverables, milestone reviews, project resources, feedback, matching rows, notifications, and audit logs
 - DBML to Drizzle comparison: 45 tables and 41 enums implemented; no missing or extra domain tables/enums
 - Fresh PostgreSQL migration replay creates 45 public tables, 41 enums, 82 foreign keys, 35 CHECK constraints, and 11 partial indexes
 - Drizzle migration journal contains one applied migration after repeated `pnpm db:migrate`
@@ -1275,32 +1284,30 @@ port:
 
 ## Immediate next task
 
-### Begin Phase 3.3 DEMO challenges and challenge-side normalized data.
+### Human review Phase 3.3 DEMO challenge foundation.
 
-Phase 3.2 compact DEMO identity and organization foundation is complete and ready for human review. The next checkpoint is to seed selected DEMO challenge records and challenge-side normalized data using the stable identity/org/skill keys from `docs/database/demo-seed-manifest.md`.
+Phase 3.3 compact DEMO challenge foundation is complete and ready for human review before application/team DEMO seeding.
 
 Immediate sequence:
 
 ```text
-1. Review docs/database/seed-transformation-plan.md
+1. Review docs/database/demo-seed-manifest.md Phase 3.3 challenge section
       ↓
-2. Review docs/database/demo-seed-manifest.md
+2. Review src/db/seed/challenges.ts fixture mappings
       ↓
-3. Seed selected DEMO challenges only
+3. Review Phase 3.3 verification results
       ↓
-4. Seed challenge skills, eligibility rules, and approved faculty routing
+4. Approve or correct Phase 3.3
       ↓
-5. Verify no application/assessment/offer/project workflow rows are seeded unless Phase 3.3 scope explicitly expands
+5. After approval, proceed to the next application/team DEMO seed checkpoint
 ```
 
 ### Immediate checklist
 
-- [ ] Review `docs/database/seed-transformation-plan.md`
-- [ ] Review `docs/database/reference-skill-seed.md`
-- [ ] Review `docs/database/demo-seed-manifest.md`
-- [ ] Use the Phase 3.2 compact DEMO fixture list
-- [ ] Seed challenge-side records for selected compact fixtures
-- [ ] Confirm any seed-specific demo timestamps or scenario reference date
+- [ ] Human-review the Phase 3.3 challenge fixture selection and synthesized E-Lab challenge
+- [ ] Human-review visibility/confidentiality choices
+- [ ] Human-review skill, eligibility, and faculty-routing mappings
+- [ ] Confirm zero `challenge_reviews` remains acceptable
 - [ ] Keep matching outputs, embeddings, transcript conversion, and ambiguous provider/team assessment results deferred unless explicitly approved
 - [ ] Preserve Phase 2 migration history unchanged
 - [ ] Do not change the frozen ERD without a reviewed schema change
@@ -1309,28 +1316,15 @@ Immediate sequence:
 ### Recommended first agent instruction
 
 ```text
-Proceed with Phase 3.3 only.
+Review Phase 3.3 DEMO challenge foundation.
 
 Read:
-- AGENTS.md
 - PRODUCTION_TRANSFORMATION_PLAN.md
-- docs/database/schema.dbml
-- docs/database/README.md
-- docs/database/mvp-data-model-audit.md
-- docs/database/mvp-erd-reconciliation.md
 - docs/database/seed-transformation-plan.md
-- docs/database/reference-skill-seed.md
 - docs/database/demo-seed-manifest.md
-- src/db/schema/**
-- src/db/seed/**
-- src/db/seed.ts
-- challenge-relevant src/lib/data/** fixtures
-- src/lib/types.ts
+- src/db/seed/challenges.ts
 
-Implement DEMO challenges and challenge-side normalized seed data only.
-
-Do not seed applications, assessments, selections/offers, projects, milestones, matching records, notifications, or audit demo records unless explicitly requested for a later checkpoint.
-Do not change the frozen ERD unless a new reviewed schema change is explicitly approved.
+Approve Phase 3.3 or provide corrections before application/team DEMO seeding.
 ```
 
 ---
@@ -1343,6 +1337,15 @@ Use this section after each development session.
 
 ### Completed
 
+- Phase 3.3 DEMO challenge-side foundation implemented and documented
+- Seeded compact challenge records for `merchant-churn-model`, `route-optimisation`, `triage-protocol-review`, `community-health-outreach`, `supply-chain-dashboard`, `campus-energy-audit`, `archive-digitisation`, and synthesized `demo-elab-venture-readiness-dashboard`
+- Seeded 26 normalized challenge skill requirements, 17 eligibility rules, and 14 pending faculty routing assignments
+- Intentionally seeded zero `challenge_reviews`; no durable static review history was invented
+- Verified Phase 3.3 seed idempotency with repeated `ALLOW_DB_SEED=true pnpm db:seed`
+- Verified Phase 3.3 relationship queries for public/VinUni marketplace rows, confidential merchant ownership, CAID management, E-Lab owner/manager routing, canonical skill joins, eligibility rules, and faculty assignment joins
+- Verified Jordan Lee passes the synthesized E-Lab `MIN_GPA = 3.5` eligibility sanity check
+- Verified Phase 3.3 did not seed applications, application members, supervision requests, assessments, selections/offers, agreements, projects, milestones, matching records, notifications, or audit logs
+- Validation passed: `pnpm exec tsc --noEmit`, `pnpm lint`, `pnpm db:check`, `pnpm exec drizzle-kit check`, and network-enabled `pnpm build`
 - Phase 3.2 compact DEMO identity and organization foundation implemented
 - `docs/database/demo-seed-manifest.md` created as the authoritative compact DEMO inventory
 - Exact compact scenario spine selected: route, churn, triage, outreach, supply, energy, archive, depot, and synthesized E-Lab challenge coverage
@@ -1389,7 +1392,7 @@ None.
 
 ### Next action
 
-Proceed to Phase 3.3: DEMO challenges and challenge-side normalized data.
+Human-review Phase 3.3 before application/team DEMO seeding.
 
 ## 2026-08-15
 

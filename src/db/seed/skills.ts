@@ -412,6 +412,47 @@ export const SKILL_ALIASES = SKILL_SEEDS.flatMap((skill) =>
   }))
 );
 
+type SkillSeedLabelResolution = "CANONICAL_OR_SOURCE_LABEL" | "LEXICAL_ALIAS";
+
+const canonicalSkillByNormalizedLabel = new Map<
+  string,
+  { canonicalName: string; resolution: SkillSeedLabelResolution }
+>(
+  SKILL_SEEDS.flatMap((seed) =>
+    [seed.name, ...seed.sourceLabels].map((label) => [
+      normalizeSkillLookup(label),
+      {
+        canonicalName: seed.name,
+        resolution: "CANONICAL_OR_SOURCE_LABEL" as const,
+      },
+    ])
+  )
+);
+
+for (const alias of SKILL_ALIASES) {
+  canonicalSkillByNormalizedLabel.set(normalizeSkillLookup(alias.alias), {
+    canonicalName: alias.skillName,
+    resolution: "LEXICAL_ALIAS",
+  });
+}
+
+export function resolveCanonicalSkillSeedLabel(rawSkillName: string): {
+  canonicalName: string;
+  resolution: SkillSeedLabelResolution;
+} {
+  const resolved = canonicalSkillByNormalizedLabel.get(
+    normalizeSkillLookup(rawSkillName)
+  );
+
+  if (!resolved) {
+    throw new Error(
+      `Seed skill label "${rawSkillName}" does not resolve to the Phase 3.1 taxonomy.`
+    );
+  }
+
+  return resolved;
+}
+
 const redundantAliases = SKILL_ALIASES.filter(
   (seed) => normalizeSkillLookup(seed.alias) === normalizeSkillLookup(seed.skillName)
 );

@@ -3,6 +3,7 @@ import "dotenv/config";
 import { count, sql } from "drizzle-orm";
 
 import { seedBootstrap } from "./seed/bootstrap";
+import { seedDemoChallenges } from "./seed/challenges";
 import { SeedContext } from "./seed/context";
 import { seedDemo } from "./seed/demo";
 import { seedReference } from "./seed/reference";
@@ -13,6 +14,11 @@ type Schema = typeof import("./schema");
 
 async function readCounts(db: Database, schema: Schema) {
   const {
+    challengeEligibilityRules,
+    challengeFacultyAssignments,
+    challengeReviews,
+    challenges,
+    challengeSkills,
     organizationMemberships,
     organizations,
     skillAliases,
@@ -25,6 +31,11 @@ async function readCounts(db: Database, schema: Schema) {
   } = schema;
 
   const [
+    challengeCount,
+    challengeSkillCount,
+    eligibilityRuleCount,
+    facultyAssignmentCount,
+    challengeReviewCount,
     organizationCount,
     userCount,
     membershipCount,
@@ -35,6 +46,11 @@ async function readCounts(db: Database, schema: Schema) {
     studentProfileCount,
     studentSkillCount,
   ] = await Promise.all([
+    db.select({ count: count() }).from(challenges),
+    db.select({ count: count() }).from(challengeSkills),
+    db.select({ count: count() }).from(challengeEligibilityRules),
+    db.select({ count: count() }).from(challengeFacultyAssignments),
+    db.select({ count: count() }).from(challengeReviews),
     db.select({ count: count() }).from(organizations),
     db.select({ count: count() }).from(users),
     db.select({ count: count() }).from(organizationMemberships),
@@ -49,6 +65,11 @@ async function readCounts(db: Database, schema: Schema) {
   return {
     aliases: aliasCount[0].count,
     categories: categoryCount[0].count,
+    challengeEligibilityRules: eligibilityRuleCount[0].count,
+    challengeFacultyAssignments: facultyAssignmentCount[0].count,
+    challengeReviews: challengeReviewCount[0].count,
+    challenges: challengeCount[0].count,
+    challengeSkills: challengeSkillCount[0].count,
     memberships: membershipCount[0].count,
     organizations: organizationCount[0].count,
     skillRelationships: relationshipCount[0].count,
@@ -86,6 +107,7 @@ async function main() {
     await seedBootstrap(seedContext);
     await seedReference(seedContext);
     await seedDemo(seedContext);
+    await seedDemoChallenges(seedContext);
 
     return seedContext;
   });
@@ -99,6 +121,17 @@ async function main() {
   console.log(`  organizations: ${before.organizations} -> ${after.organizations}`);
   console.log(`  users: ${before.users} -> ${after.users}`);
   console.log(`  organization memberships: ${before.memberships} -> ${after.memberships}`);
+  console.log(`  challenges: ${before.challenges} -> ${after.challenges}`);
+  console.log(`  challenge skills: ${before.challengeSkills} -> ${after.challengeSkills}`);
+  console.log(
+    `  challenge eligibility rules: ${before.challengeEligibilityRules} -> ${after.challengeEligibilityRules}`
+  );
+  console.log(
+    `  challenge faculty assignments: ${before.challengeFacultyAssignments} -> ${after.challengeFacultyAssignments}`
+  );
+  console.log(
+    `  challenge reviews: ${before.challengeReviews} -> ${after.challengeReviews}`
+  );
   console.log(`  skill categories: ${before.categories} -> ${after.categories}`);
   console.log(`  canonical skills: ${before.skills} -> ${after.skills}`);
   console.log(`  skill aliases: ${before.aliases} -> ${after.aliases}`);
