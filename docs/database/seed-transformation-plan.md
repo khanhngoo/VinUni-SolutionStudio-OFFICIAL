@@ -217,6 +217,63 @@ Phase 3.5 keeps assessments, assessment attempts, selections, offers, agreements
 
 See `docs/database/demo-seed-manifest.md` for exact public IDs, member mappings, lifecycle matrix, and supervision-request details.
 
+## Phase 3.6 Assessment Layer Status
+
+Phase 3.6 implements the compact DEMO assessment layer only.
+
+Implemented scope:
+
+- DEMO assessments: 2
+- DEMO assessment sections: 5
+- DEMO assessment questions: 12
+- DEMO assessment attempts: 2
+- DEMO assessment responses: 0
+- DEMO assessment scores: 2
+
+Seeded assessment fixtures:
+
+- `assessment:triage-protocol-review` -> `application:app-triage`
+- `assessment:merchant-churn-model` -> `application:app-churn`
+
+Phase 3.6 ownership policy as implemented:
+
+- Both seeded assessments use `assessments.scope = INDIVIDUAL`.
+- Each attempt is linked to Jordan Lee's accepted `application_members` row for the corresponding application.
+- No TEAM-scope attempt is seeded.
+- Provider/team assessment results without deterministic member attribution remain deferred.
+
+Assessment definition mapping:
+
+- `triage-protocol-review` uses the static cognitive sections: 4 sections and 10 `MULTIPLE_CHOICE` questions.
+- `merchant-churn-model` uses the static coding problem bank: 1 section and 2 `CODING` questions.
+- Questions are linked through `assessment_sections`; there is no direct question-to-assessment seed path.
+- Type-specific question details are stored in `assessment_questions.config` JSONB.
+
+Assessment result mapping:
+
+- `app-triage` seeds one reviewed failed individual attempt and one qualitative score/rubric record. The application transitions from `ASSESSMENT` to `REJECTED` after the durable reviewed result exists.
+- `app-churn` seeds one reviewed passed individual attempt and one qualitative score/rubric record. The application remains `SELECTION_PENDING`.
+- `assessment_scores.overall_score` remains `NULL` for both seeded scores because the static fixtures provide qualitative bands, not numeric totals.
+- `assessment_responses` remains 0 because the static fixtures provide no response-level answers.
+
+Deferred/avoided records:
+
+- `papp-depot` provider/team `testResult` is deferred because the owner is not attributable to a specific member.
+- `app-route` is reserved for Phase 3.7 pending-offer coverage and receives no assessment attempt in Phase 3.6.
+- Project-bound assessment histories for `app-supply`, `app-energy`, and `app-archive` remain deferred.
+- Selections, offers, agreements, projects, project members, milestones, deliverables, milestone reviews, project resources, feedback, and matching outputs remain at zero.
+
+Phase 3.6 application status distribution:
+
+- `SUBMITTED`: 1
+- `ASSESSMENT`: 0
+- `SELECTION_PENDING`: 6
+- `SELECTED`: 0
+- `REJECTED`: 1
+- `WITHDRAWN`: 0
+
+See `docs/database/demo-seed-manifest.md` for exact assessment definitions, attempt ownership, lifecycle transitions, and deferral notes.
+
 ## Seed Categories
 
 | Category | Meaning | Proposed records |

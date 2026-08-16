@@ -1,6 +1,6 @@
 # DEMO Seed Manifest
 
-Phase: 3.5 compact DEMO application and team foundation  
+Phase: 3.6 compact DEMO assessment layer
 Date: 2026-08-16
 
 ## Scope
@@ -29,7 +29,15 @@ Phase 3.5 adds only application/team foundation records:
 - DEMO `application_members`
 - DEMO `supervision_requests`
 
-Phase 3.5 intentionally keeps `application_projects = 0` because structured student-project evidence conversion is deferred. It does not seed assessments, assessment attempts, selections, offers, agreements, projects, milestones, deliverables, feedback, matching records, notifications, or audit demo records.
+Phase 3.6 adds only unambiguous assessment records:
+
+- DEMO `assessments`
+- DEMO `assessment_sections`
+- DEMO `assessment_questions`
+- DEMO `assessment_attempts`
+- DEMO `assessment_scores`
+
+Phase 3.6 intentionally keeps `assessment_responses = 0` because the selected fixtures provide qualitative reviewed results but no response-level answers. `application_projects` remains 0 because structured student-project evidence conversion is deferred. It does not seed selections, offers, agreements, projects, milestones, deliverables, feedback, matching records, notifications, or audit demo records.
 
 ## Compact Scenario Spine
 
@@ -189,6 +197,7 @@ Alias/normalization examples used:
 | E-Lab people prerequisites | BOOTSTRAP SUFFICIENT | `user:elab-admin-dev` already exists as an E-Lab admin. No additional E-Lab contact/profile is required for Phase 3.2. |
 | Skill relationships | DEFERRED | Remain zero until conservative relationships are explicitly approved. |
 | Matching outputs | DEFERRED | Belong to Phase 7, not DEMO seed identity setup. |
+| Provider/team assessment results without member attribution | DEFERRED | `papp-depot` and other ambiguous team/provider `testResult` fixtures are not seeded as attempts. Phase 3.6 does not silently choose TEAM scope or leader-owned INDIVIDUAL attempts. |
 
 ## Challenge DEMO Records
 
@@ -322,18 +331,82 @@ Leader `responded_at` uses the deterministic application `appliedAt` timestamp b
 
 ### Static To Staged Lifecycle Matrix
 
-| Source fixture | Static display state | Phase 3.5 authoritative database state | Future database state |
-|---|---|---|---|
-| `app-triage` | `NOT_SELECTED` after failed assessment | `applications.status = ASSESSMENT`; no assessment rows yet | Phase 3.6 seeds reviewed failed assessment and may transition to `REJECTED` |
-| `app-route` | `INVITED` / pending offer | `applications.status = SELECTION_PENDING`; no selection/offer rows yet | Phase 3.7 creates selection plus pending offer and transitions to `SELECTED` |
-| `app-churn` | `TEST_SUBMITTED` with passing visible result | `applications.status = SELECTION_PENDING`; no assessment rows yet | Phase 3.6 seeds reviewed individual assessment history |
-| `app-outreach` | `APPLIED` / waiting on supervisor | `applications.status = SUBMITTED`; pending supervision request exists | Later phase may advance after supervision and assessment/selection rows exist |
-| `app-supply` | `ACTIVE` project workspace | `applications.status = SELECTION_PENDING`; no selection/offer/project rows yet | Phase 3.7 creates accepted selection/offer; Phase 3.8 creates active project |
-| `app-energy` | `IN_REVIEW` project | `applications.status = SELECTION_PENDING`; no selection/offer/project rows yet | Phase 3.7 creates accepted selection/offer; Phase 3.8 creates final-review project |
-| `app-archive` | `COMPLETED` project | `applications.status = SELECTION_PENDING`; no selection/offer/project rows yet | Phase 3.7 creates accepted selection/offer; Phase 3.8 creates completed project and close-out data |
-| `papp-depot` | `ACTIVE` partner approval workflow | `applications.status = SELECTION_PENDING`; no selection/offer/project rows yet | Phase 3.7 creates accepted selection/offer; Phase 3.8 creates active project with pending partner approval |
+| Source fixture | Static display state | Phase 3.5 authoritative database state | Phase 3.6 authoritative database state | Future database state |
+|---|---|---|---|---|
+| `app-triage` | `NOT_SELECTED` after failed assessment | `applications.status = ASSESSMENT`; no assessment rows yet | `applications.status = REJECTED`; reviewed failed INDIVIDUAL assessment attempt exists | Terminal rejected scenario unless later fixtures explicitly add history |
+| `app-route` | `INVITED` / pending offer | `applications.status = SELECTION_PENDING`; no selection/offer rows yet | unchanged; no assessment attempt seeded | Phase 3.7 creates selection plus pending offer and transitions to `SELECTED` |
+| `app-churn` | `TEST_SUBMITTED` with passing visible result | `applications.status = SELECTION_PENDING`; no assessment rows yet | `applications.status = SELECTION_PENDING`; reviewed passed INDIVIDUAL assessment attempt exists | Phase 3.7 may create selected/offer state if chosen |
+| `app-outreach` | `APPLIED` / waiting on supervisor | `applications.status = SUBMITTED`; pending supervision request exists | unchanged; no assessment attempt seeded | Later phase may advance after supervision and assessment/selection rows exist |
+| `app-supply` | `ACTIVE` project workspace | `applications.status = SELECTION_PENDING`; no selection/offer/project rows yet | unchanged; project-bound assessment history remains deferred | Phase 3.7 creates accepted selection/offer; Phase 3.8 creates active project |
+| `app-energy` | `IN_REVIEW` project | `applications.status = SELECTION_PENDING`; no selection/offer/project rows yet | unchanged; project-bound assessment history remains deferred | Phase 3.7 creates accepted selection/offer; Phase 3.8 creates final-review project |
+| `app-archive` | `COMPLETED` project | `applications.status = SELECTION_PENDING`; no selection/offer/project rows yet | unchanged; project-bound assessment history remains deferred | Phase 3.7 creates accepted selection/offer; Phase 3.8 creates completed project and close-out data |
+| `papp-depot` | `ACTIVE` partner approval workflow | `applications.status = SELECTION_PENDING`; no selection/offer/project rows yet | unchanged; provider/team `testResult` ownership is ambiguous and deferred | Phase 3.7 creates accepted selection/offer; Phase 3.8 creates active project with pending partner approval |
 
 Phase 3.5 intentionally seeds no `SELECTED` applications because `selections = 0`. It also avoids `REJECTED` for `app-triage` until the failed assessment result exists as durable assessment data.
+
+## Phase 3.6 Assessment DEMO Records
+
+Phase 3.6 seeds only the assessment layer required by unambiguous compact student-facing fixtures. Both attempts are `INDIVIDUAL` because the static source clearly attributes the assessment history to Jordan Lee's application member row. No TEAM-scope attempts are created.
+
+### Assessment Definitions
+
+| Stable seed key | Challenge slug | Scope | Sections | Questions | Question types | Source |
+|---|---|---|---:|---:|---|---|
+| `assessment:triage-protocol-review` | `triage-protocol-review` | `INDIVIDUAL` | 4 | 10 | 10 `MULTIPLE_CHOICE` | `src/lib/data/assessment.ts` cognitive sections |
+| `assessment:merchant-churn-model` | `merchant-churn-model` | `INDIVIDUAL` | 1 | 2 | 2 `CODING` | `src/lib/data/assessment.ts` coding problems |
+
+Questions belong to assessments only through `assessment_sections`. Phase 3.6 does not use any `assessment_questions.assessment_id` relationship.
+
+MCQ options/correct indexes and coding starter/sample-test data are stored in `assessment_questions.config` JSONB. Qualitative result bands are stored in `assessment_scores.rubric_scores` JSONB because the source fixtures do not provide numeric scores.
+
+### Attempts And Scores
+
+| Application | Attempt owner | Scope | Attempt status | Responses | Score record | Application transition | Notes |
+|---|---|---|---|---:|---|---|---|
+| `application:app-triage` | Jordan Lee / accepted `LEADER` | `INDIVIDUAL` | `REVIEWED` | 0 | qualitative band `Below threshold`; `overall_score = NULL` | `ASSESSMENT` -> `REJECTED` | Preserves failed assessment/rejected scenario. The source includes a clinical-scenario band, but no static domain-scenario question bank exists; the band is preserved in rubric JSONB. |
+| `application:app-churn` | Jordan Lee / accepted `LEADER` | `INDIVIDUAL` | `REVIEWED` | 0 | qualitative band `Strong`; `overall_score = NULL` | remains `SELECTION_PENDING` | Preserves reviewed passing assessment history without creating selection/offer rows. |
+
+`assessment_responses = 0` intentionally. The source fixtures expose overall/section qualitative bands, not candidate answer payloads, so Phase 3.6 does not fabricate answers.
+
+### Deferred Assessment Fixtures
+
+| Fixture | Status | Reason |
+|---|---|---|
+| `papp-depot` provider/team `testResult` | DEFERRED | Result is not attributable to a specific application member. Phase 3.6 does not silently choose TEAM scope or leader-owned INDIVIDUAL scope. |
+| `app-route` | NOT SEEDED IN PHASE 3.6 | This compact scenario is reserved for pending offer coverage in Phase 3.7; no assessment ownership/result is needed at this checkpoint. |
+| `app-supply`, `app-energy`, `app-archive` | DEFERRED | These are project-lifecycle scenarios. Assessment history can be revisited only if a later phase needs deterministic pre-project history. |
+
+### Phase 3.6 Expected Counts
+
+After a clean Phase 3.6 seed, the assessment DEMO layer should contain:
+
+- `assessments`: 2
+- `assessment_sections`: 5
+- `assessment_questions`: 12
+- `assessment_attempts`: 2
+- `assessment_responses`: 0
+- `assessment_scores`: 2
+
+Status distribution:
+
+- `applications.status = SUBMITTED`: 1
+- `applications.status = ASSESSMENT`: 0
+- `applications.status = SELECTION_PENDING`: 6
+- `applications.status = SELECTED`: 0
+- `applications.status = REJECTED`: 1
+- `applications.status = WITHDRAWN`: 0
+
+Acceptance invariants verified during seeding:
+
+- Every assessment references an existing seeded challenge.
+- Every assessment section references an existing assessment.
+- Every question references an existing section.
+- Every attempt references an existing assessment and application.
+- Every INDIVIDUAL attempt has a non-null `application_member_id`.
+- Every attempt member belongs to the same application as the attempt.
+- Every attempt assessment challenge matches the attempt application challenge.
+- No provider/team ambiguous assessment attempts are seeded for `papp-depot`.
+- Selections, offers, agreements, projects, project members, milestones, resources, feedback, and matching records remain zero.
 
 ### Supervision Request Mapping
 

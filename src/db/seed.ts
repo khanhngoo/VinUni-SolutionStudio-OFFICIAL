@@ -3,6 +3,7 @@ import "dotenv/config";
 import { count, sql } from "drizzle-orm";
 
 import { seedDemoApplications } from "./seed/applications";
+import { seedDemoAssessments } from "./seed/assessments";
 import { seedBootstrap } from "./seed/bootstrap";
 import { seedDemoChallenges } from "./seed/challenges";
 import { SeedContext } from "./seed/context";
@@ -20,6 +21,10 @@ async function readCounts(db: Database, schema: Schema) {
     applicationProjects,
     applications,
     assessmentAttempts,
+    assessmentQuestions,
+    assessmentResponses,
+    assessmentScores,
+    assessmentSections,
     assessments,
     challengeEligibilityRules,
     challengeFacultyAssignments,
@@ -70,7 +75,11 @@ async function readCounts(db: Database, schema: Schema) {
     applicationProjectCount,
     supervisionRequestCount,
     assessmentCount,
+    assessmentSectionCount,
+    assessmentQuestionCount,
     assessmentAttemptCount,
+    assessmentResponseCount,
+    assessmentScoreCount,
     selectionCount,
     offerCount,
     agreementCount,
@@ -104,7 +113,11 @@ async function readCounts(db: Database, schema: Schema) {
     db.select({ count: count() }).from(applicationProjects),
     db.select({ count: count() }).from(supervisionRequests),
     db.select({ count: count() }).from(assessments),
+    db.select({ count: count() }).from(assessmentSections),
+    db.select({ count: count() }).from(assessmentQuestions),
     db.select({ count: count() }).from(assessmentAttempts),
+    db.select({ count: count() }).from(assessmentResponses),
+    db.select({ count: count() }).from(assessmentScores),
     db.select({ count: count() }).from(selections),
     db.select({ count: count() }).from(offers),
     db.select({ count: count() }).from(agreements),
@@ -139,7 +152,11 @@ async function readCounts(db: Database, schema: Schema) {
     applicationProjects: applicationProjectCount[0].count,
     supervisionRequests: supervisionRequestCount[0].count,
     assessments: assessmentCount[0].count,
+    assessmentSections: assessmentSectionCount[0].count,
+    assessmentQuestions: assessmentQuestionCount[0].count,
     assessmentAttempts: assessmentAttemptCount[0].count,
+    assessmentResponses: assessmentResponseCount[0].count,
+    assessmentScores: assessmentScoreCount[0].count,
     selections: selectionCount[0].count,
     offers: offerCount[0].count,
     agreements: agreementCount[0].count,
@@ -186,6 +203,7 @@ async function main() {
     await seedDemo(seedContext);
     await seedDemoChallenges(seedContext);
     await seedDemoApplications(seedContext);
+    await seedDemoAssessments(seedContext);
 
     return seedContext;
   });
@@ -230,7 +248,19 @@ async function main() {
   );
   console.log(`  assessments: ${before.assessments} -> ${after.assessments}`);
   console.log(
+    `  assessment sections: ${before.assessmentSections} -> ${after.assessmentSections}`
+  );
+  console.log(
+    `  assessment questions: ${before.assessmentQuestions} -> ${after.assessmentQuestions}`
+  );
+  console.log(
     `  assessment attempts: ${before.assessmentAttempts} -> ${after.assessmentAttempts}`
+  );
+  console.log(
+    `  assessment responses: ${before.assessmentResponses} -> ${after.assessmentResponses}`
+  );
+  console.log(
+    `  assessment scores: ${before.assessmentScores} -> ${after.assessmentScores}`
   );
   console.log(`  selections: ${before.selections} -> ${after.selections}`);
   console.log(`  offers: ${before.offers} -> ${after.offers}`);
