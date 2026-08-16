@@ -1,6 +1,6 @@
 # Seed Transformation Plan
 
-Phase: 3.0 seed transformation design  
+Phase: 3.1 bootstrap/reference seed implementation  
 Date: 2026-08-16
 
 ## Executive Summary
@@ -11,12 +11,66 @@ The seed should preserve recognizable demo scenarios while normalizing data into
 
 Human review correction: the compact initial DEMO scenario strategy is approved. Phase 3.1 should implement seed safety/context infrastructure, BOOTSTRAP records, and REFERENCE skill taxonomy first. Do not seed every static fixture.
 
+## Phase 3.1 Implementation Status
+
+Phase 3.1 implemented the seed safety/context infrastructure plus BOOTSTRAP and REFERENCE records only.
+
+Implemented files:
+
+- `src/db/seed.ts`
+- `src/db/seed/context.ts`
+- `src/db/seed/safety.ts`
+- `src/db/seed/bootstrap.ts`
+- `src/db/seed/reference.ts`
+- `src/db/seed/organizations.ts`
+- `src/db/seed/users.ts`
+- `src/db/seed/skills.ts`
+- `docs/database/reference-skill-seed.md`
+
+Actual Phase 3.1 reference counts:
+
+- skill categories: 9
+- canonical skills: 58
+- lexical aliases: 4 after final human-review cleanup
+- skill relationships: 0
+- embeddings: 0
+
+Bootstrap identities:
+
+- `caid.admin.dev@example.test` -> CAID organization membership with role `ADMIN`
+- `elab.admin.dev@example.test` -> E-Lab organization membership with role `ADMIN`
+
+Idempotency implementation:
+
+- `users` are upserted by unique email.
+- `organization_memberships` are upserted by unique `(user_id, organization_id, role)`.
+- `skills` are upserted by unique `canonical_name`.
+- `skill_aliases` use `ON CONFLICT DO NOTHING` on unique `(skill_id, alias)`.
+- `organizations` and `skill_categories` use select-or-create by name because the frozen schema does not define a unique name constraint for those tables; the seed refuses to continue if multiple matching bootstrap/reference rows already exist.
+
+Safety implementation:
+
+- `pnpm db:seed` is non-destructive.
+- The seed refuses to run unless `ALLOW_DB_SEED=true`.
+- The seed refuses `NODE_ENV=production`.
+- The seed parses `DATABASE_URL` and allows only approved local/development host and database targets.
+- The seed prints host, database, and environment only; it does not print credentials or the full `DATABASE_URL`.
+
+Final alias cleanup:
+
+- Case, surrounding-whitespace, and repeated-whitespace differences are handled by canonical lookup normalization.
+- Case-only source labels are documented for traceability but are not stored in `skill_aliases`.
+- `skill_aliases` stores genuine spelling, abbreviation, or exact lexical alternatives only.
+- Related but distinct competencies remain separate canonical skills and may later be connected through explicit `skill_relationships`.
+
+Skill relationships remain deferred pending explicit human review. No `skill_relationships` rows are seeded in Phase 3.1, and no embeddings are generated.
+
 ## Seed Categories
 
 | Category | Meaning | Proposed records |
 |---|---|---|
 | BOOTSTRAP | Required for local development platform operation | CAID organization, E-Lab organization, one individual development admin user for each, organization memberships |
-| REFERENCE | Stable reusable domain/reference data | skill categories, canonical skills, exact lexical skill aliases, conservative approved skill relationships |
+| REFERENCE | Stable reusable domain/reference data | skill categories, canonical skills, exact lexical skill aliases; skill relationships deferred until explicitly approved |
 | DEMO | Scenario records that reproduce MVP flows | demo students/faculty/partners, challenges, applications, team members, assessments, offers, projects, milestones, resources, feedback |
 
 Do not classify all static users as BOOTSTRAP. Most fixture people are DEMO identities.
@@ -309,6 +363,15 @@ Initial canonical skill sources:
 - Experience skills from `transcript.ts`.
 - Faculty research areas may be considered for aliases/categories, not necessarily skills.
 
+Phase 3.1 implementation facts:
+
+- Implemented category count: 9.
+- Implemented canonical skill count: 58.
+- Implemented lexical alias count: 4 after final human-review cleanup.
+- Implemented skill relationship count: 0.
+- Implemented embedding count: 0.
+- Exact taxonomy review artifact: `docs/database/reference-skill-seed.md`.
+
 Skill categories, aliases, relationships, and embeddings have distinct meanings:
 
 - `skill_categories` are taxonomy/navigation only.
@@ -332,7 +395,8 @@ Recommended taxonomy/navigation categories:
 
 Approved alias policy:
 
-- Seed aliases only for spelling, casing, abbreviation, or synonym variants of the same competency.
+- Case/whitespace variations use canonical lookup normalization and are not stored as `skill_aliases`.
+- Seed aliases only for genuine alternate spelling, abbreviation, or synonym variants of the same competency.
 - Valid alias examples include `Data Visualization` / `Data Visualisation` and `PostgreSQL` / `Postgres`.
 - Do not normalize related but distinct competencies as aliases.
 
@@ -356,6 +420,7 @@ Skill relationship seed policy:
 - Only seed conservative, explicitly approved `skill_relationships`.
 - Do not automatically generate a broad skill graph from mock data.
 - Do not generate embeddings in Phase 3.0.
+- Phase 3.1 seeded no `skill_relationships`; the explicit conservative relationship set remains deferred for human review.
 
 ## Eligibility Transformation
 

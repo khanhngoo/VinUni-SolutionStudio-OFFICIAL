@@ -12,6 +12,7 @@
     "db:down": "docker compose down",
     "db:logs": "docker compose logs -f db",
     "db:check": "tsx scripts/db-check.ts",
+    "db:seed": "tsx src/db/seed.ts",
 
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",

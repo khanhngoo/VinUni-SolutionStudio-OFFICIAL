@@ -672,7 +672,8 @@ Do not re-design the schema from mock objects during seeding.
 ## Phase 3 checkpoint status
 
 - Phase 3.0: COMPLETE. HUMAN REVIEW COMPLETE. Seed transformation design and approved review corrections recorded at `docs/database/seed-transformation-plan.md`.
-- Phase 3.1: NEXT. Implement seed safety/context infrastructure, BOOTSTRAP data, and REFERENCE skill taxonomy.
+- Phase 3.1: COMPLETE. Seed safety/context infrastructure, BOOTSTRAP data, and REFERENCE skill taxonomy implemented and verified.
+- Phase 3.2: NEXT. Define the compact DEMO seed dataset and deterministic scenario records.
 
 ## 3.0 Design the seed transformation
 
@@ -694,25 +695,28 @@ Do not re-design the schema from mock objects during seeding.
 
 ## 3.1 Prepare and implement bootstrap/reference seed infrastructure
 
-- [ ] Review the Phase 2 MVP inventory
-- [ ] Review the Phase 2 reconciliation matrix
-- [ ] Review the Phase 3.0 seed transformation plan
-- [ ] Implement future seed safety guard
-- [ ] Implement deterministic seed key/context strategy
-- [ ] Implement BOOTSTRAP records
-- [ ] Implement REFERENCE skill categories/canonical skills/exact lexical aliases
-- [ ] Select useful existing demo records to preserve
-- [ ] Transform denormalized mock objects into normalized ERD records
-- [ ] Supply ERD-required fields missing from current mocks with intentional development values
-- [ ] Remove mock-only/presentation-only fields from persistence
-- [ ] Preserve useful names/content that make the current demo recognizable
-- [ ] Verify all generated IDs/references are deterministic or reliably resolved
-- [ ] Verify all seed records satisfy final constraints
+- [x] Review the Phase 2 MVP inventory
+- [x] Review the Phase 2 reconciliation matrix
+- [x] Review the Phase 3.0 seed transformation plan
+- [x] Implement seed safety guard
+- [x] Implement deterministic seed key/context strategy
+- [x] Implement BOOTSTRAP records
+- [x] Implement REFERENCE skill categories/canonical skills/exact lexical aliases
+- [x] Add `pnpm db:seed`
+- [x] Verify all generated IDs/references are deterministic or reliably resolved
+- [x] Verify Phase 3.1 seed records satisfy final constraints
+- [x] Confirm no DEMO challenge/application/assessment/offer/project rows are seeded in Phase 3.1
+- [x] Create reference taxonomy review artifact at `docs/database/reference-skill-seed.md`
 
 ## 3.2 Define seed dataset
 
 Create deterministic development examples for:
 
+- [ ] Select useful existing demo records to preserve
+- [ ] Transform denormalized mock objects into normalized ERD records
+- [ ] Supply ERD-required fields missing from current mocks with intentional development values
+- [ ] Remove mock-only/presentation-only fields from persistence
+- [ ] Preserve useful names/content that make the current demo recognizable
 - [ ] CAID admin
 - [ ] E-Lab admin
 - [ ] Faculty
@@ -1165,7 +1169,7 @@ project files
 ## Current status
 
 **Current phase:** Phase 3 — Seed Transformation  
-**Active next phase:** Phase 3.1 — implement seed safety/context infrastructure, BOOTSTRAP data, and REFERENCE skill taxonomy
+**Active next phase:** Phase 3.2 — define the compact DEMO seed dataset and deterministic scenario records
 
 ### Latest completed work
 
@@ -1182,6 +1186,14 @@ project files
 - Fresh database reproducibility verified with `docker compose down -v`, `docker compose up -d`, and `pnpm db:migrate`
 - Phase 3.0 seed transformation design created at `docs/database/seed-transformation-plan.md`
 - Phase 3.0 human review corrections applied: compact demo dataset approved; skill aliases limited to exact lexical variants; provider/team assessment results deferred when ownership is unclear; E-Lab demo challenge approved; ambiguous organization classification excluded from compact seed; challenge description convention approved; expired offers remain selected/pending/derived; matching outputs deferred to Phase 7; transcript/experience conversion deferred from Phase 3.1; seed command safety clarified
+- Phase 3.1 seed safety/context infrastructure implemented under `src/db/seed/**`
+- `pnpm db:seed` added as a non-destructive, opt-in seed command requiring `ALLOW_DB_SEED=true`
+- Phase 3.1 BOOTSTRAP records implemented: CAID organization, E-Lab organization, one synthetic development admin user for each, and organization-scoped `ADMIN` memberships
+- Phase 3.1 REFERENCE skill taxonomy implemented: 9 categories, 58 canonical skills, 4 stored lexical aliases after final cleanup, 0 skill relationships, and 0 embeddings
+- Phase 3.1 human-review taxonomy cleanup completed: case-only aliases removed from `skill_aliases`; casing/whitespace variants are handled by canonical lookup normalization while source fixture labels remain documented
+- Reference taxonomy review artifact created at `docs/database/reference-skill-seed.md`
+- Phase 3.1 idempotency verified by repeated seed execution with stable row counts
+- Phase 3.1 confirmed no challenge/application/assessment/offer/project DEMO rows are seeded
 - `src/db/index.ts` now exposes the shared node-postgres Drizzle client with the production schema
 - ERD v1 remains frozen; future structural changes require a new reviewed schema change
 
@@ -1210,6 +1222,10 @@ Previous completed work:
 - `pnpm db:check` passes against PostgreSQL 18.4 after starting the local Compose database
 - `pnpm lint` passes
 - `pnpm build` passes when network access is available for Google Fonts
+- `pnpm db:seed` refuses without `ALLOW_DB_SEED=true`
+- `NODE_ENV=production ALLOW_DB_SEED=true pnpm db:seed` refuses before seed writes
+- `ALLOW_DB_SEED=true pnpm db:seed` first run produced 2 organizations, 2 users, 2 memberships, 9 skill categories, 58 skills, 4 aliases after final cleanup, and 0 skill relationships
+- Repeated `ALLOW_DB_SEED=true pnpm db:seed` kept all Phase 3.1 row counts unchanged
 - DBML to Drizzle comparison: 45 tables and 41 enums implemented; no missing or extra domain tables/enums
 - Fresh PostgreSQL migration replay creates 45 public tables, 41 enums, 82 foreign keys, 35 CHECK constraints, and 11 partial indexes
 - Drizzle migration journal contains one applied migration after repeated `pnpm db:migrate`
@@ -1246,39 +1262,40 @@ port:
 
 ## Immediate next task
 
-### Begin Phase 3.1 seed safety/context infrastructure, BOOTSTRAP data, and REFERENCE skill taxonomy.
+### Begin Phase 3.2 compact DEMO seed dataset definition.
 
-Phase 3.0 seed transformation design is complete and human review corrections are applied. Begin implementation with seed safety/context infrastructure, BOOTSTRAP data, and REFERENCE skill taxonomy only; do not seed the full demo dataset yet.
+Phase 3.1 seed safety/context infrastructure, BOOTSTRAP data, and REFERENCE skill taxonomy are complete and ready for human review. The next checkpoint is to define the compact DEMO seed dataset and deterministic scenario records before implementing scenario inserts.
 
 Immediate sequence:
 
 ```text
 1. Review docs/database/seed-transformation-plan.md
       ↓
-2. Implement seed safety guard and transaction/context utilities
+2. Review docs/database/reference-skill-seed.md
       ↓
-3. Implement CAID/E-Lab bootstrap organizations and dev admin identities
+3. Select the compact DEMO challenge/application/project scenarios
       ↓
-4. Implement reference skill categories, canonical skills, and approved lexical aliases
+4. Confirm deterministic organization classifications for selected DEMO fixtures
       ↓
-5. Add seed command only after bootstrap/reference path is reviewed
+5. Prepare Phase 3.2 implementation instructions without seeding records yet
 ```
 
 ### Immediate checklist
 
 - [ ] Review `docs/database/seed-transformation-plan.md`
-- [ ] Implement seed environment/database safety guard
-- [ ] Implement seed transaction/context and returned-ID lookup strategy
-- [ ] Implement BOOTSTRAP records for CAID/E-Lab and development admin users
-- [ ] Implement REFERENCE skill categories, canonical skills, and exact lexical aliases
+- [ ] Review `docs/database/reference-skill-seed.md`
+- [ ] Choose final compact DEMO fixture list
+- [ ] Confirm deterministic organization classifications
+- [ ] Confirm any seed-specific demo timestamps or scenario reference date
+- [ ] Keep matching outputs, embeddings, transcript conversion, and ambiguous provider/team assessment results deferred unless explicitly approved
 - [ ] Preserve Phase 2 migration history unchanged
 - [ ] Do not change the frozen ERD without a reviewed schema change
-- [ ] Do not seed full demo application/project scenarios in Phase 3.1
+- [ ] Do not seed full demo application/project scenarios until Phase 3.2 decisions are reviewed
 
 ### Recommended first agent instruction
 
 ```text
-Proceed with Phase 3.1 only.
+Proceed with Phase 3.2 only.
 
 Read:
 - AGENTS.md
@@ -1288,13 +1305,14 @@ Read:
 - docs/database/mvp-data-model-audit.md
 - docs/database/mvp-erd-reconciliation.md
 - docs/database/seed-transformation-plan.md
+- docs/database/reference-skill-seed.md
 - src/db/schema/**
 - src/lib/data/**
 - src/lib/types.ts
 
-Implement seed safety/context infrastructure, BOOTSTRAP data, and REFERENCE skill taxonomy only.
+Define the compact DEMO seed dataset and deterministic scenario records only.
 
-Do not seed full demo application/project scenarios yet.
+Do not implement DEMO seed inserts unless explicitly requested for the next checkpoint.
 Do not change the frozen ERD unless a new reviewed schema change is explicitly approved.
 ```
 
@@ -1308,6 +1326,16 @@ Use this section after each development session.
 
 ### Completed
 
+- Phase 3.1 seed safety/context infrastructure, BOOTSTRAP data, and REFERENCE skill taxonomy implemented
+- `src/db/seed.ts` and modular seed helpers created under `src/db/seed/**`
+- `pnpm db:seed` added as non-destructive/idempotent local seed command
+- Safety guard implemented: requires `ALLOW_DB_SEED=true`, rejects `NODE_ENV=production`, parses `DATABASE_URL`, and allows only approved local development targets
+- BOOTSTRAP seed implemented for CAID and E-Lab organizations plus synthetic development admin identities
+- REFERENCE skill taxonomy implemented with 9 categories, 58 canonical skills, and 4 stored lexical aliases after final cleanup
+- Final Phase 3.1 taxonomy cleanup removed case-only aliases from `skill_aliases`; source fixture labels remain documented for traceability
+- Skill relationships and embeddings intentionally seeded as 0 rows
+- Reference taxonomy review artifact created at `docs/database/reference-skill-seed.md`
+- Validation passed: safety refusal without opt-in, production refusal, first seed, second idempotent seed, no DEMO scenario rows, TypeScript, lint, Drizzle Kit check, DB connection check, and network-enabled production build
 - Phase 3.0 seed transformation design created at `docs/database/seed-transformation-plan.md`
 - Phase 3.0 human review corrections applied before Phase 3.1
 - Approved compact initial demo dataset strategy; do not seed every static fixture
@@ -1337,7 +1365,7 @@ None.
 
 ### Next action
 
-Proceed to Phase 3.1: implement seed safety/context infrastructure, BOOTSTRAP data, and REFERENCE skill taxonomy.
+Proceed to Phase 3.2: define the compact DEMO seed dataset and deterministic scenario records.
 
 ## 2026-08-15
 
