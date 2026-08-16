@@ -3,7 +3,7 @@
 **Repository:** `VinUni-SolutionStudio-OFFICIAL`  
 **Project:** VinUniversity Solution Studio / AI-in-Action Platform  
 **Last updated:** 2026-08-16  
-**Current phase:** Phase 3 final verification complete / awaiting human review
+**Current phase:** Phase 4.1 Challenge Marketplace Read Path complete / awaiting human review
 
 ---
 
@@ -139,8 +139,8 @@ VinUni-SolutionStudio-OFFICIAL/
 |---|---|---|
 | Phase 1 | Database infrastructure | ✅ Complete |
 | Phase 2 | Audit MVP + reconcile with ERD → Drizzle schema + migrations | ✅ Complete |
-| Phase 3 | Reconciled static mock data → production-valid database seed | ✅ Complete / ready for human review |
-| Phase 4 | Challenge marketplace → real DB | ⬜ Not started |
+| Phase 3 | Reconciled static mock data → production-valid database seed | ✅ Complete / human review complete |
+| Phase 4 | Challenge marketplace → real DB | 🚧 In progress |
 | Phase 5 | Applications, assessments, offers, workspace → real DB | ⬜ Not started |
 | Phase 6 | Authentication + RBAC | ⬜ Not started |
 | Phase 7 | Skill + semantic matching | ⬜ Not started |
@@ -707,7 +707,7 @@ The reset workflow established in Phase 3.4 is an ongoing invariant for every Ph
 - Phase 3.6: ✅ COMPLETE / HUMAN REVIEW COMPLETE — DEMO assessment definitions, attempts, responses, and scores for unambiguous scenarios.
 - Phase 3.7: ✅ COMPLETE / HUMAN REVIEW COMPLETE — DEMO selections, offers, and agreements.
 - Phase 3.8: ✅ COMPLETE / HUMAN REVIEW COMPLETE — DEMO projects, project members, milestones, deliverables, milestone reviews, resources, and feedback.
-- Phase 3.9: ✅ COMPLETE / READY FOR HUMAN REVIEW — final complete seed reset/reproducibility verification and Phase 3 closeout.
+- Phase 3.9: ✅ COMPLETE / HUMAN REVIEW COMPLETE — final complete seed reset/reproducibility verification and Phase 3 closeout.
 
 ## 3.0 Design the seed transformation
 
@@ -1233,15 +1233,31 @@ This should be the first production-data vertical slice.
 
 ## 4.1 Read path
 
-- [ ] Implement `src/db/queries/challenges.ts`
-- [ ] Query challenge list
-- [ ] Query challenge details
-- [ ] Query organization
-- [ ] Query required skills
-- [ ] Query relevant metadata/status
-- [ ] Add pagination strategy
-- [ ] Add filtering strategy
-- [ ] Add sorting strategy
+- [x] Implement `src/db/queries/challenges.ts`
+- [x] Query challenge list
+- [x] Query challenge details
+- [x] Query organization
+- [x] Query required skills
+- [x] Query relevant metadata/status
+- [x] Add pagination strategy
+- [x] Add filtering strategy
+- [x] Add sorting strategy
+
+### Phase 4.1 actual results
+
+- Implemented `src/db/queries/challenges.ts` with `listPublishedChallenges(...)` and `getPublishedChallengeBySlug(...)`.
+- Added `src/db/queries/index.ts` as the query-module export barrel.
+- Added database-backed read models for challenge list and challenge detail without exposing internal bigint route identifiers.
+- Joined owner and managing organizations while preserving their separate meanings.
+- Retrieved normalized challenge skills through `challenge_skills -> skills` with deterministic required/preferred ordering.
+- Retrieved normalized eligibility rules for detail and eligibility summary for list/filter use.
+- Retrieved challenge faculty assignments for detail only; this remains routing metadata, not project supervision.
+- Derived `applicantCount` with `COUNT(applications)` instead of storing a counter.
+- Established page-based pagination with default page size 12 and max page size 50.
+- Implemented filters for subtype, compensation type, work mode, visibility, domain, school eligibility, canonical skill, owner organization name, and conservative relational search.
+- Implemented deterministic sorting by application deadline, newest, duration, and start date.
+- Preserved UI/static fixtures untouched; `/challenges` still consumes static reads until Phase 4.3.
+- Documented read semantics and UI field mapping in `docs/database/challenge-read-path.md`.
 
 ## 4.2 Business layer
 
@@ -1614,8 +1630,8 @@ project files
 
 ## Current status
 
-**Current phase:** Phase 3 final verification complete / awaiting human review
-**Active next checkpoint:** Phase 4.1 — Challenge Marketplace Read Path, after Phase 3.9 human approval
+**Current phase:** Phase 4 — Challenge Marketplace → Real DB
+**Active next checkpoint:** Phase 4.2 — Challenge Business Layer, after Phase 4.1 human review
 
 ### Latest completed work
 
@@ -1649,8 +1665,11 @@ project files
 - Phase 3.8 preserves `projects.application_id` as the canonical origin, derives challenge through application, and creates project members only from accepted application members.
 - Phase 3.8 stores formal faculty/partner milestone decisions only in `milestone_reviews`; generic `feedback` remains 0 because deterministic fixture feedback text is unavailable.
 - Phase 3.8 validates agreement-gated restricted resources only for `app-supply` and `papp-depot`, whose accepted project members have Phase 3.7 NDA agreements.
-- Phase 3.9 is COMPLETE / READY FOR HUMAN REVIEW: final reset-from-zero verification, full 45-table count inventory, lifecycle-integrity checks, idempotency, safety checks, and repository validation passed.
+- Phase 3.9 is COMPLETE / HUMAN REVIEW COMPLETE: final reset-from-zero verification, full 45-table count inventory, lifecycle-integrity checks, idempotency, safety checks, and repository validation passed.
 - Phase 3.9 artifact: `docs/database/phase-3-seed-verification.md`.
+- Phase 4.1 is COMPLETE / READY FOR HUMAN REVIEW: challenge marketplace database read path implemented in `src/db/queries/challenges.ts`.
+- Phase 4.1 read APIs: `listPublishedChallenges(...)` and `getPublishedChallengeBySlug(...)`.
+- Phase 4.1 keeps the UI on static challenge reads until Phase 4.3; no runtime route/component migration was performed.
 - Current application lifecycle distribution is `SUBMITTED = 1`, `ASSESSMENT = 0`, `SELECTION_PENDING = 1`, `SELECTED = 5`, `REJECTED = 1`, `WITHDRAWN = 0`.
 - Matching outputs, notifications, meetings, resource access services, and audit demo records remain unseeded.
 - ERD v1 remains frozen; later structural DB changes require a new reviewed schema change.
@@ -1673,6 +1692,8 @@ project files
 - Phase 3.9 validation confirms all 45 domain table counts match before reset, after reset, and after a repeated guarded seed run.
 - `NODE_ENV=production pnpm db:reset` refuses before destructive Docker work.
 - pgvector is enabled after reset; no vector columns or vector indexes exist yet.
+- Phase 4.1 query verification confirms the public list returns 8 seeded marketplace challenges; `route-optimisation` is retrievable; `merchant-churn-model` is discoverable with masked confidential owner display; and `demo-elab-venture-readiness-dashboard` returns owner = E-Lab and managing organization = E-Lab.
+- Phase 4.1 query verification confirms canonical skill joins for `route-optimisation` and `merchant-churn-model`, normalized E-Lab eligibility rules, nonexistent slug -> `null`, pagination boundaries, filters, search, deterministic sorting, and Phase 3 row-count preservation.
 - Current reproducible seed counts:
 
 ```text
@@ -1725,11 +1746,11 @@ Full 45-domain-table pre-reset/post-reset/post-idempotency count equality is rec
 
 ## Immediate next task
 
-### Phase 4.1 — Challenge Marketplace Read Path
+### Phase 4.2 — Challenge Business Layer
 
-Phase 3.9 has completed final seed verification. Do **not** begin Phase 4 until Phase 3.9 human review is approved.
+Phase 4.1 has implemented the low-level challenge marketplace database read path. Do **not** begin Phase 4.2 until Phase 4.1 human review is approved.
 
-After approval, Phase 4.1 should migrate the challenge marketplace read path onto the verified database-backed seed.
+After approval, Phase 4.2 should wrap the low-level challenge query module in business/service-layer semantics for public, admin, faculty, and partner reads.
 
 Immediate sequence:
 
@@ -1746,16 +1767,18 @@ Phase 3.8 projects + milestones + resources + feedback ✅
         ↓
 Phase 3.9 final reset/reproducibility closeout ✅
         ↓
-Phase 4.1 challenge marketplace DB read path after human approval
+Phase 4.1 challenge marketplace DB read path ✅
+        ↓
+Phase 4.2 challenge business layer after human approval
 ```
 
-### Immediate Phase 4.1 checklist
+### Immediate Phase 4.2 checklist
 
-- [ ] Wait for human approval of Phase 3.9 final verification
-- [ ] Re-read the exact Phase 4.1 section in this plan before implementation
-- [ ] Keep Phase 3 seed and schema behavior unchanged unless a reviewed blocker is found
-- [ ] Start with the challenge marketplace read path only
-- [ ] Do not begin later Phase 4/5 paths until their checkpoints are explicitly requested
+- [ ] Wait for human approval of Phase 4.1 read-path implementation
+- [ ] Re-read the exact Phase 4.2 section in this plan before implementation
+- [ ] Keep Phase 4.1 query behavior unchanged unless a reviewed blocker is found
+- [ ] Implement challenge business/service layer only
+- [ ] Do not begin Phase 4.3 UI migration until explicitly requested
 
 ### Agent sequencing rule
 
@@ -1771,7 +1794,7 @@ Before each agent implementation task:
 
 ### Recommended next agent instruction
 
-After human approval of Phase 3.9, proceed with Phase 4.1 — Challenge Marketplace Read Path only. Do not modify Phase 3 seed behavior, authentication, matching, notifications, audit demo records, or unrelated UI/runtime paths unless explicitly requested.
+After human approval of Phase 4.1, proceed with Phase 4.2 — Challenge Business Layer only. Do not modify Phase 3 seed behavior, authentication, matching, notifications, audit demo records, writes, or UI runtime paths unless explicitly requested.
 
 ---
 
@@ -1783,6 +1806,18 @@ Use this section after each development session.
 
 ### Completed
 
+- Phase 4.1 Challenge Marketplace Read Path completed and ready for human review
+- Added `src/db/queries/challenges.ts` with typed challenge list/detail read models, `listPublishedChallenges(...)`, and `getPublishedChallengeBySlug(...)`
+- Added `src/db/queries/index.ts` as the query export barrel
+- Implemented public marketplace read semantics for `PUBLISHED`/`APPLICATIONS_OPEN` challenges with `PUBLIC_PREVIEW`, `VINUNI_ONLY`, or `PRIVATE` visibility, excluding draft/review/invite-only rows from the default read
+- Preserved confidential discoverability for `merchant-churn-model` while masking the public owner display for `PRIVATE + HIGH_CONFIDENTIALITY`
+- Joined owner and managing organizations separately, preserved normalized challenge skills, retrieved normalized eligibility rules, and kept faculty assignments detail-only
+- Derived `applicantCount` through `COUNT(applications)` instead of adding a stored counter
+- Added bounded page-based pagination, deterministic sorting, conservative relational search, and filters for subtype, compensation type, work mode, visibility, domain, school eligibility, canonical skill, and owner organization name
+- Avoided N+1 and Cartesian duplication by using set-based child queries for skills/eligibility and separate detail-only faculty/contact queries
+- Added `docs/database/challenge-read-path.md` documenting query APIs, read semantics, shapes, pagination, filters, sorting, UI field mapping, and Phase 4.2 deferrals
+- Verified Phase 4.1 query behavior against the Phase 3 seed: default list count, route retrieval, confidential merchant handling, E-Lab owner/manager, skill joins, eligibility rules, nonexistent slug, pagination, filters, search, and sorting
+- Preserved existing UI/static challenge runtime behavior; Phase 4.3 still owns `/challenges` UI migration
 - Phase 3.9 final seed verification and closeout completed
 - Created `docs/database/phase-3-seed-verification.md` with canonical authority, reset workflow, migration facts, full 45-table count matrix, lifecycle integrity results, deferred-zero tables, idempotency, safety checks, validation commands, known limitations, and Phase 4 readiness conclusion
 - Verified pre-reset, post-reset, and post-idempotency counts match across all 45 public domain tables
@@ -1907,7 +1942,7 @@ None.
 
 ### Next action
 
-After human approval of Phase 3.9, proceed with Phase 4.1 — Challenge Marketplace Read Path only. Do not begin Phase 4 before that approval.
+After human approval of Phase 4.1, proceed with Phase 4.2 — Challenge Business Layer only. Do not begin Phase 4.3 UI migration or Phase 4.4 writes.
 
 ## 2026-08-15
 
