@@ -554,4 +554,32 @@ Phase 2 is complete. ERD v1 is frozen in `docs/database/schema.dbml`, the execut
 
 Phase 2.8 was verified by applying the migration to the existing local database, resetting the local Docker PostgreSQL volume, replaying the migration from zero, confirming the Drizzle migration journal, and rerunning `pnpm db:migrate` as a no-op idempotence check.
 
-Next phase: Phase 3.0 seed transformation design. Do not change the frozen ERD or migration history unless a new reviewed schema change is explicitly approved.
+Phase 3 is now using the frozen ERD to build deterministic seed and reset workflows. Do not change the frozen ERD or migration history unless a new reviewed schema change is explicitly approved.
+
+## Local Development Reset Workflow
+
+Phase 3.4 establishes the canonical local reset command:
+
+```bash
+pnpm db:reset
+```
+
+This command is destructive and is for LOCAL DEVELOPMENT ONLY. It deletes the local Docker PostgreSQL volume, restarts the repository's Docker Compose `db` service, waits for the container to become healthy, applies version-controlled migrations with `pnpm db:migrate`, and runs the guarded seed with `ALLOW_DB_SEED=true pnpm db:seed`.
+
+Equivalent explicit workflow:
+
+```bash
+docker compose down -v
+docker compose up -d
+pnpm db:migrate
+ALLOW_DB_SEED=true pnpm db:seed
+```
+
+`docker compose down -v` deletes the local PostgreSQL volume. Do not run it against any environment where data must be preserved.
+
+Safety distinction:
+
+- `pnpm db:seed` is non-destructive and idempotent. It must never drop volumes, truncate arbitrary data, or reset the database.
+- `pnpm db:reset` is explicitly destructive, tied to the local Docker Compose PostgreSQL service, and refuses non-local or production-looking targets before destroying the local volume.
+
+Phase 3.4 verified that a fresh reset recreates the seed state implemented through Phase 3.3 from migrations plus seed only. Static UI integration remains a later phase; this checkpoint verifies database data coverage, not frontend migration.

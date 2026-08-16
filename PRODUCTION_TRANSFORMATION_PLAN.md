@@ -3,7 +3,7 @@
 **Repository:** `VinUni-SolutionStudio-OFFICIAL`  
 **Project:** VinUniversity Solution Studio / AI-in-Action Platform  
 **Last updated:** 2026-08-16  
-**Current phase:** Phase 3 — Seed Transformation
+**Current phase:** Phase 3.5 — DEMO Application and Team Foundation
 
 ---
 
@@ -80,15 +80,20 @@ PostgreSQL 18 + pgvector
 
 # 3. Current Repository Direction
 
-Expected structure as the production transformation proceeds:
+Current/expected structure as the production transformation proceeds:
 
 ```text
 VinUni-SolutionStudio-OFFICIAL/
 │
 ├── docs/
 │   └── database/
-│       ├── schema.dbml          # canonical architectural ERD
-│       └── README.md            # database design/reconciliation notes
+│       ├── schema.dbml                    # frozen canonical architectural ERD v1
+│       ├── README.md                      # database implementation/migration notes
+│       ├── mvp-data-model-audit.md        # static MVP evidence
+│       ├── mvp-erd-reconciliation.md      # reviewed MVP ↔ ERD mapping
+│       ├── seed-transformation-plan.md    # reviewed Phase 3 seed design
+│       ├── reference-skill-seed.md        # canonical skill taxonomy review artifact
+│       └── demo-seed-manifest.md          # compact DEMO scenario/fixture authority
 │
 ├── docker-compose.yml
 ├── drizzle.config.ts
@@ -96,10 +101,12 @@ VinUni-SolutionStudio-OFFICIAL/
 ├── .env.example
 │
 ├── drizzle/
-│   └── migrations...
+│   ├── 0000_empty_gladiator.sql
+│   └── meta/
 │
 ├── scripts/
-│   └── db-check.ts
+│   ├── db-check.ts
+│   └── db-reset.ts                        # destructive LOCAL DEVELOPMENT reset
 │
 ├── src/
 │   ├── app/
@@ -109,13 +116,14 @@ VinUni-SolutionStudio-OFFICIAL/
 │   │   ├── index.ts
 │   │   ├── schema/
 │   │   ├── queries/
-│   │   └── seed.ts
+│   │   ├── seed.ts
+│   │   └── seed/
 │   │
 │   ├── services/
 │   │
 │   └── lib/
-│       ├── data/        # temporary static/mock data
-│       ├── queries.ts   # gradually replaced
+│       ├── data/        # temporary static/mock implementation evidence
+│       ├── queries.ts   # gradually replaced by DB-backed queries
 │       ├── types.ts
 │       └── ...
 │
@@ -657,24 +665,48 @@ Phase 2 is complete when:
 
 ## Goal
 
-Transform useful demo records from the static MVP into a deterministic seed dataset that conforms to the frozen ERD v1.
+Transform useful demo records from the static MVP into a deterministic, normalized seed dataset that conforms to the frozen ERD v1 and can be recreated from zero through the canonical reset workflow.
 
-Phase 3 should reuse the analysis produced in:
+Phase 3 reuses the reviewed artifacts:
 
 ```text
 docs/database/mvp-data-model-audit.md
 docs/database/mvp-erd-reconciliation.md
 docs/database/seed-transformation-plan.md
+docs/database/reference-skill-seed.md
+docs/database/demo-seed-manifest.md
 ```
 
-Do not re-design the schema from mock objects during seeding.
+Do not redesign the schema from mock objects during seeding.
+
+The Phase 3 implementation principle is:
+
+```text
+static fixture/source material
+        ↓
+reviewed transformation rules
+        ↓
+normalized BOOTSTRAP / REFERENCE / DEMO seed
+        ↓
+pnpm db:reset
+        ↓
+deterministically reproducible local database
+```
+
+The reset workflow established in Phase 3.4 is an ongoing invariant for every Phase 3.5+ seed checkpoint.
 
 ## Phase 3 checkpoint status
 
-- Phase 3.0: COMPLETE. HUMAN REVIEW COMPLETE. Seed transformation design and approved review corrections recorded at `docs/database/seed-transformation-plan.md`.
-- Phase 3.1: COMPLETE. HUMAN REVIEW COMPLETE. Seed safety/context infrastructure, BOOTSTRAP data, and REFERENCE skill taxonomy implemented and verified.
-- Phase 3.2: COMPLETE. Compact DEMO identity and organization foundation implemented and documented.
-- Phase 3.3: COMPLETE. DEMO challenges and challenge-side normalized data implemented; ready for human review.
+- Phase 3.0: ✅ COMPLETE / HUMAN REVIEW COMPLETE — seed transformation design and approved corrections recorded at `docs/database/seed-transformation-plan.md`.
+- Phase 3.1: ✅ COMPLETE / HUMAN REVIEW COMPLETE — seed safety/context infrastructure, BOOTSTRAP data, and REFERENCE skill taxonomy implemented and verified.
+- Phase 3.2: ✅ COMPLETE / HUMAN REVIEW COMPLETE — compact DEMO identity and organization foundation implemented and documented.
+- Phase 3.3: ✅ COMPLETE / HUMAN REVIEW COMPLETE — DEMO challenges and challenge-side normalized data implemented and verified.
+- Phase 3.4: ✅ COMPLETE / HUMAN REVIEW COMPLETE — canonical local reset workflow implemented as `pnpm db:reset`; migration-from-zero and seed-from-zero reproducibility verified.
+- Phase 3.5: 🚧 NEXT — normalized DEMO applications, application members/teams, and supervision request.
+- Phase 3.6: ⬜ NOT STARTED — DEMO assessment definitions, attempts, responses, and scores for unambiguous scenarios.
+- Phase 3.7: ⬜ NOT STARTED — DEMO selections, offers, and agreements.
+- Phase 3.8: ⬜ NOT STARTED — DEMO projects, project members, milestones, deliverables, milestone reviews, resources, and feedback.
+- Phase 3.9: ⬜ NOT STARTED — final complete seed reset/reproducibility verification and Phase 3 closeout.
 
 ## 3.0 Design the seed transformation
 
@@ -696,18 +728,18 @@ Do not re-design the schema from mock objects during seeding.
 
 ## 3.1 Prepare and implement bootstrap/reference seed infrastructure
 
-- [x] Review the Phase 2 MVP inventory
-- [x] Review the Phase 2 reconciliation matrix
-- [x] Review the Phase 3.0 seed transformation plan
+- [x] Review the Phase 2 MVP inventory/reconciliation and Phase 3.0 seed plan
 - [x] Implement seed safety guard
 - [x] Implement deterministic seed key/context strategy
-- [x] Implement BOOTSTRAP records
+- [x] Implement BOOTSTRAP CAID/E-Lab organizations and development admin memberships
 - [x] Implement REFERENCE skill categories/canonical skills/exact lexical aliases
 - [x] Add `pnpm db:seed`
-- [x] Verify all generated IDs/references are deterministic or reliably resolved
+- [x] Verify generated IDs/references are reliably resolved without hard-coded bigint PKs
 - [x] Verify Phase 3.1 seed records satisfy final constraints
 - [x] Confirm no DEMO challenge/application/assessment/offer/project rows are seeded in Phase 3.1
-- [x] Create reference taxonomy review artifact at `docs/database/reference-skill-seed.md`
+- [x] Create `docs/database/reference-skill-seed.md`
+- [x] Human-review taxonomy cleanup: 9 categories, 58 canonical skills, 4 true lexical aliases, 0 skill relationships, 0 embeddings
+- [x] Keep case/whitespace-only variants in canonical lookup normalization rather than `skill_aliases`
 
 ## 3.2 Define compact DEMO identity and organization foundation
 
@@ -719,62 +751,413 @@ Create deterministic development examples for the compact DEMO prerequisite laye
 - [x] Supply ERD-required identity/profile fields missing from current mocks with intentional development values
 - [x] Remove mock-only/presentation-only fields from persistence
 - [x] Preserve useful names/content that make the current demo recognizable
-- [x] Reuse existing CAID admin BOOTSTRAP identity
-- [x] Reuse existing E-Lab admin BOOTSTRAP identity
+- [x] Reuse existing CAID/E-Lab BOOTSTRAP admin identities
 - [x] Seed selected faculty users and profiles
 - [x] Seed selected student users and profiles
-- [x] Seed selected partner/internal DEMO organizations
-- [x] Seed selected partner/internal contact users
+- [x] Seed selected partner/internal DEMO organizations and contact users
 - [x] Seed contact organization memberships
 - [x] Reuse existing REFERENCE skills without expanding taxonomy
 - [x] Seed selected student skill claims against existing canonical skills
-- [x] Confirm no challenges, challenge skills/rules, applications, assessments, offers, projects, milestones, matching outputs, notifications, or audit demo records are seeded in this phase
+- [x] Exclude ambiguous `org-vinai`; use `route-optimisation` for compact public technical coverage
+- [x] Keep `skill_relationships = 0`
+- [x] Confirm no challenge/application/assessment/offer/project workflow data leaks into this checkpoint
+
+Verified Phase 3.2 identity baseline:
+
+```text
+DEMO organizations:          5
+DEMO contact users:          5
+DEMO students:               7
+DEMO faculty:                6
+student_profiles:            7
+faculty_profiles:            6
+CONTACT_PERSON memberships:  5
+student_skills:             33
+```
+
+Including BOOTSTRAP totals at this checkpoint:
+
+```text
+organizations:               7
+users:                      20
+organization_memberships:    7
+```
 
 ## 3.3 Implement DEMO challenges and challenge-side normalized data
 
-Target:
+Seed only the compact challenge-side foundation.
+
+Implemented challenge set:
 
 ```text
-src/db/seed.ts
+merchant-churn-model
+route-optimisation
+triage-protocol-review
+community-health-outreach
+supply-chain-dashboard
+campus-energy-audit
+archive-digitisation
+demo-elab-venture-readiness-dashboard   # synthesized DEMO
 ```
 
 Checklist:
 
-- [x] Seed selected DEMO challenges
-- [x] Seed challenge skill requirements
-- [x] Seed challenge eligibility rules
-- [x] Seed challenge faculty assignments/reviews only where approved
-- [x] Preserve challenge referential integrity to Phase 3.2 organizations, contacts, faculty, and REFERENCE skills
-- [x] Make repeated challenge-side seed execution safe where practical
-- [x] Preserve referential integrity
-- [x] Keep applications, assessments, selections/offers, projects, milestones, matching outputs, notifications, and audit demo records deferred unless this checkpoint explicitly expands scope
-- [x] Test challenge-side seed on current DB
-- [x] Verify seeded data through Drizzle queries
+- [x] Seed 8 selected/synthesized DEMO challenges
+- [x] Seed 26 challenge skill requirements
+- [x] Seed 17 challenge eligibility rules
+- [x] Seed 14 challenge faculty assignments
+- [x] Seed 0 challenge reviews intentionally; do not invent review history
+- [x] Preserve challenge owner vs managing-organization semantics
+- [x] Verify external-owner / CAID-manager path
+- [x] Verify E-Lab owner = E-Lab manager path
+- [x] Verify public and confidential marketplace cases
+- [x] Preserve referential integrity to Phase 3.2 organizations, contacts, faculty, and Phase 3.1 skills
+- [x] Resolve challenge skill labels only through canonical normalization / approved lexical aliases
+- [x] Keep new skills, skill relationships, embeddings, matching outputs, and downstream workflow rows at zero
+- [x] Verify repeated seed execution is idempotent
+- [x] Verify challenge data through SQL/Drizzle joins and eligibility sanity checks
 
 ## 3.4 Establish reset workflow
 
-Expected local reset:
+Canonical local reset:
 
 ```bash
+pnpm db:reset
+```
+
+`pnpm db:reset` is **destructive and LOCAL DEVELOPMENT ONLY**. It:
+
+```text
+validates local target / refuses production / refuses arguments
+        ↓
 docker compose down -v
+        ↓
 docker compose up -d
+        ↓
+wait for PostgreSQL health
+        ↓
 pnpm db:migrate
-pnpm db:seed
+        ↓
+ALLOW_DB_SEED=true pnpm db:seed
 ```
 
 Checklist:
 
-- [ ] Document reset command
-- [ ] Confirm migration from zero works
-- [ ] Confirm seed from zero works
-- [ ] Confirm static UI can eventually display equivalent demo content
+- [x] Add and document `pnpm db:reset`
+- [x] Keep `pnpm db:seed` non-destructive and separate from reset
+- [x] Confirm migration from zero works
+- [x] Confirm pgvector is enabled from version-controlled migration history
+- [x] Confirm seed from zero recreates Phase 3.3 state exactly
+- [x] Confirm repeated seed after reset is idempotent
+- [x] Confirm representative challenge semantics after reset
+- [x] Confirm no downstream workflow leakage
+- [x] Confirm static UI can eventually display equivalent demo content for seed layers implemented through Phase 3.3; actual UI DB integration remains Phase 4+
+- [x] Establish reset/reproducibility as an invariant for all later Phase 3 seed checkpoints
+
+Verified post-reset baseline:
+
+```text
+organizations:                   7
+users:                          20
+organization_memberships:        7
+skill_categories:                9
+skills:                         58
+skill_aliases:                   4
+skill_relationships:             0
+student_profiles:                7
+faculty_profiles:                6
+student_skills:                 33
+challenges:                      8
+challenge_skills:               26
+challenge_eligibility_rules:    17
+challenge_faculty_assignments:  14
+challenge_reviews:               0
+```
+
+Verified schema baseline:
+
+```text
+domain tables:             45
+PostgreSQL enums:          41
+foreign keys:              82
+CHECK constraints:         35
+partial indexes:           11
+Drizzle migration rows:     1
+pgvector:             enabled
+```
+
+## 3.5 Implement DEMO application and team foundation
+
+### Goal
+
+Normalize the compact application/team fixtures on top of the verified Phase 3.4 reset baseline without prematurely creating assessment, selection/offer, or project records.
+
+Target production entities:
+
+```text
+applications
+application_members
+supervision_requests
+application_projects   # only if valid seeded student-project evidence exists
+```
+
+Expected compact application spine:
+
+```text
+app-triage
+app-route
+app-churn
+app-outreach
+app-supply
+app-energy
+app-archive
+papp-depot
+```
+
+Every fixture must be validated against the actual static source and must resolve to an already-seeded Phase 3.3 challenge before insertion.
+
+### Application/team rules
+
+- [ ] Seed only the approved compact application fixtures
+- [ ] Use deterministic seed keys/public IDs; never hard-code bigint PKs
+- [ ] Preserve `applications → application_members`; do not restore `applications.student_id`
+- [ ] Resolve `submitted_by` to the actual initiating user
+- [ ] Normalize embedded team members into `application_members`
+- [ ] Preserve separate `member_role` and `status`
+- [ ] Require exactly one `LEADER` per application and that leader is `ACCEPTED`
+- [ ] Preserve solo application as one accepted leader member
+- [ ] Preserve `app-route` pending-invite member as `MEMBER / INVITED`
+- [ ] Preserve `team_name`, `preferred_role`, `committed_hours_per_week` only when deterministically supported
+- [ ] Keep general profile availability separate from application commitment
+- [ ] Map motivation/relevant-experience narrative only from appropriate fixture fields
+- [ ] Do not fabricate `application_projects`; expected count remains 0 while student-project evidence is deferred
+- [ ] Seed `app-outreach + inv-outreach` as `supervision_requests`
+- [ ] Keep challenge faculty routing, supervision requests, and future project supervisor distinct
+
+### Phase-consistent staged application statuses
+
+Downstream authoritative records do not exist yet, so Phase 3.5 must not create internally inconsistent lifecycle state.
+
+Use the furthest coherent application status available at this checkpoint:
+
+```text
+assessment-dependent fixture
+→ ASSESSMENT until assessment result exists
+
+post-assessment / pre-selection fixture
+→ SELECTION_PENDING
+
+pending-offer / active / final-review / completed fixture
+→ SELECTION_PENDING until a selection exists
+
+failed-assessment fixture
+→ ASSESSMENT until reviewed failed attempt exists
+→ REJECTED only in Phase 3.6 when the assessment result is seeded
+```
+
+Do **not** seed `SELECTED` while `selections = 0`.
+
+Document for every application:
+
+```text
+fixture final scenario
+Phase 3.5 staged application status
+later transition required
+```
+
+### Phase 3.5 leakage boundary
+
+At completion, keep:
+
+```text
+assessments = 0
+assessment_attempts = 0
+selections = 0
+offers = 0
+agreements = 0
+projects = 0
+project_members = 0
+milestones = 0
+deliverables = 0
+milestone_reviews = 0
+project_resources = 0
+feedback = 0
+match_results = 0
+match_skill_details = 0
+match_experience_details = 0
+```
+
+### Phase 3.5 verification
+
+- [ ] Validate every application references an existing seeded challenge
+- [ ] Validate every member references an existing seeded student/profile
+- [ ] Validate exactly one accepted leader per application
+- [ ] Validate no duplicate `(application_id, student_id)`
+- [ ] Validate `submitted_by` membership where required by fixture semantics
+- [ ] Validate pending invite scenario
+- [ ] Validate supervision request relationships/timestamps
+- [ ] Run seed twice and verify idempotency
+- [ ] Run `pnpm db:reset` and verify Phase 3.5 state can be recreated from zero
+- [ ] Update `docs/database/demo-seed-manifest.md`
+- [ ] Update `docs/database/seed-transformation-plan.md`
+- [ ] Update this plan with actual counts and next checkpoint
+
+## 3.6 Implement DEMO assessment layer
+
+### Goal
+
+Add normalized assessment definitions and individual assessment history only where fixture ownership is unambiguous.
+
+Target entities:
+
+```text
+assessments
+assessment_sections
+assessment_questions
+assessment_attempts
+assessment_responses
+assessment_scores
+```
+
+Rules/checklist:
+
+- [ ] Seed assessment definitions only for compact challenges/applications that need them
+- [ ] Normalize static assessment sections/questions into the frozen multidisciplinary model
+- [ ] Use `MULTIPLE_CHOICE`, `CODING`, and other frozen question types only where fixture semantics support them
+- [ ] Store type-specific configuration in approved JSONB fields
+- [ ] Use `INDIVIDUAL` scope for explicit student-facing attempts whose member ownership is clear
+- [ ] Keep ambiguous provider/team `testResult` fixtures deferred; do not silently choose TEAM vs leader-INDIVIDUAL
+- [ ] Link individual attempts to the correct `application_member_id`
+- [ ] Preserve assessment/application/challenge consistency invariants
+- [ ] Seed reviewed scores/rubrics only when represented by fixture data
+- [ ] Transition `app-triage` to `REJECTED` only after the failed reviewed assessment exists
+- [ ] Transition successful reviewed assessment cases to `SELECTION_PENDING` where appropriate
+- [ ] Keep selections/offers/projects at zero
+- [ ] Verify repeated seed idempotency
+- [ ] Run `pnpm db:reset` and verify complete Phase 3.6 state from zero
+- [ ] Update manifest/transformation plan/current plan with actual counts and remaining deferrals
+
+## 3.7 Implement DEMO selections, offers, and agreements
+
+### Goal
+
+Represent selected applications and durable offer/agreement state without creating projects yet.
+
+Target entities:
+
+```text
+selections
+offers
+agreements
+```
+
+Rules/checklist:
+
+- [ ] Seed at most one selection per selected compact application
+- [ ] Seed at most one durable offer per selection
+- [ ] Update selected application rows to `SELECTED` only when the corresponding selection exists
+- [ ] Preserve pending-offer scenario such as `app-route`
+- [ ] Use `responded_by` = accepted application leader for accepted/declined team-level offers
+- [ ] Preserve offer expiry as derived: `PENDING + respond_by < now()`, never an `EXPIRED` enum
+- [ ] Seed accepted offer terms for scenarios that will become active/final-review/completed projects
+- [ ] Seed required NDA/confidentiality/data-access agreements only for compact scenarios that need restricted-resource access
+- [ ] Keep consent records separate from agreements
+- [ ] Keep projects/project members/milestones/resources at zero
+- [ ] Verify application ↔ selection ↔ offer cardinality
+- [ ] Verify repeated seed idempotency
+- [ ] Run `pnpm db:reset` and verify complete Phase 3.7 state from zero
+- [ ] Update manifest/transformation plan/current plan with actual counts and transitions
+
+## 3.8 Implement DEMO projects, milestones, workspace resources, and feedback
+
+### Goal
+
+Complete the compact downstream DEMO lifecycle after accepted offers exist.
+
+Target entities:
+
+```text
+projects
+project_members
+milestones
+deliverables
+milestone_reviews
+project_resources
+feedback
+```
+
+Rules/checklist:
+
+- [ ] Create projects only from originating applications with appropriate accepted-offer state
+- [ ] Preserve `projects.application_id` as canonical project origin; do not reintroduce `projects.challenge_id`
+- [ ] Seed initial `project_members` from accepted application members
+- [ ] Map eventual scenarios to `ACTIVE`, `FINAL_REVIEW`, and `COMPLETED`
+- [ ] Seed faculty supervisor only from deterministic compact fixture data
+- [ ] Normalize milestone states without storing `OVERDUE`
+- [ ] Convert static faculty/partner approval booleans into authoritative `milestone_reviews`
+- [ ] Preserve v1 dual-approval rule: required FACULTY + PARTNER approvals gate completion
+- [ ] Keep formal milestone decisions out of generic feedback
+- [ ] Normalize FILE/LINK/TEXT/OTHER deliverables
+- [ ] Seed project resources as metadata/access references only; never plaintext credentials/secrets
+- [ ] Respect agreement requirements for restricted/T3 resources
+- [ ] Normalize faculty/partner close-out feedback into generic `feedback`
+- [ ] Keep meetings/join links deferred because meetings are not ERD v1 entities
+- [ ] Preserve `papp-depot` partner-approval coverage if deterministic
+- [ ] Keep matching outputs at zero
+- [ ] Verify repeated seed idempotency
+- [ ] Run `pnpm db:reset` and verify complete Phase 3.8 state from zero
+- [ ] Update manifest/transformation plan/current plan with actual counts
+
+## 3.9 Final Phase 3 seed verification and closeout
+
+### Goal
+
+Prove the **entire compact normalized DEMO dataset** can be recreated deterministically from version-controlled migrations and seed code before any UI read path is migrated.
+
+Final canonical workflow:
+
+```bash
+pnpm db:reset
+```
+
+Final verification:
+
+- [ ] Reset from an empty Docker volume succeeds with no manual DB step
+- [ ] Migrations recreate pgvector + frozen schema
+- [ ] Seed recreates BOOTSTRAP, REFERENCE, and all approved DEMO layers
+- [ ] Second `ALLOW_DB_SEED=true pnpm db:seed` is idempotent
+- [ ] Compact marketplace scenarios are queryable
+- [ ] Compact application/team scenarios are queryable
+- [ ] Assessment scenarios are queryable
+- [ ] Selection/offer/agreement scenarios are queryable
+- [ ] Active/final-review/completed project scenarios are queryable
+- [ ] Milestone review/resource/feedback scenarios are queryable
+- [ ] All seeded FKs resolve
+- [ ] Lifecycle states are internally coherent
+- [ ] `skill_relationships` remains 0 unless separately human-approved
+- [ ] Matching output tables remain 0; matching belongs to Phase 7
+- [ ] Embeddings/vector columns remain deferred to Phase 7
+- [ ] Ambiguous provider/team assessment ownership remains deferred unless separately resolved
+- [ ] Transcript/experience conversion remains deferred unless separately approved
+- [ ] Update `docs/database/demo-seed-manifest.md` with final actual counts
+- [ ] Update `docs/database/seed-transformation-plan.md` with final implementation facts
+- [ ] Mark Phase 3 COMPLETE only after all checks pass
 
 ## Phase 3 exit criteria
 
-- [ ] Development database can be recreated from zero
-- [ ] Schema comes from migrations
-- [ ] Demo content comes from seed
-- [ ] Static mock objects are no longer the authoritative data source
+Phase 3 is complete when:
+
+- [x] The local database has a documented destructive reset workflow (`pnpm db:reset`)
+- [x] Schema recreation comes entirely from version-controlled migrations
+- [x] BOOTSTRAP, REFERENCE, DEMO identity, and DEMO challenge layers are reproducible from seed
+- [ ] Compact DEMO applications/teams/supervision are normalized and seeded
+- [ ] Approved assessment scenarios are normalized and seeded
+- [ ] Approved selection/offer/agreement scenarios are normalized and seeded
+- [ ] Approved project/milestone/resource/feedback scenarios are normalized and seeded
+- [ ] The complete compact seed dataset is reproducible from zero through `pnpm db:reset`
+- [ ] Repeated non-destructive seed execution is idempotent after the complete Phase 3 dataset exists
+- [ ] Static mock objects are no longer required to reconstruct the compact development database
+- [ ] Phase 4/5 can migrate UI/business read/write paths onto a representative production-valid database without inventing missing demo workflow state
 
 ---
 
@@ -1170,112 +1553,71 @@ project files
 ## Current status
 
 **Current phase:** Phase 3 — Seed Transformation  
-**Active next phase:** Phase 3.3 human review before application/team DEMO seeding
+**Active next checkpoint:** Phase 3.5 — DEMO Application and Team Foundation
 
 ### Latest completed work
 
-- Phase 2.0 static MVP audit created at `docs/database/mvp-data-model-audit.md`
-- Phase 2.1 ERD implementation-readiness review completed
-- Phase 2.2 MVP to ERD reconciliation completed at `docs/database/mvp-erd-reconciliation.md`
-- Phase 2.3 ERD v1 reviewed and FROZEN in `docs/database/schema.dbml`
-- Phase 2.4 Drizzle schema module organization implemented under `src/db/schema/**`
-- Phase 2.5 frozen ERD v1 translated into 45 Drizzle PostgreSQL tables and 41 enums
-- Phase 2.6 primary keys, foreign keys, unique constraints, partial unique indexes, CHECK constraints, and query indexes implemented
-- Phase 2.7 pgvector extension strategy implemented through a version-controlled migration
-- Phase 2.8 initial migration generated at `drizzle/0000_empty_gladiator.sql`
-- `CREATE EXTENSION IF NOT EXISTS vector;` is included before schema objects in the initial migration
-- Fresh database reproducibility verified with `docker compose down -v`, `docker compose up -d`, and `pnpm db:migrate`
-- Phase 3.0 seed transformation design created at `docs/database/seed-transformation-plan.md`
-- Phase 3.0 human review corrections applied: compact demo dataset approved; skill aliases limited to exact lexical variants; provider/team assessment results deferred when ownership is unclear; E-Lab demo challenge approved; ambiguous organization classification excluded from compact seed; challenge description convention approved; expired offers remain selected/pending/derived; matching outputs deferred to Phase 7; transcript/experience conversion deferred from Phase 3.1; seed command safety clarified
-- Phase 3.1 seed safety/context infrastructure implemented under `src/db/seed/**`
-- `pnpm db:seed` added as a non-destructive, opt-in seed command requiring `ALLOW_DB_SEED=true`
-- Phase 3.1 BOOTSTRAP records implemented: CAID organization, E-Lab organization, one synthetic development admin user for each, and organization-scoped `ADMIN` memberships
-- Phase 3.1 REFERENCE skill taxonomy implemented: 9 categories, 58 canonical skills, 4 stored lexical aliases after final cleanup, 0 skill relationships, and 0 embeddings
-- Phase 3.1 human-review taxonomy cleanup completed: case-only aliases removed from `skill_aliases`; casing/whitespace variants are handled by canonical lookup normalization while source fixture labels remain documented
-- Reference taxonomy review artifact created at `docs/database/reference-skill-seed.md`
-- Phase 3.1 idempotency verified by repeated seed execution with stable row counts
-- Phase 3.1 confirmed no challenge/application/assessment/offer/project DEMO rows are seeded
-- Phase 3.2 compact DEMO fixture list resolved after organization classification review
-- Phase 3.2 manifest created at `docs/database/demo-seed-manifest.md`
-- Phase 3.2 DEMO organizations implemented: Bến Cảng Logistics, Vietnam Health Foundation, VinUni Facilities, National Heritage Archive, and VinUni Health Sciences
-- Phase 3.2 ambiguous `org-vinai` fixture excluded; public technical coverage shifted to `route-optimisation`
-- Phase 3.2 DEMO contact users normalized with `CONTACT_PERSON` organization memberships
-- Phase 3.2 DEMO student and faculty users/profiles seeded with deterministic `example.test` emails
-- Phase 3.2 DEMO student skill claims linked only to the existing Phase 3.1 canonical taxonomy
-- Phase 3.2 keeps `skill_relationships = 0` and seeds no challenges, applications, assessments, selections/offers, projects, milestones, matching records, notifications, or audit demo records
-- Phase 3.3 DEMO challenge-side foundation implemented: 8 challenges, 26 challenge skills, 17 eligibility rules, 14 faculty assignments, and 0 challenge reviews
-- Phase 3.3 selected challenge fixtures: `merchant-churn-model`, `route-optimisation`, `triage-protocol-review`, `community-health-outreach`, `supply-chain-dashboard`, `campus-energy-audit`, `archive-digitisation`, and synthesized `demo-elab-venture-readiness-dashboard`
-- Phase 3.3 challenge ownership verified: confidential Bến Cảng challenge is private/high-confidentiality; external challenges are managed by CAID; synthesized E-Lab challenge has E-Lab as both owner and manager
-- Phase 3.3 challenge skills resolve only to the existing Phase 3.1 canonical taxonomy; no new skills, aliases, relationships, or embeddings were seeded
-- Phase 3.3 keeps applications, application members, supervision requests, assessments, selections/offers, agreements, projects, milestones, matching records, notifications, and audit demo records deferred
-- `src/db/index.ts` now exposes the shared node-postgres Drizzle client with the production schema
-- ERD v1 remains frozen; future structural changes require a new reviewed schema change
-
-Previous completed work:
-
-- PostgreSQL + pgvector successfully running under OrbStack
-- Docker container is healthy
-- Local DB exposed at port `5432`
-- Database name: `solution_studio`
-- PostgreSQL version verified as `18.4`
-- Drizzle ORM installed
-- Drizzle Kit installed
-- node-postgres installed
-- `DATABASE_URL` configured
-- Drizzle database connection created
-- `scripts/db-check.ts` created
-- End-to-end application-side database connection successfully verified
-- pnpm/esbuild build-script approval issue resolved
-- Latest DBML ERD has been recovered for repository inclusion
-- Phase 2 strategy revised to audit the existing static MVP before implementing Drizzle tables
+- Phase 1 local PostgreSQL 18 + pgvector infrastructure is complete and reproducible under OrbStack/Docker.
+- Phase 2 is complete: MVP audit/reconciliation, frozen ERD v1, 45-table/41-enum Drizzle implementation, constraints/indexes, version-controlled initial migration, pgvector enablement, and fresh migration replay are verified.
+- Phase 3.0 is COMPLETE / HUMAN REVIEW COMPLETE: `docs/database/seed-transformation-plan.md` defines the normalized BOOTSTRAP / REFERENCE / DEMO transformation strategy.
+- Phase 3.1 is COMPLETE / HUMAN REVIEW COMPLETE: guarded non-destructive seed infrastructure plus CAID/E-Lab bootstrap data and the reviewed reference taxonomy are implemented.
+- Final Phase 3.1 taxonomy: 9 categories, 58 canonical skills, 4 true lexical aliases, 0 `skill_relationships`, 0 embeddings.
+- Phase 3.2 is COMPLETE / HUMAN REVIEW COMPLETE: compact DEMO identity/organization foundation is implemented and documented in `docs/database/demo-seed-manifest.md`.
+- Phase 3.2 totals: 7 organizations including BOOTSTRAP, 20 users including BOOTSTRAP admins, 7 organization memberships, 7 student profiles, 6 faculty profiles, and 33 student-skill claims.
+- Phase 3.3 is COMPLETE / HUMAN REVIEW COMPLETE: 8 compact/synthesized challenges, 26 challenge skills, 17 eligibility rules, 14 faculty assignments, and 0 challenge reviews are seeded.
+- Phase 3.3 challenge set: `merchant-churn-model`, `route-optimisation`, `triage-protocol-review`, `community-health-outreach`, `supply-chain-dashboard`, `campus-energy-audit`, `archive-digitisation`, and synthesized `demo-elab-venture-readiness-dashboard`.
+- Phase 3.4 is COMPLETE / HUMAN REVIEW COMPLETE: `pnpm db:reset` is the canonical destructive LOCAL DEVELOPMENT reset command.
+- `pnpm db:reset` refuses production/arguments, validates the repository local Docker DB target, runs `docker compose down -v`, restarts and waits for PostgreSQL, runs migrations, then runs guarded seed.
+- Phase 3.4 migration-from-zero verification recreated pgvector, 45 domain tables, 41 enums, 82 foreign keys, 35 PostgreSQL CHECK constraints, 11 partial indexes, and one Drizzle migration journal row.
+- Phase 3.4 seed-from-zero verification recreated the Phase 3.3 state exactly and a second seed run remained idempotent.
+- Phase 3.4 representative queries verified public/confidential challenge behavior, external owner + CAID manager, E-Lab owner = manager, canonical challenge-skill joins, eligibility rules, and faculty routing.
+- Downstream workflow records remain intentionally unseeded through Phase 3.4: applications, assessment history, selections/offers, agreements, projects/milestones/resources/feedback, and matching outputs remain zero.
+- ERD v1 remains frozen; later structural DB changes require a new reviewed schema change.
+- `src/db/seed/skills.ts` retains the approved taxonomy and exposes conservative seed-label resolution without semantic skill merging.
 
 ### Latest verification
 
-- `pnpm exec tsc --noEmit` passes
-- `pnpm exec drizzle-kit check` passes
-- `pnpm db:check` passes against PostgreSQL 18.4 after starting the local Compose database
-- `pnpm lint` passes
-- `pnpm build` passes when network access is available for Google Fonts
-- `pnpm db:seed` refuses without `ALLOW_DB_SEED=true`
-- `NODE_ENV=production ALLOW_DB_SEED=true pnpm db:seed` refuses before seed writes
-- `ALLOW_DB_SEED=true pnpm db:seed` first run produced 2 organizations, 2 users, 2 memberships, 9 skill categories, 58 skills, 4 aliases after final cleanup, and 0 skill relationships
-- Repeated `ALLOW_DB_SEED=true pnpm db:seed` kept all Phase 3.1 row counts unchanged
-- Phase 3.2 first seed run produced 7 organizations, 20 users, 7 memberships, 7 student profiles, 6 faculty profiles, 33 student skill claims, 9 skill categories, 58 skills, 4 aliases, and 0 skill relationships
-- Repeated `ALLOW_DB_SEED=true pnpm db:seed` kept all Phase 3.2 row counts unchanged
-- Phase 3.2 safety checks verified `pnpm db:seed` refuses without `ALLOW_DB_SEED=true` and refuses with `NODE_ENV=production`
-- Phase 3.2 workflow leakage check verified 0 challenges, applications, assessments, assessment attempts, selections, offers, projects, milestones, deliverables, milestone reviews, feedback, matching rows, and notifications
-- Phase 3.3 first seed run changed challenge-side counts from 0 to 8 challenges, 0 to 26 challenge skills, 0 to 17 eligibility rules, 0 to 14 faculty assignments, and kept challenge reviews at 0
-- Repeated `ALLOW_DB_SEED=true pnpm db:seed` kept Phase 3.3 challenge-side row counts unchanged
-- Phase 3.3 SQL verification confirmed public/VinUni marketplace rows, confidential merchant ownership, external-owner/CAID-manager routing, E-Lab owner/manager routing, canonical skill joins, eligibility rules, faculty assignment joins, and Jordan Lee passing the synthesized E-Lab `MIN_GPA` rule
-- Phase 3.3 workflow leakage check verified 0 applications, application members, application projects, supervision requests, assessments, assessment attempts, selections, offers, agreements, projects, milestones, deliverables, milestone reviews, project resources, feedback, matching rows, notifications, and audit logs
-- DBML to Drizzle comparison: 45 tables and 41 enums implemented; no missing or extra domain tables/enums
-- Fresh PostgreSQL migration replay creates 45 public tables, 41 enums, 82 foreign keys, 35 CHECK constraints, and 11 partial indexes
-- Drizzle migration journal contains one applied migration after repeated `pnpm db:migrate`
-- pgvector extension is enabled and no vector columns/indexes exist yet
-
-Previous verification:
+- `pnpm exec tsc --noEmit` passes.
+- `pnpm exec drizzle-kit check` passes.
+- `pnpm db:check` passes against PostgreSQL 18.4.
+- `pnpm lint` passes.
+- `pnpm build` passes when network access is available for Google Fonts.
+- `pnpm db:seed` refuses without `ALLOW_DB_SEED=true`.
+- `NODE_ENV=production ALLOW_DB_SEED=true pnpm db:seed` refuses before writes.
+- Repeated `ALLOW_DB_SEED=true pnpm db:seed` is idempotent for the Phase 3.3 seed state.
+- `pnpm db:reset` recreates the Phase 3.3 seed state from an empty local Docker volume.
+- pgvector is enabled after reset; no vector columns or vector indexes exist yet.
+- Current reproducible seed counts:
 
 ```text
-database: solution_studio
+organizations:                   7
+users:                          20
+organization_memberships:        7
+skill_categories:                9
+skills:                         58
+skill_aliases:                   4
+skill_relationships:             0
+student_profiles:                7
+faculty_profiles:                6
+student_skills:                 33
+challenges:                      8
+challenge_skills:               26
+challenge_eligibility_rules:    17
+challenge_faculty_assignments:  14
+challenge_reviews:               0
 
-PostgreSQL 18.4
-Debian 18.4-1.pgdg12+1
-aarch64
-64-bit
-```
-
-```text
-container:
-vinuni-solution-studio-db
-
-image:
-pgvector/pgvector:pg18
-
-status:
-healthy
-
-port:
-5432
+applications:                    0
+application_members:             0
+supervision_requests:            0
+assessments:                     0
+assessment_attempts:             0
+selections:                      0
+offers:                          0
+agreements:                      0
+projects:                        0
+project_members:                 0
+milestones:                      0
+match_results:                   0
 ```
 
 ---
@@ -1284,48 +1626,84 @@ port:
 
 ## Immediate next task
 
-### Human review Phase 3.3 DEMO challenge foundation.
+### Phase 3.5 — DEMO Application and Team Foundation
 
-Phase 3.3 compact DEMO challenge foundation is complete and ready for human review before application/team DEMO seeding.
+Phase 3.4 has been human-reviewed and the reset/reproducibility workflow is now a standing invariant for the rest of Phase 3.
+
+Do **not** jump to Phase 4 yet. Phase 4 begins only after Phase 3.5–3.9 complete the normalized compact DEMO workflow dataset.
 
 Immediate sequence:
 
 ```text
-1. Review docs/database/demo-seed-manifest.md Phase 3.3 challenge section
-      ↓
-2. Review src/db/seed/challenges.ts fixture mappings
-      ↓
-3. Review Phase 3.3 verification results
-      ↓
-4. Approve or correct Phase 3.3
-      ↓
-5. After approval, proceed to the next application/team DEMO seed checkpoint
+Phase 3.4 reset/reproducibility baseline ✅
+        ↓
+Phase 3.5 applications + application members + supervision
+        ↓
+Phase 3.6 assessments
+        ↓
+Phase 3.7 selections + offers + agreements
+        ↓
+Phase 3.8 projects + milestones + resources + feedback
+        ↓
+Phase 3.9 final reset/reproducibility closeout
+        ↓
+Phase 4 challenge marketplace DB read path
 ```
 
-### Immediate checklist
+### Immediate Phase 3.5 checklist
 
-- [ ] Human-review the Phase 3.3 challenge fixture selection and synthesized E-Lab challenge
-- [ ] Human-review visibility/confidentiality choices
-- [ ] Human-review skill, eligibility, and faculty-routing mappings
-- [ ] Confirm zero `challenge_reviews` remains acceptable
-- [ ] Keep matching outputs, embeddings, transcript conversion, and ambiguous provider/team assessment results deferred unless explicitly approved
-- [ ] Preserve Phase 2 migration history unchanged
-- [ ] Do not change the frozen ERD without a reviewed schema change
-- [ ] Do not seed applications, assessments, offers, projects, milestones, or matching outputs unless an explicit later checkpoint authorizes them
+- [ ] Re-read the exact Phase 3.5 section in this plan before implementation
+- [ ] Validate compact application fixtures against `docs/database/demo-seed-manifest.md`
+- [ ] Seed `applications`
+- [ ] Normalize team membership into `application_members`
+- [ ] Preserve exactly one accepted leader per application
+- [ ] Preserve solo and pending-invite scenarios
+- [ ] Seed `app-outreach` supervision request
+- [ ] Keep `application_projects = 0` unless valid seeded student-project evidence already exists
+- [ ] Use phase-consistent staged statuses; do not create `SELECTED` without a selection row
+- [ ] Keep assessments, selections/offers, agreements, projects, milestones/resources/feedback, and matching outputs deferred
+- [ ] Verify repeated `db:seed` idempotency
+- [ ] Verify `pnpm db:reset` recreates the new Phase 3.5 state from zero
+- [ ] Update `docs/database/demo-seed-manifest.md`
+- [ ] Update `docs/database/seed-transformation-plan.md`
+- [ ] Update this plan's status, actual counts, work log, and next checkpoint
 
-### Recommended first agent instruction
+### Agent sequencing rule
+
+The phase numbering/titles in **this file are authoritative for workflow sequencing**.
+
+Before each agent implementation task:
+
+1. Read `PRODUCTION_TRANSFORMATION_PLAN.md`.
+2. Use the exact current phase/checkpoint number and title.
+3. Do not infer or skip to a later phase because it seems logically next.
+4. If a needed checkpoint is not represented here, update the plan through human review before implementation.
+5. After each checkpoint, update this plan with actual work completed, verification, counts, and the exact next checkpoint.
+
+### Recommended next agent instruction
+
+The detailed Phase 3.5 implementation prompt should implement only:
 
 ```text
-Review Phase 3.3 DEMO challenge foundation.
-
-Read:
-- PRODUCTION_TRANSFORMATION_PLAN.md
-- docs/database/seed-transformation-plan.md
-- docs/database/demo-seed-manifest.md
-- src/db/seed/challenges.ts
-
-Approve Phase 3.3 or provide corrections before application/team DEMO seeding.
+applications
+application_members
+supervision_requests
+application_projects only if valid evidence already exists
 ```
+
+and must stop before:
+
+```text
+assessments
+selections
+offers
+agreements
+projects
+milestones
+matching
+```
+
+The Phase 3.5 implementation should use the exact staged-status rules documented in Section 7 rather than the static MVP's monolithic `Application.stage`.
 
 ---
 
@@ -1337,6 +1715,19 @@ Use this section after each development session.
 
 ### Completed
 
+- Human-reviewed Phase 3.4 and corrected the roadmap so Phase 3 does not jump prematurely to Phase 4
+- Added explicit Phase 3.5–3.9 checkpoints for application/team, assessment, selection/offer/agreement, project/workspace, and final seed closeout
+- Established that `PRODUCTION_TRANSFORMATION_PLAN.md` phase numbering/titles are authoritative for agent task sequencing
+- Phase 3.4 local reset workflow implemented and verified
+- Added `pnpm db:reset` as the canonical destructive LOCAL DEVELOPMENT ONLY reset command
+- `pnpm db:reset` safety checks refuse production, refuse arguments, require the repository Docker Compose `vinuni-solution-studio-db` service, and only allow localhost `solution_studio`
+- Reset workflow executes `docker compose down -v`, `docker compose up -d`, waits for PostgreSQL health, runs `pnpm db:migrate`, and runs `ALLOW_DB_SEED=true pnpm db:seed`
+- Pre-reset database counts matched the expected Phase 3.3 state before destroying the local volume
+- Migration-from-zero verification confirmed pgvector, 45 domain tables, 41 enums, 82 foreign keys, 35 PostgreSQL CHECK constraints, 11 partial indexes, and one migration journal row
+- Seed-from-zero verification confirmed the Phase 3.3 state was recreated exactly
+- Post-reset repeated seed execution kept all counts unchanged
+- Representative post-reset challenge queries verified `route-optimisation`, private/high-confidentiality `merchant-churn-model`, CAID-managed external challenge ownership, E-Lab owner/manager routing, challenge skill canonical joins, eligibility rules, and faculty assignments
+- Phase 3.4 confirmed no downstream workflow leakage into applications, assessments, selections/offers, projects, milestones, or matching outputs
 - Phase 3.3 DEMO challenge-side foundation implemented and documented
 - Seeded compact challenge records for `merchant-churn-model`, `route-optimisation`, `triage-protocol-review`, `community-health-outreach`, `supply-chain-dashboard`, `campus-energy-audit`, `archive-digitisation`, and synthesized `demo-elab-venture-readiness-dashboard`
 - Seeded 26 normalized challenge skill requirements, 17 eligibility rules, and 14 pending faculty routing assignments
@@ -1392,7 +1783,7 @@ None.
 
 ### Next action
 
-Human-review Phase 3.3 before application/team DEMO seeding.
+Proceed with Phase 3.5 — DEMO Application and Team Foundation. Phase 4 is deferred until Phase 3.5–3.9 complete the compact normalized workflow seed.
 
 ## 2026-08-15
 
@@ -1481,19 +1872,37 @@ docker compose down
 
 ## Completely reset local DB
 
-**Destructive: removes the PostgreSQL volume and all local DB data.**
+**Destructive — LOCAL DEVELOPMENT ONLY. Removes the PostgreSQL volume and all local DB data.**
+
+Canonical command:
 
 ```bash
+pnpm db:reset
+```
+
+The verified reset workflow performs:
+
+```text
 docker compose down -v
+docker compose up -d
+wait for PostgreSQL health
+pnpm db:migrate
+ALLOW_DB_SEED=true pnpm db:seed
 ```
 
-After Phase 2/3, rebuild with:
+The reset script refuses production, refuses arguments, verifies the repository Docker Compose DB service, and only allows the approved local `solution_studio` target.
+
+Do not put destructive reset behavior inside `pnpm db:seed`.
+
+## Seed development data
+
+Non-destructive/idempotent guarded seed:
 
 ```bash
-docker compose up -d
-pnpm db:migrate
-pnpm db:seed
+ALLOW_DB_SEED=true pnpm db:seed
 ```
+
+Running `pnpm db:seed` without the explicit opt-in must refuse before writes.
 
 ## View DB logs
 
@@ -1543,6 +1952,10 @@ pnpm db:migrate
 18. Do not delete Docker volumes unless intentionally resetting the local DB.
 19. Introduce additional infrastructure such as Redis only when justified by measured requirements.
 20. Agents should perform analysis-only tasks when instructed and must not generate migrations until ERD v1 is frozen.
+21. `pnpm db:reset` is the canonical destructive LOCAL DEVELOPMENT reset; `pnpm db:seed` remains non-destructive/idempotent.
+22. Every Phase 3.5+ seed checkpoint must preserve reset → migrate → seed reproducibility from zero.
+23. `PRODUCTION_TRANSFORMATION_PLAN.md` is authoritative for implementation phase/checkpoint sequencing; agents must not invent, skip, or renumber checkpoints silently.
+24. After each major checkpoint, update this plan with actual completion status, verification results, counts, current blocker, and exact next checkpoint.
 
 ---
 
@@ -1571,6 +1984,9 @@ src/lib/pipeline.ts
 
 Agents should be told:
 
+- [ ] Read `PRODUCTION_TRANSFORMATION_PLAN.md` before each implementation checkpoint and follow its exact phase number/title
+- [ ] Do not infer, skip, or silently renumber roadmap checkpoints
+- [ ] Update `PRODUCTION_TRANSFORMATION_PLAN.md` after major checkpoints with actual status and next task
 - [ ] Read `docs/database/schema.dbml` before database/schema work
 - [ ] Do not infer production tables directly from mock data or UI types
 - [ ] Use the existing UI implementation to identify requirements worth preserving
@@ -1614,7 +2030,7 @@ The static MVP transformation is complete when:
 
 - [ ] The approved ERD is fully represented in PostgreSQL
 - [ ] Database creation is reproducible from migrations
-- [ ] Development data is reproducible from seed
+- [ ] Complete compact development data is reproducible from migrations + seed via `pnpm db:reset`
 - [ ] Static feature data has been removed from production paths
 - [ ] Challenge lifecycle is database-backed
 - [ ] Applications are database-backed

@@ -117,6 +117,45 @@ Phase 3.3 does not seed `challenge_reviews` because the static challenge-side fi
 
 See `docs/database/demo-seed-manifest.md` for field mapping, visibility/confidentiality choices, skill normalization, eligibility rule representation, and faculty routing details.
 
+## Phase 3.4 Reset Workflow Status
+
+Phase 3.4 establishes the canonical local development reset workflow:
+
+```bash
+pnpm db:reset
+```
+
+The reset command is destructive and local-development-only. It deletes the local Docker PostgreSQL volume, restarts the repository's Docker Compose `db` service, waits for health, applies version-controlled migrations with `pnpm db:migrate`, and executes the guarded seed with `ALLOW_DB_SEED=true pnpm db:seed`.
+
+The non-destructive seed command remains separate:
+
+```bash
+ALLOW_DB_SEED=true pnpm db:seed
+```
+
+Phase 3.4 verified that reset-from-zero recreates the seed state implemented through Phase 3.3:
+
+- organizations: 7
+- users: 20
+- organization memberships: 7
+- skill categories: 9
+- canonical skills: 58
+- skill aliases: 4
+- skill relationships: 0
+- student profiles: 7
+- faculty profiles: 6
+- student skills: 33
+- challenges: 8
+- challenge skills: 26
+- challenge eligibility rules: 17
+- challenge faculty assignments: 14
+- challenge reviews: 0
+- downstream workflow tables: 0 applications, 0 assessments, 0 selections, 0 offers, 0 projects, and 0 matching outputs
+
+Migration-from-zero verification confirmed pgvector is enabled through migration history, 45 domain tables exist, 41 enums exist, 82 foreign keys exist, 35 PostgreSQL CHECK constraints exist, 11 partial indexes exist, and the Drizzle migration journal contains one applied migration.
+
+Static UI equivalence note: the database now contains enough seeded data to later recreate the approved compact marketplace/challenge demo content. Application/team, assessment, offer, and project UI equivalence still depends on future workflow seed/database-backed phases.
+
 ## Seed Categories
 
 | Category | Meaning | Proposed records |
@@ -648,7 +687,7 @@ Phase 3.2 resolved the exact compact fixture list after excluding ambiguous orga
 9. Implement selections/offers/agreements.
 10. Implement projects, project members, milestones, deliverables, milestone reviews, resources, and feedback.
 11. Add `pnpm db:seed`.
-12. Test reset-from-zero with migrate + seed.
+12. Test reset-from-zero with migrate + seed. Completed in Phase 3.4.
 
 ## Phase 3.0 Completion Status
 
@@ -658,4 +697,6 @@ Phase 3.2 has resolved the compact DEMO identity/org fixture list and seeded onl
 
 Phase 3.3 has seeded the compact DEMO challenge-side foundation: challenge records, normalized challenge skills, eligibility rules, and pending faculty routing assignments.
 
-Remaining REVIEW items do not block the next application/team DEMO seed checkpoint.
+Phase 3.4 has verified that the database can be recreated from zero using only Docker Compose, version-controlled migrations, and the guarded seed pipeline.
+
+Remaining REVIEW items do not block the next existing roadmap checkpoint.
