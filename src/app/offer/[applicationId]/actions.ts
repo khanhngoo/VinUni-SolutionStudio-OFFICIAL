@@ -2,14 +2,15 @@
 
 import { revalidatePath } from "next/cache";
 
-import { getTemporaryOfferViewer } from "@/lib/offer-development";
+import { requireAuthenticatedActor } from "@/auth/authenticated-actor";
+import { toApplicationActorContext } from "@/services/application.service";
 import { respondToOffer, type OfferResponse } from "@/services/offer.service";
 
-export async function respondToOfferForDevelopmentViewer(
+export async function respondToOfferForAuthenticatedActor(
   applicationPublicId: string,
   response: OfferResponse
 ) {
-  const actor = await getTemporaryOfferViewer();
+  const actor = toApplicationActorContext(await requireAuthenticatedActor());
   await respondToOffer(applicationPublicId, response, actor);
   revalidatePath(`/offer/${applicationPublicId}`);
 }

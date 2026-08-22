@@ -1,15 +1,18 @@
 import Link from "next/link";
 
-import { Chip } from "@/components/ui/chip";
 import { ProgressBar } from "@/components/workspace/progress-bar";
 import { formatDate } from "@/lib/dates";
-import { getTemporaryWorkspaceViewer } from "@/lib/workspace-development";
+import { getAuthenticatedActor } from "@/auth/authenticated-actor";
+import { toApplicationActorContext } from "@/services/application.service";
+import { redirect } from "next/navigation";
 import { listWorkspaceProjects } from "@/services/workspace.service";
 
 export const dynamic = "force-dynamic";
 
 export default async function WorkspaceHubPage() {
-  const projects = await listWorkspaceProjects(await getTemporaryWorkspaceViewer());
+  const resolution = await getAuthenticatedActor();
+  if (resolution.status !== "RESOLVED") redirect("/sign-in");
+  const projects = await listWorkspaceProjects(toApplicationActorContext(resolution.actor));
   return (
     <div className="max-w-[1080px] mx-auto px-6 sm:px-7 py-7 pb-16">
       <h1>Your work</h1>
@@ -31,7 +34,6 @@ export default async function WorkspaceHubPage() {
           ))}</tbody></table>
         </section>
       )}
-      <div className="mt-4"><Chip variant="outline-dashed">Development viewer: Jordan Lee</Chip></div>
     </div>
   );
 }

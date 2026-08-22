@@ -5,11 +5,12 @@ import { FilterRail } from "@/components/marketplace/filter-rail";
 import { PaginationControls } from "@/components/marketplace/pagination-controls";
 import { ResultsHeader } from "@/components/marketplace/results-header";
 import {
-  TEMPORARY_PRE_AUTH_MARKETPLACE_CONTEXT,
+  marketplaceContextForActor,
   parseMarketplaceFilters,
   toMarketplaceListOptions,
   type RawMarketplaceSearchParams,
 } from "@/lib/challenge-marketplace";
+import { getAuthenticatedActor } from "@/auth/authenticated-actor";
 import { listMarketplaceChallenges } from "@/services/challenge.service";
 
 export const dynamic = "force-dynamic";
@@ -36,9 +37,10 @@ async function MarketplaceResults({
 }: {
   filters: ReturnType<typeof parseMarketplaceFilters>;
 }) {
+  const actor = await getAuthenticatedActor();
   const results = await listMarketplaceChallenges(
     toMarketplaceListOptions(filters),
-    TEMPORARY_PRE_AUTH_MARKETPLACE_CONTEXT
+    marketplaceContextForActor(actor.status === "RESOLVED" ? actor.actor : null)
   );
 
   return (

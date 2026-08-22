@@ -11,10 +11,8 @@ import {
   type ProjectQueryDatabase,
 } from "@/db/queries/projects";
 import {
-  getApplicationWriteActorByEmail,
-  type ApplicationMutationDatabase,
 } from "@/db/mutations/applications";
-import type { ApplicationActorContext } from "@/services/application.service";
+import { getDevelopmentApplicationActor, type ApplicationActorContext } from "@/services/application.service";
 
 export class WorkspaceError extends Error {
   constructor(public readonly code: "FORBIDDEN" | "NOT_FOUND", message: string) {
@@ -23,22 +21,8 @@ export class WorkspaceError extends Error {
   }
 }
 
-export type DevelopmentWorkspaceActorKey =
-  | "JORDAN_STUDENT_DEMO"
-  | "BAO_STUDENT_DEMO"
-  | "FACULTY_PHAM_DEMO"
-  | "BENCANG_CONTACT_DEMO"
-  | "CAID_ADMIN_DEMO";
-
 export interface WorkspaceServiceOptions { database?: ProjectQueryDatabase; }
-
-const DEVELOPMENT_ACTOR_EMAILS: Record<DevelopmentWorkspaceActorKey, string> = {
-  JORDAN_STUDENT_DEMO: "student.jordan-lee.demo@example.test",
-  BAO_STUDENT_DEMO: "student.bao-tran.demo@example.test",
-  FACULTY_PHAM_DEMO: "faculty.minh-pham.demo@example.test",
-  BENCANG_CONTACT_DEMO: "contact.bencang.demo@example.test",
-  CAID_ADMIN_DEMO: "caid.admin.dev@example.test",
-};
+export type DevelopmentWorkspaceActorKey = Parameters<typeof getDevelopmentApplicationActor>[0];
 
 export interface WorkspaceListItem {
   applicationPublicId: string;
@@ -67,12 +51,8 @@ export interface WorkspaceDetail extends WorkspaceListItem {
 }
 
 export async function getDevelopmentWorkspaceActor(key: DevelopmentWorkspaceActorKey, options: WorkspaceServiceOptions = {}): Promise<ApplicationActorContext> {
-  const actor = await getApplicationWriteActorByEmail(
-    options.database ?? db as ApplicationMutationDatabase,
-    DEVELOPMENT_ACTOR_EMAILS[key]
-  );
-  if (!actor) throw new WorkspaceError("NOT_FOUND", `Development workspace actor ${key} was not found.`);
-  return { ...actor, source: "DEVELOPMENT_ONLY" };
+  void options;
+  return getDevelopmentApplicationActor(key);
 }
 
 export async function listWorkspaceProjects(actor: ApplicationActorContext, options: WorkspaceServiceOptions = {}): Promise<WorkspaceListItem[]> {

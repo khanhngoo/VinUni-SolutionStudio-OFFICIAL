@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 
 import { Chip } from "@/components/ui/chip";
 import { ProgressBar } from "@/components/workspace/progress-bar";
@@ -7,7 +7,8 @@ import { parseTab, WorkspaceTabs } from "@/components/workspace/workspace-tabs";
 import { Section } from "@/components/ui/section";
 import { daysUntil, formatDate } from "@/lib/dates";
 import type { RawSearchParams } from "@/lib/filters";
-import { getTemporaryWorkspaceViewer } from "@/lib/workspace-development";
+import { getAuthenticatedActor } from "@/auth/authenticated-actor";
+import { toApplicationActorContext } from "@/services/application.service";
 import { getWorkspaceDetail, WorkspaceError, type WorkspaceDetail } from "@/services/workspace.service";
 
 export const dynamic = "force-dynamic";
@@ -15,7 +16,9 @@ export const dynamic = "force-dynamic";
 export default async function WorkspacePage({ params, searchParams }: { params: Promise<{ applicationId: string }>; searchParams: Promise<RawSearchParams> }) {
   const { applicationId } = await params;
   let detail: WorkspaceDetail | null;
-  try { detail = await getWorkspaceDetail(applicationId, await getTemporaryWorkspaceViewer()); }
+  const resolution = await getAuthenticatedActor();
+  if (resolution.status !== "RESOLVED") redirect("/sign-in");
+  try { detail = await getWorkspaceDetail(applicationId, toApplicationActorContext(resolution.actor)); }
   catch (error) { if (error instanceof WorkspaceError && error.code === "FORBIDDEN") notFound(); throw error; }
   if (!detail) notFound();
   const tab = parseTab((await searchParams).tab);

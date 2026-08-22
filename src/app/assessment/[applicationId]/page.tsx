@@ -1,11 +1,12 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { PreflightCheck } from "@/components/assessment/preflight-check";
 import { Chip } from "@/components/ui/chip";
 import { LockIcon } from "@/components/ui/icons";
-import { getTemporaryAssessmentViewer } from "@/lib/assessment-development";
+import { getAuthenticatedActor } from "@/auth/authenticated-actor";
+import { toApplicationActorContext } from "@/services/application.service";
 import { getAssessmentPreflight } from "@/services/assessment.service";
-import { startAssessmentForDevelopmentViewer } from "./actions";
+import { startAssessmentForAuthenticatedActor } from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -15,11 +16,13 @@ export default async function AssessmentPreflightPage({
   params: Promise<{ applicationId: string }>;
 }) {
   const { applicationId } = await params;
-  const actor = await getTemporaryAssessmentViewer();
+  const resolution = await getAuthenticatedActor();
+  if (resolution.status !== "RESOLVED") redirect("/sign-in");
+  const actor = toApplicationActorContext(resolution.actor);
   const preflight = await getAssessmentPreflight(applicationId, actor);
   if (!preflight) notFound();
 
-  const startAction = startAssessmentForDevelopmentViewer.bind(
+  const startAction = startAssessmentForAuthenticatedActor.bind(
     null,
     preflight.application.publicId
   );

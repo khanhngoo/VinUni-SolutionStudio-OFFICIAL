@@ -1,11 +1,12 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { Chip } from "@/components/ui/chip";
 import { CheckIcon } from "@/components/ui/icons";
 import { Section } from "@/components/ui/section";
 import { cn } from "@/lib/cn";
 import { formatDate } from "@/lib/dates";
-import { getTemporaryAssessmentViewer } from "@/lib/assessment-development";
+import { getAuthenticatedActor } from "@/auth/authenticated-actor";
+import { toApplicationActorContext } from "@/services/application.service";
 import { getAssessmentResult } from "@/services/assessment.service";
 
 export const dynamic = "force-dynamic";
@@ -16,7 +17,9 @@ export default async function AssessmentResultPage({
   params: Promise<{ applicationId: string }>;
 }) {
   const { applicationId } = await params;
-  const actor = await getTemporaryAssessmentViewer();
+  const resolution = await getAuthenticatedActor();
+  if (resolution.status !== "RESOLVED") redirect("/sign-in");
+  const actor = toApplicationActorContext(resolution.actor);
   const assessment = await getAssessmentResult(applicationId, actor);
   if (!assessment) notFound();
 

@@ -10,7 +10,6 @@ import {
 } from "@/db/queries/applications";
 import {
   findDuplicateApplicationMemberships,
-  getApplicationWriteActorByEmail,
   getApplicationWriteChallengeBySlug,
   insertApplication,
   insertApplicationMembers,
@@ -28,6 +27,9 @@ import {
   canAccessApplicationDetail,
   canAccessChallengeApplications,
 } from "@/services/application-policy";
+import { hasActorCapability, type AuthenticatedActor } from "@/auth/authenticated-actor";
+import { resolveAuthenticatedActor } from "@/auth/authenticated-actor";
+import { resolveAuthenticatedUserByEmail } from "@/auth/authenticated-user";
 
 export type ApplicationErrorCode =
   | "CONFLICT"
@@ -52,6 +54,7 @@ export type DevelopmentApplicationActorKey =
   | "BENCANG_CONTACT_DEMO"
   | "CAID_ADMIN_DEMO"
   | "ELAB_ADMIN_DEMO"
+  | "FACULTY_PHAM_DEMO"
   | "HOANG_STUDENT_DEMO"
   | "JORDAN_STUDENT_DEMO"
   | "PRIYA_STUDENT_DEMO";
@@ -60,9 +63,29 @@ export interface ApplicationActorContext {
   email: string;
   fullName: string;
   isStudent: boolean;
-  memberships: ApplicationWriteActorRecord["memberships"];
+  memberships: Array<{
+    organizationId: bigint;
+    role: ApplicationWriteActorRecord["memberships"][number]["role"];
+    status: "ACTIVE" | "INACTIVE";
+  }>;
   source: "DEVELOPMENT_ONLY" | "AUTHENTICATED";
   userId: bigint;
+}
+
+/** Maps the authenticated database actor into the narrow facts this domain needs. */
+export function toApplicationActorContext(actor: AuthenticatedActor): ApplicationActorContext {
+  return {
+    email: actor.user.email,
+    fullName: actor.user.fullName,
+    isStudent: hasActorCapability(actor, "STUDENT"),
+    memberships: actor.memberships.map((membership) => ({
+      organizationId: membership.organizationId,
+      role: membership.role,
+      status: "ACTIVE" as const,
+    })),
+    source: "AUTHENTICATED",
+    userId: actor.user.userId,
+  };
 }
 
 export interface ApplicationMemberInput {
@@ -150,6 +173,7 @@ const DEVELOPMENT_ACTOR_EMAILS: Record<DevelopmentApplicationActorKey, string> =
   BENCANG_CONTACT_DEMO: "contact.bencang.demo@example.test",
   CAID_ADMIN_DEMO: "caid.admin.dev@example.test",
   ELAB_ADMIN_DEMO: "elab.admin.dev@example.test",
+  FACULTY_PHAM_DEMO: "faculty.minh-pham.demo@example.test",
   HOANG_STUDENT_DEMO: "student.hoang-tran.demo@example.test",
   JORDAN_STUDENT_DEMO: "student.jordan-lee.demo@example.test",
   PRIYA_STUDENT_DEMO: "student.priya-raman.demo@example.test",
@@ -161,19 +185,15 @@ export async function getDevelopmentApplicationActor(
   key: DevelopmentApplicationActorKey,
   options: ApplicationServiceOptions = {}
 ): Promise<ApplicationActorContext> {
-  const actor = await getApplicationWriteActorByEmail(
-    options.database ?? db,
-    DEVELOPMENT_ACTOR_EMAILS[key]
-  );
-
-  if (!actor) {
+  void options;
+  const user = await resolveAuthenticatedUserByEmail(DEVELOPMENT_ACTOR_EMAILS[key]);
+  if (user.status !== "RESOLVED") {
     throw new ApplicationError(
       "NOT_FOUND",
       `Development application actor ${key} was not found.`
     );
   }
-
-  return toActorContext(actor, "DEVELOPMENT_ONLY");
+  return toApplicationActorContext(await resolveAuthenticatedActor(user.user));
 }
 
 export async function listMyApplications(
@@ -319,20 +339,6 @@ export async function createApplication(
 
     return toServiceDetail(created);
   });
-}
-
-function toActorContext(
-  actor: ApplicationWriteActorRecord,
-  source: ApplicationActorContext["source"]
-): ApplicationActorContext {
-  return {
-    email: actor.email,
-    fullName: actor.fullName,
-    isStudent: actor.isStudent,
-    memberships: actor.memberships,
-    source,
-    userId: actor.userId,
-  };
 }
 
 async function withApplicationTransaction<T>(

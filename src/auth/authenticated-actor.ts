@@ -146,6 +146,40 @@ export function hasActiveOrganizationRole(
   );
 }
 
+/**
+ * Shared fact predicates for domain policies. Resource policies must provide
+ * the organization ID taken from the resource; these helpers never infer a
+ * scope from a name, route, or session claim.
+ */
+export function hasActiveOrganizationMembership(
+  actor: AuthenticatedActor,
+  organizationId: bigint
+) {
+  return actor.memberships.some(
+    (membership) => membership.organizationId === organizationId
+  );
+}
+
+export function hasOneOfActiveOrganizationRoles(
+  actor: AuthenticatedActor,
+  organizationId: bigint,
+  roles: readonly OrganizationMembershipRole[]
+) {
+  return actor.memberships.some(
+    (membership) =>
+      membership.organizationId === organizationId && roles.includes(membership.role)
+  );
+}
+
+export function hasOrganizationTypeMembership(
+  actor: AuthenticatedActor,
+  organizationType: OrganizationType
+) {
+  return actor.memberships.some(
+    (membership) => membership.organizationType === organizationType
+  );
+}
+
 export function isOrganizationAdmin(
   actor: AuthenticatedActor,
   organizationId: bigint

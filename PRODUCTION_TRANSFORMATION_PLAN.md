@@ -3,7 +3,7 @@
 **Repository:** `VinUni-SolutionStudio-OFFICIAL`
 **Project:** VinUniversity Solution Studio / AI-in-Action Platform
 **Last updated:** 2026-08-22
-**Current phase:** Phase 6.2 Roles complete / ready for human review
+**Current phase:** Phase 6.3 Authorization complete / ready for human review
 
 ---
 
@@ -142,7 +142,7 @@ VinUni-SolutionStudio-OFFICIAL/
 | Phase 3 | Reconciled static mock data → production-valid database seed | ✅ Complete / human review complete |
 | Phase 4 | Challenge marketplace → real DB | ✅ Complete / human review complete |
 | Phase 5 | Applications, assessments, offers, workspace → real DB | ✅ Complete / human review complete |
-| Phase 6 | Authentication + RBAC | 🚧 Phase 6.1 complete / ready for human review |
+| Phase 6 | Authentication + RBAC | 🚧 Phase 6.3 complete / ready for human review |
 | Phase 7 | Skill + semantic matching | ⬜ Not started |
 | Phase 8 | Production deployment | ⬜ Not started |
 
@@ -1516,7 +1516,7 @@ Expected roles to validate against ERD/business requirements:
 - [x] E-Lab admin
 - [x] No additional system/admin role required by ERD v1
 
-Phase 6.2 is COMPLETE / READY FOR HUMAN REVIEW. Server-side authenticated actor
+Phase 6.2 is COMPLETE / HUMAN REVIEW COMPLETE. Server-side authenticated actor
 resolution derives profiles and active organization memberships from PostgreSQL,
 preserving organization ID, organization type, and membership role together.
 CAID/E-Lab administration remains an organization-scoped `ADMIN` membership;
@@ -1525,14 +1525,23 @@ introduced. See `docs/security/role-model.md`.
 
 ## 6.3 Authorization
 
-- [ ] Centralize role checks
-- [ ] Define permissions matrix
-- [ ] Enforce authorization server-side
-- [ ] Protect route handlers/server actions
-- [ ] Protect database writes
-- [ ] Prevent partner access to other organizations' private resources
-- [ ] Ensure CAID/E-Lab ownership boundaries are respected
-- [ ] Ensure students cannot access faculty/admin functions
+- [x] Centralize role checks
+- [x] Define permissions matrix
+- [x] Enforce authorization server-side
+- [x] Protect route handlers/server actions
+- [x] Protect database writes
+- [x] Prevent partner access to other organizations' private resources
+- [x] Ensure CAID/E-Lab ownership boundaries are respected
+- [x] Ensure students cannot access faculty/admin functions
+
+Phase 6.3 is COMPLETE / READY FOR HUMAN REVIEW. DB-backed marketplace,
+assessment, offer, and workspace runtime boundaries resolve the Auth.js
+session to the PostgreSQL-backed authenticated actor server-side. Domain
+services retain resource authorization based on application/project membership,
+authoritative organization IDs, faculty supervision, and attempt ownership.
+External partner authentication does not grant generic `VINUNI_ONLY` discovery;
+CAID and E-Lab authority remains organization-scoped. No schema, migration, or
+seed changes were introduced. See `docs/security/authorization-matrix.md`.
 
 ## 6.4 Security baseline
 
@@ -1750,9 +1759,9 @@ project files
 
 ## Current status
 
-**Current phase:** Phase 6.2 — Roles complete / ready for human review
+**Current phase:** Phase 6.3 — Authorization complete / ready for human review
 **Phase 5:** COMPLETE / HUMAN REVIEW COMPLETE
-**Active next checkpoint:** Phase 6.3 — Authorization
+**Active next checkpoint:** Phase 6.4 — Security baseline
 
 ### Latest completed work
 

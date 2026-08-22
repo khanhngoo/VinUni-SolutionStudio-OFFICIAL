@@ -6,6 +6,7 @@ import type {
   PublishedChallengeSort,
 } from "@/db/queries/challenges";
 import type { ChallengeAccessContext } from "@/services/challenge-policy";
+import type { AuthenticatedActor } from "@/auth/authenticated-actor";
 
 export type MarketplaceSortKey =
   | "deadline"
@@ -27,9 +28,18 @@ export interface MarketplaceFilterState {
   type: string[];
 }
 
-export const TEMPORARY_PRE_AUTH_MARKETPLACE_CONTEXT: ChallengeAccessContext = {
-  audience: "VINUNI_MEMBER",
-};
+export const ANONYMOUS_MARKETPLACE_CONTEXT: ChallengeAccessContext = { audience: "ANONYMOUS" };
+
+/** Converts only DB-derived actor facts into the marketplace audience model. */
+export function marketplaceContextForActor(actor: AuthenticatedActor | null): ChallengeAccessContext {
+  if (!actor) return ANONYMOUS_MARKETPLACE_CONTEXT;
+  if (actor.studentProfile) return { audience: "STUDENT", userId: actor.user.userId };
+  if (actor.facultyProfile) return { audience: "FACULTY", facultyUserId: actor.user.userId, userId: actor.user.userId };
+  if (actor.memberships.some((membership) => membership.organizationType === "INTERNAL_UNIT")) {
+    return { audience: "MANAGING_UNIT_MEMBER", userId: actor.user.userId, organizationMemberships: actor.memberships.map((membership) => ({ organizationId: membership.organizationId, roles: [membership.role], status: "ACTIVE" })) };
+  }
+  return { audience: "EXTERNAL_PARTNER", userId: actor.user.userId, organizationMemberships: actor.memberships.map((membership) => ({ organizationId: membership.organizationId, roles: [membership.role], status: "ACTIVE" })) };
+}
 
 export const MARKETPLACE_PAGE_SIZE = 12;
 

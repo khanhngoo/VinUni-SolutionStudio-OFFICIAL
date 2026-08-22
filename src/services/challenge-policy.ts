@@ -10,6 +10,7 @@ type ChallengeVisibility = ChallengeListItem["visibility"];
 
 export type ChallengeAccessAudience =
   | "ANONYMOUS"
+  | "EXTERNAL_PARTNER"
   | "VINUNI_MEMBER"
   | "STUDENT"
   | "FACULTY"
@@ -85,7 +86,7 @@ export const ORDINARY_MARKETPLACE_VISIBILITIES = [
 ] satisfies ChallengeVisibility[];
 
 export const DEFAULT_CHALLENGE_ACCESS_CONTEXT: ChallengeAccessContext = {
-  audience: "VINUNI_MEMBER",
+  audience: "ANONYMOUS",
 };
 
 const ORDINARY_VINUNI_AUDIENCES = new Set<ChallengeAccessAudience>([
@@ -106,7 +107,10 @@ export function isChallengePublished(status: ChallengeStatus) {
 export function marketplaceVisibilitiesForContext(
   context: ChallengeAccessContext = DEFAULT_CHALLENGE_ACCESS_CONTEXT
 ): ChallengeVisibility[] {
-  if (context.audience === "ANONYMOUS") return ["PUBLIC_PREVIEW"];
+  if (
+    context.audience === "ANONYMOUS" ||
+    context.audience === "EXTERNAL_PARTNER"
+  ) return ["PUBLIC_PREVIEW"];
   return [...ORDINARY_MARKETPLACE_VISIBILITIES];
 }
 

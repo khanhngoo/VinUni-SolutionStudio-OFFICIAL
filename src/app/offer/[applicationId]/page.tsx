@@ -1,14 +1,15 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 
 import { OfferCountdown } from "@/components/offer/offer-countdown";
 import { OfferFlow } from "@/components/offer/offer-flow";
 import { Chip } from "@/components/ui/chip";
 import { Section } from "@/components/ui/section";
 import { formatDate } from "@/lib/dates";
-import { getTemporaryOfferViewer } from "@/lib/offer-development";
+import { getAuthenticatedActor } from "@/auth/authenticated-actor";
+import { toApplicationActorContext } from "@/services/application.service";
 import { getOfferDetail } from "@/services/offer.service";
-import { respondToOfferForDevelopmentViewer } from "./actions";
+import { respondToOfferForAuthenticatedActor } from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -18,11 +19,13 @@ export default async function OfferPage({
   params: Promise<{ applicationId: string }>;
 }) {
   const { applicationId } = await params;
-  const actor = await getTemporaryOfferViewer();
+  const resolution = await getAuthenticatedActor();
+  if (resolution.status !== "RESOLVED") redirect("/sign-in");
+  const actor = toApplicationActorContext(resolution.actor);
   const detail = await getOfferDetail(applicationId, actor);
   if (!detail) notFound();
 
-  const respondAction = respondToOfferForDevelopmentViewer.bind(
+  const respondAction = respondToOfferForAuthenticatedActor.bind(
     null,
     detail.application.publicId
   );

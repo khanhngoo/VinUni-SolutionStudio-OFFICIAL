@@ -1,11 +1,12 @@
 import { notFound, redirect } from "next/navigation";
 import { CognitiveRunner } from "@/components/assessment/cognitive-runner";
 import { TechnicalRunner } from "@/components/assessment/technical-runner";
-import { getTemporaryAssessmentViewer } from "@/lib/assessment-development";
+import { getAuthenticatedActor } from "@/auth/authenticated-actor";
+import { toApplicationActorContext } from "@/services/application.service";
 import { getAssessmentResult, getAssessmentTakingSession } from "@/services/assessment.service";
 import {
-  saveAssessmentResponseForDevelopmentViewer,
-  submitAssessmentForDevelopmentViewer,
+  saveAssessmentResponseForAuthenticatedActor,
+  submitAssessmentForAuthenticatedActor,
 } from "../actions";
 
 export const dynamic = "force-dynamic";
@@ -16,7 +17,9 @@ export default async function TakeAssessmentPage({
   params: Promise<{ applicationId: string }>;
 }) {
   const { applicationId } = await params;
-  const actor = await getTemporaryAssessmentViewer();
+  const resolution = await getAuthenticatedActor();
+  if (resolution.status !== "RESOLVED") redirect("/sign-in");
+  const actor = toApplicationActorContext(resolution.actor);
   const session = await getAssessmentTakingSession(applicationId, actor);
 
   if (!session) {
@@ -31,11 +34,11 @@ export default async function TakeAssessmentPage({
     redirect(`/assessment/${applicationId}`);
   }
 
-  const saveAction = saveAssessmentResponseForDevelopmentViewer.bind(
+  const saveAction = saveAssessmentResponseForAuthenticatedActor.bind(
     null,
     session.application.publicId
   );
-  const submitAction = submitAssessmentForDevelopmentViewer.bind(
+  const submitAction = submitAssessmentForAuthenticatedActor.bind(
     null,
     session.application.publicId
   );

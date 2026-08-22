@@ -6,7 +6,8 @@ import { LockedBlock } from "@/components/challenge/locked-block";
 import { MarketplaceApplyPanel } from "@/components/challenge/marketplace-apply-panel";
 import { SummarySection } from "@/components/challenge/summary-section";
 import { Section } from "@/components/ui/section";
-import { TEMPORARY_PRE_AUTH_MARKETPLACE_CONTEXT } from "@/lib/challenge-marketplace";
+import { marketplaceContextForActor } from "@/lib/challenge-marketplace";
+import { getAuthenticatedActor } from "@/auth/authenticated-actor";
 import { getMarketplaceChallengeBySlug } from "@/services/challenge.service";
 
 export const dynamic = "force-dynamic";
@@ -41,10 +42,8 @@ export default async function ChallengeDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id: slug } = await params;
-  const challenge = await getMarketplaceChallengeBySlug(
-    slug,
-    TEMPORARY_PRE_AUTH_MARKETPLACE_CONTEXT
-  );
+  const actor = await getAuthenticatedActor();
+  const challenge = await getMarketplaceChallengeBySlug(slug, marketplaceContextForActor(actor.status === "RESOLVED" ? actor.actor : null));
   if (!challenge) notFound();
 
   return (
