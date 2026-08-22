@@ -237,16 +237,22 @@ export async function updateChallengeDraft(
     const validation = validatePartialChallengeContent(normalized);
     if (validation.length > 0) validationError(validation);
 
-    if (input.skills !== undefined) {
-      await replaceChallengeSkills(tx, challenge.id, await resolveSkillInputs(tx, input.skills));
+    // Resolve every replacement payload before changing either normalized child
+    // collection. This keeps a caller-owned transaction safe even when it
+    // handles a validation error and continues with other work.
+    const skills =
+      input.skills === undefined ? undefined : await resolveSkillInputs(tx, input.skills);
+    const eligibilityRules =
+      input.eligibilityRules === undefined
+        ? undefined
+        : await validateEligibilityRules(input.eligibilityRules);
+
+    if (skills !== undefined) {
+      await replaceChallengeSkills(tx, challenge.id, skills);
     }
 
-    if (input.eligibilityRules !== undefined) {
-      await replaceChallengeEligibilityRules(
-        tx,
-        challenge.id,
-        await validateEligibilityRules(input.eligibilityRules)
-      );
+    if (eligibilityRules !== undefined) {
+      await replaceChallengeEligibilityRules(tx, challenge.id, eligibilityRules);
     }
 
     const updated =
@@ -397,17 +403,17 @@ async function withChallengeWriteTransaction<T>(
   database: ChallengeMutationDatabase,
   callback: (tx: ChallengeMutationDatabase) => Promise<T>
 ) {
-  if (hasTransaction(database)) {
+  if (!isTransaction(database)) {
     return database.transaction((tx) => callback(tx));
   }
 
   return callback(database);
 }
 
-function hasTransaction(
+function isTransaction(
   database: ChallengeMutationDatabase
-): database is typeof db {
-  return "transaction" in database && typeof database.transaction === "function";
+): database is Parameters<Parameters<typeof db.transaction>[0]>[0] {
+  return "rollback" in database && typeof database.rollback === "function";
 }
 
 async function requireChallenge(

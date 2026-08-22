@@ -339,17 +339,17 @@ async function withApplicationTransaction<T>(
   database: ApplicationMutationDatabase,
   callback: (tx: ApplicationMutationDatabase) => Promise<T>
 ) {
-  if (hasTransaction(database)) {
+  if (!isTransaction(database)) {
     return database.transaction((tx) => callback(tx));
   }
 
   return callback(database);
 }
 
-function hasTransaction(
+function isTransaction(
   database: ApplicationMutationDatabase
-): database is typeof db {
-  return "transaction" in database && typeof database.transaction === "function";
+): database is Parameters<Parameters<typeof db.transaction>[0]>[0] {
+  return "rollback" in database && typeof database.rollback === "function";
 }
 
 function assertStudentActor(actor: ApplicationActorContext) {

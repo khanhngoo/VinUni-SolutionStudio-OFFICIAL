@@ -3,7 +3,7 @@
 **Repository:** `VinUni-SolutionStudio-OFFICIAL`
 **Project:** VinUniversity Solution Studio / AI-in-Action Platform
 **Last updated:** 2026-08-22
-**Current phase:** Phase 5.4 Workspace complete / ready for human review before Phase 5.5
+**Current phase:** Phase 5.5 Transaction boundaries complete / ready for Phase 5 human review
 
 ---
 
@@ -1476,18 +1476,18 @@ update challenge capacity
 
 Checklist:
 
-- [ ] Define transaction boundaries
-- [ ] Test rollback behavior
-- [ ] Prevent partial lifecycle transitions
+- [x] Define transaction boundaries
+- [x] Test rollback behavior
+- [x] Prevent partial lifecycle transitions
 
 ## Phase 5 exit criteria
 
-- [ ] Main platform workflow is database-backed
-- [ ] Applications are persistent
-- [ ] Assessments are persistent
-- [ ] Offers are persistent
-- [ ] Workspace/project state is persistent
-- [ ] Important multi-table operations are transactional
+- [x] Main platform workflow is database-backed
+- [x] Applications are persistent
+- [x] Assessments are persistent
+- [x] Offers are persistent
+- [x] Workspace/project state is persistent
+- [x] Important multi-table operations are transactional
 
 ---
 
@@ -1743,8 +1743,8 @@ project files
 
 ## Current status
 
-**Current phase:** Phase 5 — Applications, Assessments, Offers, Workspace → Real DB
-**Active next checkpoint:** Phase 5.5 — Transaction boundaries, after Phase 5.4 human review
+**Current phase:** Phase 5.5 — Transaction boundaries complete
+**Active next checkpoint:** Phase 5 human review, then Phase 6 authentication + RBAC
 
 ### Latest completed work
 
@@ -1801,6 +1801,7 @@ project files
 - Phase 4.4 includes rollback-based verification in `scripts/verify-challenge-writes.ts`; no seed rows are intentionally mutated by write verification.
 - Phase 4.4 documents the write path in `docs/database/challenge-write-path.md`.
 - Phase 4 is complete and human reviewed.
+- Phase 5.5 is COMPLETE / READY FOR PHASE 5 HUMAN REVIEW: transaction ownership is explicit across the implemented challenge, application, assessment, and offer services. Root database handles start one authoritative transaction, while supplied transaction handles are reused directly rather than creating nested scopes. Challenge update payloads are fully validated before normalized child replacement writes. Existing rollback verifiers cover dependent challenge, application/member, and assessment response/attempt writes and preserve the canonical seed; offer responses remain constrained to the offer domain and do not provision projects.
 - Phase 5.1 is COMPLETE / READY FOR HUMAN REVIEW: application reads, application creation, application access policy, application mutation helpers, and rollback verification are implemented.
 - Phase 5.1 read APIs: `listApplicationsForStudent(...)`, `listApplicationsForChallenge(...)`, `getApplicationByPublicId(...)`, `getApplicationByChallengeAndStudent(...)`, and `countApplicationsForChallenge(...)`.
 - Phase 5.1 service APIs: `getDevelopmentApplicationActor(...)`, `listMyApplications(...)`, `getApplicationDetail(...)`, `listChallengeApplications(...)`, `getMyApplicationForChallenge(...)`, and `createApplication(...)`.
