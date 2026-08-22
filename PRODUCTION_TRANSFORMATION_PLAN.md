@@ -3,7 +3,7 @@
 **Repository:** `VinUni-SolutionStudio-OFFICIAL`
 **Project:** VinUniversity Solution Studio / AI-in-Action Platform
 **Last updated:** 2026-08-22
-**Current phase:** Phase 6.1 Authentication architecture complete / ready for human review
+**Current phase:** Phase 6.2 Roles complete / ready for human review
 
 ---
 
@@ -1497,7 +1497,7 @@ Checklist:
 
 Replace assumed/static user roles with real identity and authorization.
 
-## 6.1 Authentication architecture — COMPLETE / READY FOR HUMAN REVIEW
+## 6.1 Authentication architecture — COMPLETE / HUMAN REVIEW COMPLETE
 
 - [x] Select Auth.js with JWT/session-cookie strategy and Microsoft Entra ID OIDC for production
 - [x] Document VinUniversity SSO feasibility and institutional prerequisites
@@ -1509,12 +1509,19 @@ Replace assumed/static user roles with real identity and authorization.
 
 Expected roles to validate against ERD/business requirements:
 
-- [ ] Student
-- [ ] Faculty
-- [ ] Partner representative
-- [ ] CAID admin
-- [ ] E-Lab admin
-- [ ] Additional system/admin role if required
+- [x] Student
+- [x] Faculty
+- [x] Partner representative
+- [x] CAID admin
+- [x] E-Lab admin
+- [x] No additional system/admin role required by ERD v1
+
+Phase 6.2 is COMPLETE / READY FOR HUMAN REVIEW. Server-side authenticated actor
+resolution derives profiles and active organization memberships from PostgreSQL,
+preserving organization ID, organization type, and membership role together.
+CAID/E-Lab administration remains an organization-scoped `ADMIN` membership;
+no global role, JWT role claim, schema change, or authorization enforcement is
+introduced. See `docs/security/role-model.md`.
 
 ## 6.3 Authorization
 
@@ -1743,9 +1750,9 @@ project files
 
 ## Current status
 
-**Current phase:** Phase 6.1 — Authentication architecture complete / ready for human review
+**Current phase:** Phase 6.2 — Roles complete / ready for human review
 **Phase 5:** COMPLETE / HUMAN REVIEW COMPLETE
-**Active next checkpoint:** Phase 6.2 — Roles
+**Active next checkpoint:** Phase 6.3 — Authorization
 
 ### Latest completed work
 
@@ -1764,7 +1771,8 @@ project files
 - Phase 3.4 seed-from-zero verification recreated the Phase 3.3 state exactly and a second seed run remained idempotent.
 - Phase 3.4 representative queries verified public/confidential challenge behavior, external owner + CAID manager, E-Lab owner = manager, canonical challenge-skill joins, eligibility rules, and faculty routing.
 - Phase 5 is COMPLETE / HUMAN REVIEW COMPLETE.
-- Phase 6.1 is COMPLETE / READY FOR HUMAN REVIEW: Auth.js JWT sessions, conditional tenant-specific Microsoft Entra ID OIDC, strict non-production seeded development identities, session-to-`users` resolution, and unmapped-user denial are implemented without schema, migration, seed, or domain-policy changes.
+- Phase 6.1 is COMPLETE / HUMAN REVIEW COMPLETE: Auth.js JWT sessions, conditional tenant-specific Microsoft Entra ID OIDC, strict non-production seeded development identities, session-to-`users` resolution, and unmapped-user denial are implemented without schema, migration, seed, or domain-policy changes.
+- Phase 6.2 is COMPLETE / READY FOR HUMAN REVIEW: `getAuthenticatedActor()` resolves student/faculty profiles and active organization memberships from the Phase 6.1 user primitive. Capabilities are multi-dimensional, partner representation requires an external-partner membership, and CAID/E-Lab administrative authority remains scoped to the authoritative organization ID. No global `SYSTEM_ADMIN`, JWT role authority, schema/migration/seed change, or Phase 6.3 policy enforcement was added.
 - Downstream workflow records remain intentionally unseeded through Phase 3.4: applications, assessment history, selections/offers, agreements, projects/milestones/resources/feedback, and matching outputs remain zero.
 - Phase 3.5 is COMPLETE / HUMAN REVIEW COMPLETE: 8 compact applications, 18 application members, 0 application-project evidence links, and 1 pending supervision request are seeded.
 - Phase 3.5 application set: `app-triage`, `app-route`, `app-churn`, `app-outreach`, `app-supply`, `app-energy`, `app-archive`, and `papp-depot`.
