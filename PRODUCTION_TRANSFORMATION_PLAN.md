@@ -3,7 +3,7 @@
 **Repository:** `VinUni-SolutionStudio-OFFICIAL`
 **Project:** VinUniversity Solution Studio / AI-in-Action Platform
 **Last updated:** 2026-08-22
-**Current phase:** Phase 5.1 Applications complete / ready for human review before Phase 5.2
+**Current phase:** Phase 5.3 Offers complete / ready for human review before Phase 5.4
 
 ---
 
@@ -141,7 +141,7 @@ VinUni-SolutionStudio-OFFICIAL/
 | Phase 2 | Audit MVP + reconcile with ERD → Drizzle schema + migrations | ✅ Complete |
 | Phase 3 | Reconciled static mock data → production-valid database seed | ✅ Complete / human review complete |
 | Phase 4 | Challenge marketplace → real DB | ✅ Complete / human review complete |
-| Phase 5 | Applications, assessments, offers, workspace → real DB | 🚧 Phase 5.1 complete / human review pending |
+| Phase 5 | Applications, assessments, offers, workspace → real DB | 🚧 Phase 5.3 complete / human review pending |
 | Phase 6 | Authentication + RBAC | ⬜ Not started |
 | Phase 7 | Skill + semantic matching | ⬜ Not started |
 | Phase 8 | Production deployment | ⬜ Not started |
@@ -1392,21 +1392,53 @@ Move the rest of the main workflow from static/mock state into PostgreSQL.
 
 ## 5.2 Assessments
 
-- [ ] Persist assessment definitions
-- [ ] Persist assessment attempts/submissions
-- [ ] Persist scores/results
-- [ ] Define attempt rules
-- [ ] Define access rules
-- [ ] Connect assessment status to application pipeline
+- [x] Persist assessment definitions
+- [x] Persist assessment attempts/submissions
+- [x] Persist scores/results
+- [x] Define attempt rules
+- [x] Define access rules
+- [x] Connect assessment status to application pipeline
+
+### Phase 5.2 actual results
+
+- Added PostgreSQL-backed assessment read queries in `src/db/queries/assessments.ts` and exported them through `src/db/queries/index.ts`.
+- Added assessment mutation helpers in `src/db/mutations/assessments.ts` and exported them through `src/db/mutations/index.ts`.
+- Added `src/services/assessment.service.ts` as the server-side assessment business/access/lifecycle/validation boundary.
+- Added `src/app/assessment/[applicationId]/actions.ts` as a thin server-action boundary for start, save-response, and submit operations.
+- Added `src/lib/assessment-development.ts` for the explicit temporary pre-auth development student context.
+- Migrated `/assessment/[applicationId]`, `/assessment/[applicationId]/take`, and `/assessment/[applicationId]/result` from static fixture authority to the Assessment Service and PostgreSQL.
+- Updated assessment runners to consume safe service-backed question models and server actions while preserving the existing preflight, lockdown, cognitive, technical, and result UI concepts.
+- Preserved the frozen hierarchy `assessments -> assessment_sections -> assessment_questions`; `assessment_questions.assessment_id` was not reintroduced.
+- Implemented INDIVIDUAL runtime ownership: the actor must be an accepted application member, and the attempt must belong to that member.
+- Deferred TEAM assessment start/save/submit semantics because no seeded/UI scenario requires them yet.
+- Implemented attempt lifecycle rules for `IN_PROGRESS -> SUBMITTED`, idempotent start while in progress, repeated-submit denial, and edit denial after `SUBMITTED` or `REVIEWED`.
+- Implemented response validation for `MULTIPLE_CHOICE`, `CODING`, and text-like responses; no score/reviewer/pass-fail payload is accepted from students.
+- Implemented service-level response upsert for one logical response per attempt/question because the frozen schema has no `(attempt_id, question_id)` uniqueness constraint.
+- Added a safe student question mapper that strips MCQ `correctIndex` and never serializes raw question config to the browser.
+- Read reviewed result bands from `assessment_scores.rubric_scores`, preserving `overall_score = NULL` without fabricating numeric scores.
+- Kept reviewer scoring writes, automatic MCQ scoring, code execution, attachments, proctoring persistence, application outcome transitions, selections/offers/agreements, projects/workspace, matching, auth/RBAC, notifications, audit, schema, migration, and seed work deferred.
+- Added `scripts/verify-assessment-runtime.ts` for rollback-based verification against compact Phase 3 seed data.
+- Added `docs/database/assessment-runtime-path.md` documenting assessment runtime architecture, APIs, scope, ownership, lifecycle, response validation, answer-key protection, UI migration, deferrals, static-reference classification, and verification.
+- Verification passed with canonical counts preserved: `applications = 8`, `application_members = 18`, `assessments = 2`, `assessment_sections = 5`, `assessment_questions = 12`, `assessment_attempts = 2`, `assessment_responses = 0`, `assessment_scores = 2`, `selections = 5`, `offers = 5`, `agreements = 5`, `projects = 4`, and `match_results = 0`.
 
 ## 5.3 Offers
 
-- [ ] Persist offers
-- [ ] Persist offer status
-- [ ] Accept offer transaction
-- [ ] Reject offer transaction
-- [ ] Prevent conflicting states
-- [ ] Create project/project membership when appropriate
+- [x] Persist offers
+- [x] Persist offer status
+- [x] Accept offer transaction
+- [x] Reject offer transaction
+- [x] Prevent conflicting states
+- [ ] Create project/project membership when appropriate (deferred to Phase 5.4 Workspace)
+
+Phase 5.3 is COMPLETE / READY FOR HUMAN REVIEW. `/offer/[applicationId]` now
+uses PostgreSQL-backed offer reads through `offer -> selection -> application
+-> challenge`, browser-facing application public IDs, a server-side offer
+service, and a status-constrained offer mutation. Only an accepted application
+leader can respond. Pending expiration is derived from `respond_by`; terminal
+offers cannot be reversed. Offer response stores server-owned responder/time,
+does not alter the selection or application status, does not provision projects,
+and does not accept individual agreements. The rollback verifier preserves the
+canonical seed, including `app-route` as the pending offer scenario.
 
 ## 5.4 Workspace
 
@@ -1703,7 +1735,7 @@ project files
 ## Current status
 
 **Current phase:** Phase 5 — Applications, Assessments, Offers, Workspace → Real DB
-**Active next checkpoint:** Phase 5.2 — Assessments, after Phase 5.1 human review
+**Active next checkpoint:** Phase 5.4 — Workspace, after Phase 5.3 human review
 
 ### Latest completed work
 
@@ -1768,6 +1800,18 @@ project files
 - Phase 5.1 uses explicit development-only seeded actors for student/owner/managing-unit verification; real authentication and global RBAC remain Phase 6.
 - Phase 5.1 intentionally keeps existing application UI routes on static fixtures until the downstream assessment, offer, project/workspace, and auth checkpoints are ready to support full route migration.
 - Phase 5.1 documents the runtime path in `docs/database/application-runtime-path.md`.
+- Phase 5.2 is COMPLETE / READY FOR HUMAN REVIEW: assessment reads, student-side attempt lifecycle, response persistence, result reads, server actions, and `/assessment/**` UI migration are implemented.
+- Phase 5.2 read APIs: `listActiveAssessmentsForChallenge(...)`, `getAssessmentDefinitionWithQuestions(...)`, `getAssessmentAttemptForOwner(...)`, `listAssessmentResponsesForAttempt(...)`, and `getLatestAssessmentScoreForAttempt(...)`.
+- Phase 5.2 service APIs: `getDevelopmentAssessmentActor(...)`, `getAssessmentPreflight(...)`, `getAssessmentTakingSession(...)`, `getAssessmentResult(...)`, `startAssessmentAttempt(...)`, `saveAssessmentResponse(...)`, and `submitAssessmentAttempt(...)`.
+- Phase 5.2 migrates `/assessment/[applicationId]`, `/assessment/[applicationId]/take`, and `/assessment/[applicationId]/result` to the Assessment Service and PostgreSQL using `applications.public_id` as the route identity.
+- Phase 5.2 enforces INDIVIDUAL attempt ownership, assessment/application challenge consistency, attempt/member consistency, question/attempt assessment consistency, answer-key stripping, response validation, response upsert, and student edit/submit transition rules.
+- Phase 5.2 reads reviewed qualitative results for `app-triage` and `app-churn` with `overall_score = NULL` and zero seeded responses, without fabricating numeric scores.
+- Phase 5.2 defers TEAM runtime semantics, reviewer scoring writes, automatic scoring, code execution, attachments, proctoring persistence, application outcome transitions, offers, agreements, projects/workspace, matching, auth/RBAC, notifications, audit, schema, migrations, and seed changes.
+- Phase 5.2 documents the runtime path in `docs/database/assessment-runtime-path.md`.
+- Phase 5.3 is COMPLETE / READY FOR HUMAN REVIEW: PostgreSQL-backed offer reads, leader-only team response, status-constrained accept/decline mutation, a development-only server action, and `/offer/[applicationId]` UI migration are implemented.
+- Phase 5.3 resolves offers through `offer -> selection -> application -> challenge`, preserves issued terms as offer snapshots, derives pending expiration from `respond_by`, and exposes application public IDs rather than bigint identifiers.
+- Phase 5.3 does not mutate selections/application status, provision projects, create project members, or accept individual agreements; those workflows remain deferred to their own checkpoints.
+- Phase 5.3 documents the runtime path in `docs/database/offer-runtime-path.md` and verifies leader/non-leader/invited/unrelated access, expiration, stale responses, snapshots, no project creation, and rollback preservation in `scripts/verify-offer-runtime.ts`.
 - Current application lifecycle distribution is `SUBMITTED = 1`, `ASSESSMENT = 0`, `SELECTION_PENDING = 1`, `SELECTED = 5`, `REJECTED = 1`, `WITHDRAWN = 0`.
 - Matching outputs, notifications, meetings, resource access services, and audit demo records remain unseeded.
 - ERD v1 remains frozen; later structural DB changes require a new reviewed schema change.
@@ -1804,6 +1848,8 @@ project files
 - Phase 4.4 local route regression confirms `/challenges`, `route-optimisation`, `merchant-churn-model`, and `demo-elab-venture-readiness-dashboard` still return HTTP `200` after write-path implementation and rollback verification.
 - Phase 5.1 rollback verification covers seeded solo/team application reads, student-member access, unrelated-student denial, owner/managing organization reads, CAID/E-Lab cross-unit denial, current-student challenge lookup, closed challenge rejection, deadline rejection, eligibility hard failure, below/within/above team-size checks, duplicate member rejection, duplicate challenge-application rejection, valid team creation, valid solo creation, rollback preservation, and no assessment/offer/project/matching write leakage.
 - Phase 5.1 rollback verification confirms public table counts remain unchanged after write tests: `applications = 8`, `application_members = 18`, `application_projects = 0`, `supervision_requests = 1`, `assessments = 2`, `assessment_attempts = 2`, `assessment_scores = 2`, `assessment_responses = 0`, `selections = 5`, `offers = 5`, `agreements = 5`, `projects = 4`, and `match_results = 0`.
+- Phase 5.2 rollback verification covers `app-triage` failed reviewed result, `app-churn` passing reviewed result, `overall_score = NULL`, zero seeded responses, disposable INDIVIDUAL attempt start, idempotent start, wrong-member denial, answer-key leak prevention, valid MCQ save, response upsert, invalid option denial, cross-assessment response denial, submit, pending-review state, repeated-submit denial, submitted/reviewed edit denial, and no downstream write leakage.
+- Phase 5.2 rollback verification confirms public table counts remain unchanged after write tests: `applications = 8`, `application_members = 18`, `assessments = 2`, `assessment_sections = 5`, `assessment_questions = 12`, `assessment_attempts = 2`, `assessment_responses = 0`, `assessment_scores = 2`, `selections = 5`, `offers = 5`, `agreements = 5`, `projects = 4`, and `match_results = 0`.
 - Current reproducible seed counts:
 
 ```text
@@ -1856,9 +1902,11 @@ Full 45-domain-table pre-reset/post-reset/post-idempotency count equality is rec
 
 ## Immediate next task
 
-### Phase 5.2 — Assessments, after Phase 5.1 human review
+### Phase 5.4 — Workspace, after Phase 5.3 human review
 
-Phase 5.1 introduced application read/write operations only, with server-side validation and transaction-safe normalized application-member writes. Do **not** begin Phase 5.2 until Phase 5.1 receives human review.
+Phase 5.3 introduced offer reads and team-level offer response only, with
+server-side authorization, lifecycle validation, and status-constrained writes.
+Do **not** begin Phase 5.4 until Phase 5.3 receives human review.
 
 Immediate sequence:
 
@@ -1887,27 +1935,37 @@ Final Phase 4 human approval ✅
         ↓
 Phase 5.1 applications ✅
         ↓
-Phase 5.1 human review
+Phase 5.1 human review ✅
         ↓
-Phase 5.2 assessments
+Phase 5.2 assessments ✅
+        ↓
+Phase 5.2 human review ✅
+        ↓
+Phase 5.3 offers ✅
+        ↓
+Phase 5.3 human review
+        ↓
+Phase 5.4 workspace
 ```
 
-### Immediate Phase 5.1 checklist
+### Immediate Phase 5.3 checklist
 
 - [x] Wait for final human approval of Phase 4
-- [x] Re-read the exact Phase 5.1 section in this plan before implementation
-- [x] Create application query module
-- [x] Create application service/API boundary
-- [x] Create application mutation helpers
-- [x] Submit applications transactionally
-- [x] Validate challenge availability, deadline, eligibility, duplicates, and team-size policy server-side
-- [x] Do not migrate assessment, offer, agreement, project, workspace, matching, auth, RBAC, notification, or audit runtime flows
+- [x] Wait for human review of Phase 5.2
+- [x] Re-read the exact Phase 5.3 section in this plan before implementation
+- [x] Create offer query module
+- [x] Create offer service/API boundary
+- [x] Create status-constrained offer mutation helper
+- [x] Migrate `/offer/**` route reads to PostgreSQL
+- [x] Implement accepted-leader accept/decline runtime
+- [x] Preserve offer snapshots and derived expiration
+- [x] Do not migrate agreement, project, workspace, matching, auth, RBAC, notification, or audit runtime flows
 
 ### Immediate next checkpoint
 
-- [ ] Wait for human review of Phase 5.1.
-- [ ] After review, proceed with Phase 5.2 — Assessments only.
-- [ ] Do not begin offers, agreements, projects, workspace, matching, authentication, RBAC, notifications, or audit writes before the relevant later checkpoint.
+- [ ] Wait for human review of Phase 5.3.
+- [ ] After review, proceed with Phase 5.4 — Workspace only.
+- [ ] Do not begin matching, authentication, RBAC, notifications, or audit writes before the relevant later checkpoint.
 
 ### Agent sequencing rule
 
@@ -1923,7 +1981,7 @@ Before each agent implementation task:
 
 ### Recommended next agent instruction
 
-After human review of Phase 5.1, proceed with Phase 5.2 — Assessments only. Do not modify offer runtime flows, project/workspace runtime flows, authentication, matching, notifications, audit demo records, or unrelated runtime paths unless explicitly requested.
+After human review of Phase 5.3, proceed with Phase 5.4 — Workspace only. Do not modify matching, authentication, notifications, audit demo records, or unrelated runtime paths unless explicitly requested.
 
 ---
 
@@ -1935,6 +1993,25 @@ Use this section after each development session.
 
 ### Completed
 
+- Phase 5.3 Offers completed and ready for human review before Phase 5.4.
+- Added `src/db/queries/offers.ts` and `src/db/mutations/offers.ts` for normalized offer reads and status-constrained responses.
+- Added `src/services/offer.service.ts`, `src/lib/offer-development.ts`, and `src/app/offer/[applicationId]/actions.ts` for the explicit development actor and thin server boundary.
+- Migrated `/offer/[applicationId]` to PostgreSQL-backed reads with public application IDs, pending/accepted historical rendering, and team-leader accept/decline actions.
+- Enforced accepted-leader-only response, server-owned response fields, terminal-state protection, derived expiration, and offer snapshot terms.
+- Added `scripts/verify-offer-runtime.ts` and `docs/database/offer-runtime-path.md`; verified rollback preservation, no project provisioning, and application/assessment regression safety.
+- Preserved Phase 5.3 scope: no schema, migration, seed, agreement acceptance, project/workspace write, matching, auth/RBAC, notification, or audit implementation was added.
+- Phase 5.2 Assessments completed and ready for human review before Phase 5.3.
+- Added `src/db/queries/assessments.ts` and exported assessment read queries through `src/db/queries/index.ts`.
+- Added `src/db/mutations/assessments.ts` and exported assessment mutation helpers through `src/db/mutations/index.ts`.
+- Added `src/services/assessment.service.ts` and exported assessment service APIs through `src/services/index.ts`.
+- Added `src/app/assessment/[applicationId]/actions.ts` as the server-action boundary for start, save-response, and submit.
+- Added `src/lib/assessment-development.ts` for the temporary development-only student viewer context.
+- Migrated `/assessment/[applicationId]`, `/assessment/[applicationId]/take`, and `/assessment/[applicationId]/result` from static fixture authority to the Assessment Service and PostgreSQL.
+- Updated cognitive and technical runners to consume safe DB-backed question models and persist responses through server actions.
+- Implemented INDIVIDUAL assessment ownership enforcement, safe question mapping, answer-key stripping, response validation, service-level response upsert, submission lifecycle rules, and read-only reviewed-result rendering.
+- Added `scripts/verify-assessment-runtime.ts` to exercise assessment runtime inside one rollback transaction and verify no selection, offer, project, or matching write leakage.
+- Added `docs/database/assessment-runtime-path.md` documenting Phase 5.2 architecture, APIs, scope, access, lifecycle, response validation, answer-key protection, UI migration, deferrals, verification, and static-reference classification.
+- Preserved Phase 5.2 scope: no schema, migration, seed, reviewer scoring write, automatic grading, code execution, attachment storage, proctoring persistence, offer/agreement write, project/workspace write, matching, auth/RBAC, notification, or audit implementation was added.
 - Phase 5.1 Applications completed and ready for human review before Phase 5.2.
 - Added `src/db/queries/applications.ts` and exported application read queries through `src/db/queries/index.ts`.
 - Added `src/db/mutations/applications.ts` and exported application mutation helpers through `src/db/mutations/index.ts`.
@@ -1963,7 +2040,7 @@ None.
 
 ### Next action
 
-Wait for human review of Phase 5.1. After review, proceed with Phase 5.2 — Assessments only.
+Wait for human review of Phase 5.3. After review, proceed with Phase 5.4 — Workspace only.
 
 ## 2026-08-16
 

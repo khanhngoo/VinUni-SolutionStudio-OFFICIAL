@@ -11,11 +11,23 @@ import {
 } from "@/components/assessment/lockdown-chrome";
 import { useLockdown } from "@/components/assessment/use-lockdown";
 import { cn } from "@/lib/cn";
-import { cognitiveSections } from "@/lib/data/assessment";
+import type {
+  AssessmentResponseInput,
+  AssessmentStudentSection,
+} from "@/services/assessment.service";
 
 interface CognitiveRunnerProps {
   applicationId: string;
   challengeTitle: string;
+  sections: AssessmentStudentSection[];
+  responses: Record<string, AssessmentResponseInput>;
+  submitAction: (
+    responses: Record<string, AssessmentResponseInput>
+  ) => Promise<void>;
+  saveResponseAction: (
+    questionKey: string,
+    response: AssessmentResponseInput
+  ) => Promise<void>;
 }
 
 /**
@@ -25,27 +37,42 @@ interface CognitiveRunnerProps {
 export function CognitiveRunner({
   applicationId,
   challengeTitle,
+  sections,
+  responses,
+  submitAction,
+  saveResponseAction,
 }: CognitiveRunnerProps) {
   const router = useRouter();
 
   const totalSeconds = useMemo(
-    () => cognitiveSections.reduce((n, s) => n + s.minutes, 0) * 60,
-    [],
+    () =>
+      sections.reduce((n, s) => n + (s.timeLimitMinutes ?? 0), 0) * 60,
+    [sections],
   );
   const flatCount = useMemo(
-    () => cognitiveSections.reduce((n, s) => n + s.questions.length, 0),
-    [],
+    () => sections.reduce((n, s) => n + s.questions.length, 0),
+    [sections],
   );
 
   const [sectionIndex, setSectionIndex] = useState(0);
   const [questionIndex, setQuestionIndex] = useState(0);
-  const [answers, setAnswers] = useState<Record<string, number>>({});
+  const [answers, setAnswers] = useState<Record<string, number>>(() =>
+    Object.fromEntries(
+      Object.entries(responses).flatMap(([questionKey, response]) =>
+        response.kind === "MULTIPLE_CHOICE"
+          ? [[questionKey, response.selectedOptionIndex]]
+          : []
+      )
+    )
+  );
   const [showInterstitial, setShowInterstitial] = useState(true);
   const [confirmOpen, setConfirmOpen] = useState(false);
 
   const lockdown = useLockdown({
     totalSeconds,
-    onAutoSubmit: () => router.replace(`/assessment/${applicationId}/result`),
+    onAutoSubmit: () => {
+      void submit();
+    },
   });
 
   const {
@@ -78,18 +105,22 @@ export function CognitiveRunner({
     };
   }, [blockAction]);
 
-  const section = cognitiveSections[sectionIndex];
+  const section = sections[sectionIndex];
   const question = section.questions[questionIndex];
   const answeredCount = Object.keys(answers).length;
 
   const questionNumber =
-    cognitiveSections
+    sections
       .slice(0, sectionIndex)
       .reduce((n, s) => n + s.questions.length, 0) + questionIndex + 1;
 
   function choose(optionIndex: number) {
-    setAnswers((prev) => ({ ...prev, [question.id]: optionIndex }));
+    setAnswers((prev) => ({ ...prev, [question.questionKey]: optionIndex }));
     markSaved();
+    void saveResponseAction(question.questionKey, {
+      kind: "MULTIPLE_CHOICE",
+      selectedOptionIndex: optionIndex,
+    });
   }
 
   function goNext() {
@@ -97,7 +128,7 @@ export function CognitiveRunner({
       setQuestionIndex(questionIndex + 1);
       return;
     }
-    if (sectionIndex < cognitiveSections.length - 1) {
+    if (sectionIndex < sections.length - 1) {
       setSectionIndex(sectionIndex + 1);
       setQuestionIndex(0);
       setShowInterstitial(true);
@@ -106,8 +137,16 @@ export function CognitiveRunner({
     setConfirmOpen(true);
   }
 
-  function submit() {
+  async function submit() {
     markFinished();
+    await submitAction(
+      Object.fromEntries(
+        Object.entries(answers).map(([questionKey, selectedOptionIndex]) => [
+          questionKey,
+          { kind: "MULTIPLE_CHOICE", selectedOptionIndex },
+        ]),
+      ),
+    );
     exitFullscreen();
     router.replace(`/assessment/${applicationId}/result`);
   }
@@ -132,13 +171,14 @@ export function CognitiveRunner({
           <div className="flex-1 grid place-items-center px-6">
             <div className="text-center max-w-[46ch]">
               <p className="text-meta text-ink-3">
-                Section {sectionIndex + 1} of {cognitiveSections.length}
+                Section {sectionIndex + 1} of {sections.length}
               </p>
-              <h1 className="mt-2">{section.name}</h1>
+              <h1 className="mt-2">{section.title}</h1>
               <p className="text-ink-2 mt-2">
-                {section.questions.length} questions · {section.minutes} minutes
-                suggested. You can move back and forward within this section, but
-                not return to it once you move on.
+                {section.questions.length} questions ·{" "}
+                {section.timeLimitMinutes ?? 0} minutes suggested. You can move
+                back and forward within this section, but not return to it once
+                you move on.
               </p>
               <button
                 type="button"
@@ -155,7 +195,7 @@ export function CognitiveRunner({
         ) : (
           <main className="flex-1 w-full max-w-[760px] mx-auto px-6 py-10 select-none">
             <p className="text-meta text-ink-3">
-              {section.name} · question {questionIndex + 1} of{" "}
+              {section.title} · question {questionIndex + 1} of{" "}
               {section.questions.length}
             </p>
 
@@ -164,7 +204,7 @@ export function CognitiveRunner({
             <fieldset className="mt-6 flex flex-col gap-2.5">
               <legend className="sr-only">{question.prompt}</legend>
               {question.options.map((option, index) => {
-                const selected = answers[question.id] === index;
+                const selected = answers[question.questionKey] === index;
                 return (
                   <label
                     key={option}
@@ -177,7 +217,7 @@ export function CognitiveRunner({
                   >
                     <input
                       type="radio"
-                      name={question.id}
+                      name={question.questionKey}
                       checked={selected}
                       onChange={() => choose(index)}
                       className="mt-0.5 w-[15px] h-[15px] shrink-0 accent-[var(--color-brand)]"
@@ -206,7 +246,7 @@ export function CognitiveRunner({
                 className="h-9 px-5 rounded-card bg-brand text-white font-semibold hover:bg-brand-deep"
               >
                 {questionIndex === section.questions.length - 1 &&
-                sectionIndex === cognitiveSections.length - 1
+                sectionIndex === sections.length - 1
                   ? "Finish"
                   : "Next"}
               </button>

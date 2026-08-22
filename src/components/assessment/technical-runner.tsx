@@ -11,12 +11,24 @@ import {
 } from "@/components/assessment/lockdown-chrome";
 import { useLockdown } from "@/components/assessment/use-lockdown";
 import { cn } from "@/lib/cn";
-import { codingProblems } from "@/lib/data/assessment";
+import type {
+  AssessmentResponseInput,
+  AssessmentStudentQuestion,
+} from "@/services/assessment.service";
 
 interface TechnicalRunnerProps {
   applicationId: string;
   challengeTitle: string;
   minutes: number;
+  problems: AssessmentStudentQuestion[];
+  responses: Record<string, AssessmentResponseInput>;
+  submitAction: (
+    responses: Record<string, AssessmentResponseInput>
+  ) => Promise<void>;
+  saveResponseAction: (
+    questionKey: string,
+    response: AssessmentResponseInput
+  ) => Promise<void>;
 }
 
 type RunState =
@@ -34,16 +46,25 @@ export function TechnicalRunner({
   applicationId,
   challengeTitle,
   minutes,
+  problems,
+  responses,
+  submitAction,
+  saveResponseAction,
 }: TechnicalRunnerProps) {
   const router = useRouter();
   const totalSeconds = minutes * 60;
 
   const [problemIndex, setProblemIndex] = useState(0);
   const [code, setCode] = useState<Record<string, string>>(() =>
-    Object.fromEntries(codingProblems.map((p) => [p.id, p.starterCode])),
+    Object.fromEntries(
+      problems.map((p) => [
+        p.questionKey,
+        savedCodeFor(p, responses),
+      ]),
+    ),
   );
   const [runs, setRuns] = useState<Record<string, RunState>>(() =>
-    Object.fromEntries(codingProblems.map((p) => [p.id, { status: "idle" }])),
+    Object.fromEntries(problems.map((p) => [p.questionKey, { status: "idle" }])),
   );
   const [outputOpen, setOutputOpen] = useState(true);
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -51,7 +72,9 @@ export function TechnicalRunner({
 
   const lockdown = useLockdown({
     totalSeconds,
-    onAutoSubmit: () => router.replace(`/assessment/${applicationId}/result`),
+    onAutoSubmit: () => {
+      void submit();
+    },
   });
 
   const {
@@ -84,37 +107,61 @@ export function TechnicalRunner({
     };
   }, [blockAction]);
 
-  const problem = codingProblems[problemIndex];
-  const run = runs[problem.id];
+  const problem = problems[problemIndex];
+  const run = runs[problem.questionKey];
 
   const attempted = useMemo(
     () =>
-      codingProblems.filter((p) => {
-        const written = code[p.id].replace(p.starterCode, "").trim();
+      problems.filter((p) => {
+        const written = code[p.questionKey]
+          .replace(p.coding?.starterCode ?? "", "")
+          .trim();
         return written.length > 0;
       }).length,
-    [code],
+    [code, problems],
   );
 
   function runSampleTests() {
-    setRuns((prev) => ({ ...prev, [problem.id]: { status: "running" } }));
+    setRuns((prev) => ({ ...prev, [problem.questionKey]: { status: "running" } }));
     setOutputOpen(true);
 
     window.setTimeout(() => {
-      const written = code[problem.id].replace(problem.starterCode, "").trim();
+      const written = code[problem.questionKey]
+        .replace(problem.coding?.starterCode ?? "", "")
+        .trim();
       const hasBody = written.length > 12 && !written.includes("pass");
-      const total = problem.sampleTests.length;
+      const total = problem.coding?.sampleTests.length ?? 0;
       const passed = hasBody ? total : 0;
       setRuns((prev) => ({
         ...prev,
-        [problem.id]: { status: "done", passed, total },
+        [problem.questionKey]: { status: "done", passed, total },
       }));
       markSaved();
+      void saveCurrentProblem();
     }, 900);
   }
 
-  function submit() {
+  async function saveCurrentProblem() {
+    const response = {
+      kind: "CODING",
+      code: code[problem.questionKey] ?? "",
+    } satisfies AssessmentResponseInput;
+    await saveResponseAction(problem.questionKey, response);
+  }
+
+  async function submit() {
     markFinished();
+    await submitAction(
+      Object.fromEntries(
+        problems.map((p) => [
+          p.questionKey,
+          {
+            kind: "CODING",
+            code: code[p.questionKey] ?? "",
+          } satisfies AssessmentResponseInput,
+        ]),
+      ),
+    );
     exitFullscreen();
     router.replace(`/assessment/${applicationId}/result`);
   }
@@ -126,7 +173,7 @@ export function TechnicalRunner({
         <div className="hidden lg:grid min-h-dvh place-items-center px-6 bg-paper">
           <div className="text-center max-w-[46ch]">
             <p className="text-meta text-ink-3">Technical assessment</p>
-            <h1 className="mt-2">{codingProblems.length} problems · {minutes} minutes</h1>
+            <h1 className="mt-2">{problems.length} problems · {minutes} minutes</h1>
             <p className="text-ink-2 mt-2">
               You can move between problems freely. Sample tests can be run as
               often as you like; full tests run once on submit.
@@ -154,7 +201,7 @@ export function TechnicalRunner({
       <div className="hidden lg:flex flex-col h-dvh bg-paper">
         <LockdownHeader
           challengeTitle={challengeTitle}
-          progress={`Problem ${problemIndex + 1} of ${codingProblems.length}`}
+          progress={`Problem ${problemIndex + 1} of ${problems.length}`}
           secondsLeft={lockdown.secondsLeft}
           totalSeconds={totalSeconds}
           violations={lockdown.violations}
@@ -164,9 +211,9 @@ export function TechnicalRunner({
         />
 
         <nav className="shrink-0 flex items-end gap-1 px-5 bg-card border-b border-line">
-          {codingProblems.map((p, index) => (
+          {problems.map((p, index) => (
             <button
-              key={p.id}
+              key={p.questionKey}
               type="button"
               onClick={() => setProblemIndex(index)}
               aria-current={index === problemIndex ? "true" : undefined}
@@ -177,7 +224,7 @@ export function TechnicalRunner({
                   : "border-transparent text-ink-2 hover:text-brand",
               )}
             >
-              {index + 1}. {p.title}
+              {index + 1}. {p.coding?.title ?? `Problem ${index + 1}`}
             </button>
           ))}
         </nav>
@@ -185,16 +232,21 @@ export function TechnicalRunner({
         <div className="flex-1 min-h-0 grid grid-cols-[minmax(280px,340px)_1fr_minmax(240px,300px)]">
           <section className="min-h-0 overflow-y-auto border-r border-line bg-card px-5 py-5 select-none">
             <h3 className="mb-2">Problem {problemIndex + 1}</h3>
-            <h2 className="text-[15px] leading-snug">{problem.title}</h2>
+            <h2 className="text-[15px] leading-snug">
+              {problem.coding?.title ?? problem.prompt}
+            </h2>
             <div className="mt-3 flex flex-col gap-3 text-ink-2">
-              {problem.statement.map((para) => (
+              {(problem.coding?.statement.length
+                ? problem.coding.statement
+                : [problem.prompt]
+              ).map((para) => (
                 <p key={para.slice(0, 24)}>{para}</p>
               ))}
             </div>
 
             <h3 className="mt-5 mb-2">Sample cases</h3>
             <div className="flex flex-col gap-2">
-              {problem.sampleTests.map((test) => (
+              {problem.coding?.sampleTests.map((test) => (
                 <div
                   key={test.input}
                   className="rounded-card bg-paper border border-line-2 px-3 py-2.5 font-mono text-[11px] text-ink-2 overflow-x-auto"
@@ -208,7 +260,9 @@ export function TechnicalRunner({
 
           <section className="min-h-0 flex flex-col">
             <div className="shrink-0 flex items-center justify-between gap-3 px-4 h-11 border-b border-line bg-card">
-              <span className="text-meta text-ink-3">{problem.language}</span>
+              <span className="text-meta text-ink-3">
+                {problem.coding?.language ?? "Code"}
+              </span>
               <button
                 type="button"
                 onClick={runSampleTests}
@@ -221,13 +275,19 @@ export function TechnicalRunner({
             <textarea
               data-editor="true"
               spellCheck={false}
-              value={code[problem.id]}
+              value={code[problem.questionKey]}
               onChange={(e) => {
-                setCode((prev) => ({ ...prev, [problem.id]: e.target.value }));
+                setCode((prev) => ({
+                  ...prev,
+                  [problem.questionKey]: e.target.value,
+                }));
                 markSaved();
               }}
+              onBlur={() => {
+                void saveCurrentProblem();
+              }}
               className="flex-1 min-h-0 w-full resize-none bg-card px-4 py-3 font-mono text-[12.5px] leading-relaxed text-ink outline-none"
-              aria-label={`Code editor for ${problem.title}`}
+              aria-label={`Code editor for ${problem.coding?.title ?? problem.prompt}`}
             />
           </section>
 
@@ -265,7 +325,7 @@ export function TechnicalRunner({
                       {run.passed} of {run.total} sample tests passed
                     </p>
                     <ul className="mt-3 flex flex-col gap-2">
-                      {problem.sampleTests.map((test, index) => (
+                      {problem.coding?.sampleTests.map((test, index) => (
                         <li
                           key={test.input}
                           className="font-mono text-[11px] text-ink-2"
@@ -300,11 +360,19 @@ export function TechnicalRunner({
       />
       <SubmitConfirm
         open={confirmOpen}
-        unanswered={codingProblems.length - attempted}
+        unanswered={problems.length - attempted}
         onCancel={() => setConfirmOpen(false)}
         onConfirm={submit}
       />
       <BlockedActionToast message={lockdown.toast} />
     </>
   );
+}
+
+function savedCodeFor(
+  problem: AssessmentStudentQuestion,
+  responses: Record<string, AssessmentResponseInput>
+) {
+  const saved = responses[problem.questionKey];
+  return saved?.kind === "CODING" ? saved.code : problem.coding?.starterCode ?? "";
 }

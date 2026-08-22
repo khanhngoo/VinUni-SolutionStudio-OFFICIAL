@@ -5,16 +5,10 @@ import { CheckIcon } from "@/components/ui/icons";
 import { Section } from "@/components/ui/section";
 import { cn } from "@/lib/cn";
 import { formatDate } from "@/lib/dates";
-import {
-  getAllApplicationIds,
-  getApplicationById,
-  getChallengeById,
-} from "@/lib/queries";
-import type { ScoreBand, TestResult } from "@/lib/types";
+import { getTemporaryAssessmentViewer } from "@/lib/assessment-development";
+import { getAssessmentResult } from "@/services/assessment.service";
 
-export function generateStaticParams() {
-  return getAllApplicationIds().map((applicationId) => ({ applicationId }));
-}
+export const dynamic = "force-dynamic";
 
 export default async function AssessmentResultPage({
   params,
@@ -22,59 +16,68 @@ export default async function AssessmentResultPage({
   params: Promise<{ applicationId: string }>;
 }) {
   const { applicationId } = await params;
-  const application = getApplicationById(applicationId);
-  if (!application) notFound();
+  const actor = await getTemporaryAssessmentViewer();
+  const assessment = await getAssessmentResult(applicationId, actor);
+  if (!assessment) notFound();
 
-  const challenge = getChallengeById(application.challengeId);
-  if (!challenge) notFound();
+  const { attempt, challenge, result } = assessment;
 
-  const result = application.testResult;
-
-  // Reached straight after finishing a walkthrough: nothing is persisted, so
-  // there is no result to show yet. Say that plainly rather than invent a score.
-  if (!result) {
+  if (!attempt || attempt.status === "IN_PROGRESS" || attempt.status === "SUBMITTED" || !result) {
     return (
       <article className="max-w-[820px] mx-auto px-6 sm:px-7 py-7 pb-16">
-        <Breadcrumb challengeId={challenge.id} title={challenge.title} />
-        <h1 className="mt-3.5">Assessment submitted</h1>
+        <Breadcrumb challengeSlug={challenge.slug} title={challenge.title} />
+        <h1 className="mt-3.5">
+          {attempt?.status === "IN_PROGRESS"
+            ? "Assessment in progress"
+            : "Assessment submitted"}
+        </h1>
         <div className="mt-6 bg-card border border-line rounded-card p-6 text-center">
           <span className="w-10 h-10 rounded-full bg-ok-soft text-ok grid place-items-center mx-auto">
             <CheckIcon className="w-5 h-5" />
           </span>
           <p className="font-semibold text-[15px] mt-3.5">
-            Your answers are in
+            {attempt?.status === "IN_PROGRESS"
+              ? "Your attempt is still open"
+              : "Your answers are in"}
           </p>
           <p className="text-ink-2 mt-1.5 max-w-[46ch] mx-auto">
-            Results are consolidated with the other candidates&apos; before
-            anyone sees them. You&apos;ll be notified when yours is ready —
-            typically within three working days.
+            Results are consolidated before anyone sees them. You&apos;ll be
+            notified when yours is ready, typically within three working days.
           </p>
           <Link
-            href={`/challenges/${challenge.id}`}
+            href={
+              attempt?.status === "IN_PROGRESS"
+                ? `/assessment/${assessment.application.publicId}/take`
+                : `/challenges/${challenge.slug}`
+            }
             className="inline-grid place-items-center h-9 px-4 mt-5 rounded-card bg-brand text-white font-semibold hover:bg-brand-deep hover:text-white"
           >
-            Back to challenge
+            {attempt?.status === "IN_PROGRESS"
+              ? "Return to assessment"
+              : "Back to challenge"}
           </Link>
         </div>
       </article>
     );
   }
 
+  const passed = result.passed ?? result.overallBand !== "Below threshold";
+
   return (
     <article className="max-w-[820px] mx-auto px-6 sm:px-7 py-7 pb-16">
-      <Breadcrumb challengeId={challenge.id} title={challenge.title} />
+      <Breadcrumb challengeSlug={challenge.slug} title={challenge.title} />
 
       <div className="flex flex-wrap gap-1.5 mt-3.5 mb-2.5">
         <Chip>{result.track}</Chip>
-        <Chip variant={result.passed ? "ok" : "outline-dashed"}>
-          {result.passed ? "Passed" : "Below threshold"}
+        <Chip variant={passed ? "ok" : "outline-dashed"}>
+          {passed ? "Passed" : "Below threshold"}
         </Chip>
       </div>
 
       <h1>Your assessment result</h1>
       <p className="text-ink-2 mt-2">
-        Submitted {formatDate(result.submittedAt)} · {result.minutesTaken} minutes
-        taken
+        Submitted {attempt.submittedAt ? formatDate(attempt.submittedAt.toISOString()) : "for review"}
+        {result.minutesTaken !== null ? ` · ${result.minutesTaken} minutes taken` : ""}
       </p>
 
       <div className="mt-6 bg-card border border-line rounded-card p-5">
@@ -83,40 +86,46 @@ export default async function AssessmentResultPage({
           <span
             className={cn(
               "text-h1 font-bold",
-              result.passed ? "text-ok" : "text-warn",
+              passed ? "text-ok" : "text-warn",
             )}
           >
-            {result.overallBand}
+            {result.overallBand ?? "Reviewed"}
           </span>
           <span className="text-ink-2">
-            {result.passed
-              ? "above the threshold for this challenge"
-              : "below the threshold for this challenge"}
+            {result.overallScore === null
+              ? "qualitative band only; no numeric score was imported"
+              : `${result.overallScore} overall score`}
           </span>
         </div>
       </div>
 
       <Section title="By section">
         <div className="bg-card border border-line rounded-card divide-y divide-line-2">
-          {result.sections.map((section) => (
-            <div
-              key={section.name}
-              className="flex items-center justify-between gap-4 px-4 py-3.5"
-            >
-              <span className="text-ink">{section.name}</span>
-              <BandPill band={section.band} />
+          {result.sections.length > 0 ? (
+            result.sections.map((section) => (
+              <div
+                key={`${section.name}-${section.band}`}
+                className="flex items-center justify-between gap-4 px-4 py-3.5"
+              >
+                <span className="text-ink">{section.name}</span>
+                <BandPill band={section.band} />
+              </div>
+            ))
+          ) : (
+            <div className="px-4 py-3.5 text-ink-2">
+              No section-level rubric rows were imported for this assessment.
             </div>
-          ))}
+          )}
         </div>
         <p className="text-meta text-ink-3 mt-2.5">
-          Bands, not scores. You are not shown how you ranked against other
+          Bands, not rankings. You are not shown how you ranked against other
           applicants.
         </p>
       </Section>
 
       <Section title="What happens next">
         <div className="bg-card border border-line rounded-card p-5">
-          {result.passed ? (
+          {passed ? (
             <>
               <p className="text-ink">
                 Your result goes to the partner with the rest of the shortlist.
@@ -134,14 +143,14 @@ export default async function AssessmentResultPage({
                 final for this application.
               </p>
               <p className="text-meta text-ink-3 mt-2">
-                You can apply to other challenges after a 30-day cooldown on the{" "}
-                {result.track} track. Your other applications are unaffected.
+                You can apply to other challenges after a cooldown on this
+                assessment track. Your other applications are unaffected.
               </p>
             </>
           )}
           <div className="flex flex-wrap items-center gap-2.5 mt-5">
             <Link
-              href={`/challenges/${challenge.id}`}
+              href={`/challenges/${challenge.slug}`}
               className="h-9 px-4 grid place-items-center rounded-card border border-line bg-card text-ink-2 font-medium hover:border-ink-3"
             >
               Back to challenge
@@ -159,19 +168,19 @@ export default async function AssessmentResultPage({
   );
 }
 
-const BAND_TONE: Record<ScoreBand, string> = {
+const BAND_TONE: Record<string, string> = {
   Strong: "bg-ok-soft text-ok",
   Proficient: "bg-brand-soft text-brand",
   Developing: "bg-warn-soft text-warn",
   "Below threshold": "bg-red-soft text-red",
 };
 
-function BandPill({ band }: { band: TestResult["sections"][number]["band"] }) {
+function BandPill({ band }: { band: string }) {
   return (
     <span
       className={cn(
         "inline-flex items-center rounded-card px-2.5 py-1 text-[11px] leading-none font-medium shrink-0",
-        BAND_TONE[band],
+        BAND_TONE[band] ?? "bg-line-2 text-ink-2",
       )}
     >
       {band}
@@ -180,17 +189,17 @@ function BandPill({ band }: { band: TestResult["sections"][number]["band"] }) {
 }
 
 function Breadcrumb({
-  challengeId,
+  challengeSlug,
   title,
 }: {
-  challengeId: string;
+  challengeSlug: string;
   title: string;
 }) {
   return (
     <nav className="text-meta text-ink-3">
       <Link href="/challenges">Challenges</Link>
       <span className="mx-1.5">›</span>
-      <Link href={`/challenges/${challengeId}`}>{title}</Link>
+      <Link href={`/challenges/${challengeSlug}`}>{title}</Link>
       <span className="mx-1.5">›</span>
       Result
     </nav>
