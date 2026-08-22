@@ -142,7 +142,7 @@ VinUni-SolutionStudio-OFFICIAL/
 | Phase 3 | Reconciled static mock data → production-valid database seed | ✅ Complete / human review complete |
 | Phase 4 | Challenge marketplace → real DB | ✅ Complete / human review complete |
 | Phase 5 | Applications, assessments, offers, workspace → real DB | ✅ Complete / human review complete |
-| Phase 6 | Authentication + RBAC | 🚧 Phase 6.3 complete / ready for human review |
+| Phase 6 | Authentication + RBAC | ✅ Complete / ready for final human review |
 | Phase 7 | Skill + semantic matching | ⬜ Not started |
 | Phase 8 | Production deployment | ⬜ Not started |
 
@@ -1545,20 +1545,30 @@ seed changes were introduced. See `docs/security/authorization-matrix.md`.
 
 ## 6.4 Security baseline
 
-- [ ] Secure cookies/session settings
-- [ ] CSRF considerations
-- [ ] Input validation
-- [ ] Rate limiting plan
-- [ ] Audit-sensitive operations
-- [ ] Do not expose database credentials to browser
-- [ ] Verify `.env` secrets are not committed
+- [x] Secure cookies/session settings
+- [x] CSRF considerations
+- [x] Input validation
+- [x] Rate limiting plan
+- [x] Audit-sensitive operations
+- [x] Do not expose database credentials to browser
+- [x] Verify `.env` secrets are not committed
+
+Phase 6.3 — Authorization is COMPLETE / HUMAN REVIEW COMPLETE. Phase 6.4 —
+Security baseline is COMPLETE / READY FOR HUMAN REVIEW. Auth.js HTTPS cookie
+defaults, Auth.js CSRF flow, same-origin Server Action protection, service-owned
+validation and authorization, secret/browser separation, and Git environment
+hygiene are verified. Production rate limiting and `audit_logs` writes remain
+deployment/later-work boundaries documented in `docs/security/security-baseline.md`.
 
 ## Phase 6 exit criteria
 
-- [ ] Real authentication works
-- [ ] Users map correctly to database records
-- [ ] RBAC is enforced server-side
-- [ ] Unauthorized operations are blocked regardless of frontend UI state
+- [x] Real authentication works
+- [x] Users map correctly to database records
+- [x] RBAC is enforced server-side
+- [x] Unauthorized operations are blocked regardless of frontend UI state
+
+Phase 6 is COMPLETE / READY FOR FINAL HUMAN REVIEW. Next checkpoint: Phase 7.1
+— Structured skill matching.
 
 ---
 
@@ -1759,12 +1769,22 @@ project files
 
 ## Current status
 
-**Current phase:** Phase 6.3 — Authorization complete / ready for human review
+**Current phase:** Phase 6 — COMPLETE / READY FOR FINAL HUMAN REVIEW
 **Phase 5:** COMPLETE / HUMAN REVIEW COMPLETE
-**Active next checkpoint:** Phase 6.4 — Security baseline
+**Active next checkpoint:** Phase 7.1 — Structured skill matching
 
 ### Latest completed work
 
+- Phase 6.4 is COMPLETE / READY FOR HUMAN REVIEW: Auth.js HTTPS cookie/session
+  defaults and CSRF flow were verified without weakening localhost development;
+  database-backed Server Actions retain framework same-origin checks and
+  server-derived actors; service validation and answer-key/secret boundaries
+  were audited; Git environment hygiene passed; and the production rate-limit,
+  audit-sensitive-operation, and Phase 8 dependency plans were documented in
+  `docs/security/security-baseline.md`.
+- Phase 6 is COMPLETE / READY FOR FINAL HUMAN REVIEW. Phase 6.3 authorization
+  is COMPLETE / HUMAN REVIEW COMPLETE. The next checkpoint is Phase 7.1 —
+  Structured skill matching; Phase 7 has not begun.
 - Phase 1 local PostgreSQL 18 + pgvector infrastructure is complete and reproducible under OrbStack/Docker.
 - Phase 2 is complete: MVP audit/reconciliation, frozen ERD v1, 45-table/41-enum Drizzle implementation, constraints/indexes, version-controlled initial migration, pgvector enablement, and fresh migration replay are verified.
 - Phase 3.0 is COMPLETE / HUMAN REVIEW COMPLETE: `docs/database/seed-transformation-plan.md` defines the normalized BOOTSTRAP / REFERENCE / DEMO transformation strategy.

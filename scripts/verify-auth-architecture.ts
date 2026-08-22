@@ -28,29 +28,49 @@ async function verifyDevelopmentSessionLifecycle() {
   const { getProductionEntraConfigurationError, handlers } = await import("../auth");
   assert(getProductionEntraConfigurationError("production") !== null, "missing Entra configuration must fail clearly in production");
 
-  const csrf = await handlers.GET(new NextRequest("http://localhost/api/auth/csrf"));
+  const csrf = await handlers.GET(new NextRequest("https://solution-studio.example.test/api/auth/csrf"));
   assert(csrf.ok, "Auth.js CSRF endpoint must succeed");
   const csrfPayload = await csrf.json() as { csrfToken?: string };
   assert(csrfPayload.csrfToken, "Auth.js CSRF token missing");
+  assertSecureCookie(
+    setCookies(csrf),
+    "__Host-authjs.csrf-token",
+    "Auth.js HTTPS CSRF cookie"
+  );
   const csrfCookie = cookieHeader(csrf);
 
-  const signIn = await handlers.POST(formRequest("http://localhost/api/auth/callback/development-seeded-identity", {
+  const rejectedSignIn = await handlers.POST(formRequest("https://solution-studio.example.test/api/auth/callback/development-seeded-identity", {
+    csrfToken: "invalid-csrf-token",
+    identity: "JORDAN_STUDENT_DEMO",
+  }, csrfCookie));
+  assert(rejectedSignIn.status >= 300 && rejectedSignIn.status < 400, "invalid CSRF sign-in must be rejected with a redirect");
+  assert(
+    !setCookies(rejectedSignIn).some((cookie) => cookie.startsWith("__Secure-authjs.session-token=")),
+    "invalid CSRF sign-in must not create a session"
+  );
+
+  const signIn = await handlers.POST(formRequest("https://solution-studio.example.test/api/auth/callback/development-seeded-identity", {
     csrfToken: csrfPayload.csrfToken,
     identity: "JORDAN_STUDENT_DEMO",
   }, csrfCookie));
   assert(signIn.status >= 300 && signIn.status < 400, "development sign-in must redirect");
+  assertSecureCookie(
+    setCookies(signIn),
+    "__Secure-authjs.session-token",
+    "Auth.js HTTPS session cookie"
+  );
   const sessionCookie = mergeCookies(csrfCookie, cookieHeader(signIn));
 
-  const session = await handlers.GET(new NextRequest("http://localhost/api/auth/session", { headers: { cookie: sessionCookie } }));
+  const session = await handlers.GET(new NextRequest("https://solution-studio.example.test/api/auth/session", { headers: { cookie: sessionCookie } }));
   const sessionPayload = await session.json() as { user?: { email?: string } };
   assert(sessionPayload.user?.email === "student.jordan-lee.demo@example.test", "development session must identify Jordan");
 
-  const signOutCsrf = await handlers.GET(new NextRequest("http://localhost/api/auth/csrf", { headers: { cookie: sessionCookie } }));
+  const signOutCsrf = await handlers.GET(new NextRequest("https://solution-studio.example.test/api/auth/csrf", { headers: { cookie: sessionCookie } }));
   const signOutPayload = await signOutCsrf.json() as { csrfToken?: string };
   assert(signOutPayload.csrfToken, "sign-out CSRF token missing");
-  const signOut = await handlers.POST(formRequest("http://localhost/api/auth/signout", { csrfToken: signOutPayload.csrfToken }, mergeCookies(sessionCookie, cookieHeader(signOutCsrf))));
+  const signOut = await handlers.POST(formRequest("https://solution-studio.example.test/api/auth/signout", { csrfToken: signOutPayload.csrfToken }, mergeCookies(sessionCookie, cookieHeader(signOutCsrf))));
   assert(signOut.status >= 300 && signOut.status < 400, "sign-out must redirect");
-  const signedOutSession = await handlers.GET(new NextRequest("http://localhost/api/auth/session", { headers: { cookie: mergeCookies(sessionCookie, cookieHeader(signOut)) } }));
+  const signedOutSession = await handlers.GET(new NextRequest("https://solution-studio.example.test/api/auth/session", { headers: { cookie: mergeCookies(sessionCookie, cookieHeader(signOut)) } }));
   assert((await signedOutSession.json()) === null, "sign-out must clear the session");
 }
 
@@ -59,11 +79,24 @@ function formRequest(url: string, values: Record<string, string>, cookie: string
 }
 
 function cookieHeader(response: Response) {
-  const headers = response.headers as Headers & { getSetCookie?: () => string[] };
-  return (headers.getSetCookie?.() ?? [response.headers.get("set-cookie") ?? ""])
+  return setCookies(response)
     .map((value) => value.split(";", 1)[0])
     .filter(Boolean)
     .join("; ");
+}
+
+function setCookies(response: Response) {
+  const headers = response.headers as Headers & { getSetCookie?: () => string[] };
+  return headers.getSetCookie?.() ?? [response.headers.get("set-cookie") ?? ""];
+}
+
+function assertSecureCookie(cookies: string[], name: string, label: string) {
+  const cookie = cookies.find((value) => value.startsWith(`${name}=`));
+  assert(cookie, `${label} missing`);
+  assert(/; HttpOnly(?:;|$)/i.test(cookie), `${label} must be HttpOnly`);
+  assert(/; Secure(?:;|$)/i.test(cookie), `${label} must be Secure`);
+  assert(/; SameSite=Lax(?:;|$)/i.test(cookie), `${label} must use SameSite=Lax`);
+  assert(/; Path=\/(?:;|$)/i.test(cookie), `${label} must use path /`);
 }
 
 function mergeCookies(...values: string[]) {
