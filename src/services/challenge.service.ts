@@ -15,6 +15,8 @@ import {
   type ChallengeAccessContext,
 } from "./challenge-policy";
 
+export * from "./challenge-write.service";
+
 export type MarketplaceChallengeListOptions = ListPublishedChallengesOptions;
 export type MarketplaceChallengePage = PublishedChallengePage;
 export type MarketplaceChallengeDetail = ChallengeDetail;

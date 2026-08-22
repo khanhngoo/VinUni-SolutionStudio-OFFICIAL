@@ -1,9 +1,9 @@
 # VinUni Solution Studio — Production Transformation Plan
 
-**Repository:** `VinUni-SolutionStudio-OFFICIAL`  
-**Project:** VinUniversity Solution Studio / AI-in-Action Platform  
-**Last updated:** 2026-08-16  
-**Current phase:** Phase 4.3 Challenge Marketplace UI Migration complete / awaiting human review
+**Repository:** `VinUni-SolutionStudio-OFFICIAL`
+**Project:** VinUniversity Solution Studio / AI-in-Action Platform
+**Last updated:** 2026-08-22
+**Current phase:** Phase 4.4 Challenge Write Operations complete / ready for final Phase 4 human approval
 
 ---
 
@@ -140,7 +140,7 @@ VinUni-SolutionStudio-OFFICIAL/
 | Phase 1 | Database infrastructure | ✅ Complete |
 | Phase 2 | Audit MVP + reconcile with ERD → Drizzle schema + migrations | ✅ Complete |
 | Phase 3 | Reconciled static mock data → production-valid database seed | ✅ Complete / human review complete |
-| Phase 4 | Challenge marketplace → real DB | 🚧 In progress |
+| Phase 4 | Challenge marketplace → real DB | ✅ Complete / ready for final human approval |
 | Phase 5 | Applications, assessments, offers, workspace → real DB | ⬜ Not started |
 | Phase 6 | Authentication + RBAC | ⬜ Not started |
 | Phase 7 | Skill + semantic matching | ⬜ Not started |
@@ -1314,20 +1314,42 @@ This should be the first production-data vertical slice.
 
 When challenge creation/editing is introduced:
 
-- [ ] Create challenge
-- [ ] Update challenge
-- [ ] Add/remove required skills
-- [ ] Submit for review
-- [ ] Approve/reject/revise workflow
-- [ ] Validate writes server-side
-- [ ] Use transactions for multi-table writes
+- [x] Create challenge
+- [x] Update challenge
+- [x] Add/remove required skills
+- [x] Replace/update eligibility rules
+- [x] Submit for review
+- [x] Approve/reject/revise workflow
+- [x] Assign/reroute faculty where supported
+- [x] Validate writes server-side
+- [x] Use transactions for multi-table writes
+
+### Phase 4.4 actual results
+
+- Added `src/db/mutations/challenges.ts` and `src/db/mutations/index.ts` as the challenge-only Drizzle mutation boundary.
+- Added `src/services/challenge-write.service.ts` and exported its APIs through `src/services/challenge.service.ts`.
+- Implemented server-side challenge write operations for draft creation, draft/revision update, skill replacement, eligibility-rule replacement, submit-for-review, review decision, publish-approved, and faculty routing replacement.
+- Kept all writes behind explicit service functions; React components do not import Drizzle, the PostgreSQL pool, mutation helpers, or `DATABASE_URL`.
+- Added development-only actor lookup through existing seeded users and memberships: Bến Cảng contact, CAID admin, and E-Lab admin. This is temporary verification context, not fake authentication or a universal super-admin bypass.
+- Authorized owner-side writes through active owner-organization membership with `ADMIN` or `CONTACT_PERSON`.
+- Authorized managing-side review/publish/routing through active managing-organization membership with `ADMIN`, `PROJECT_MANAGER`, or `REVIEWER`.
+- Preserved CAID/E-Lab organization separation and explicitly verified CAID cannot manage an E-Lab-managed challenge without E-Lab membership.
+- Created challenge drafts with initial status `DRAFT`; creation does not auto-submit, approve, or publish.
+- Preserved lifecycle actions as separate service operations: `DRAFT/REVISION_REQUESTED -> SUBMITTED`, `SUBMITTED/UNDER_REVIEW -> APPROVED/REVISION_REQUESTED/CANCELLED`, and `APPROVED -> APPLICATIONS_OPEN`.
+- Inserted durable `challenge_reviews` rows for managing-unit review decisions while keeping approval and publish as separate lifecycle steps.
+- Validated required content, positive workload/team values, team-size ordering, date chronology, owner/managing organization authority, slug collisions, canonical skill resolution, duplicate skills, skill weights, faculty profile existence, and known eligibility-rule config shapes.
+- Kept skill writes normalized to existing canonical active `skills` rows; Phase 4.4 does not create canonical skills, aliases, relationships, candidates, embeddings, or matching outputs.
+- Added `scripts/verify-challenge-writes.ts`, which exercises successful and failing write paths inside a transaction and rolls everything back with a sentinel so the Phase 3 compact seed remains unchanged.
+- Documented write architecture, operation semantics, authorization, validation, lifecycle transitions, rollback verification, caching notes, and deferred UI/auth boundaries in `docs/database/challenge-write-path.md`.
+- Preserved Phase 4 scope: no application, assessment, offer, agreement, project, workspace, matching, auth/RBAC, notification, audit, schema, migration, or seed changes were made.
 
 ## Phase 4 exit criteria
 
 - [x] Challenge marketplace no longer depends on `src/lib/data`
 - [x] Challenge reads come from PostgreSQL
-- [ ] Core challenge writes are transaction-safe
+- [x] Core challenge writes are transaction-safe
 - [x] Business rules are outside React components
+- [x] Phase 4 remains challenge-domain only and stops before Phase 5
 
 ---
 
@@ -1664,7 +1686,7 @@ project files
 ## Current status
 
 **Current phase:** Phase 4 — Challenge Marketplace → Real DB
-**Active next checkpoint:** Phase 4.4 — Challenge Write Operations, after Phase 4.3 human review
+**Active next checkpoint:** Phase 5.1 — Applications, after final Phase 4 human approval
 
 ### Latest completed work
 
@@ -1712,6 +1734,15 @@ project files
 - Phase 4.3 adds `src/lib/challenge-marketplace.ts` as the UI presentation/query-param boundary and updates the marketplace/detail components to consume service-backed read models.
 - Phase 4.3 preserves ordinary confidential preview redaction for `merchant-churn-model`, preserves separate owner/managing organization display including the E-Lab owner/manager demo, and avoids hard-coding Jordan Lee as the marketplace viewer.
 - Phase 4.3 leaves `/challenges/[id]/apply` and downstream application, assessment, selection, offer, agreement, project/workspace, matching, auth, RBAC, notification, and audit flows on their existing deferred/static boundaries.
+- Phase 4.4 is COMPLETE / READY FOR FINAL PHASE 4 HUMAN APPROVAL: challenge-only write operations are implemented through a server-side service and Drizzle mutation layer.
+- Phase 4.4 write APIs: `createChallengeDraft(...)`, `updateChallengeDraft(...)`, `submitChallengeForReview(...)`, `recordChallengeReviewDecision(...)`, `publishApprovedChallenge(...)`, and `replaceChallengeFacultyRouting(...)`.
+- Phase 4.4 uses explicit development-only seeded actor contexts for Bến Cảng, CAID, and E-Lab verification; real authentication and global RBAC remain Phase 6.
+- Phase 4.4 authorizes writes through active organization memberships and workflow state, never organization-name strings, email domains, UI routes, or client-supplied roles.
+- Phase 4.4 validates challenge content, canonical skills, eligibility rules, organization ownership/management, faculty profiles, slug collisions, and lifecycle transitions before writes commit.
+- Phase 4.4 preserves CAID/E-Lab organization separation, keeps approval separate from publish, and maps challenge review `REJECTED` decisions to the existing challenge status `CANCELLED` while recording the durable review decision.
+- Phase 4.4 includes rollback-based verification in `scripts/verify-challenge-writes.ts`; no seed rows are intentionally mutated by write verification.
+- Phase 4.4 documents the write path in `docs/database/challenge-write-path.md`.
+- Phase 4 is complete and ready for final human approval before Phase 5.1.
 - Current application lifecycle distribution is `SUBMITTED = 1`, `ASSESSMENT = 0`, `SELECTION_PENDING = 1`, `SELECTED = 5`, `REJECTED = 1`, `WITHDRAWN = 0`.
 - Matching outputs, notifications, meetings, resource access services, and audit demo records remain unseeded.
 - ERD v1 remains frozen; later structural DB changes require a new reviewed schema change.
@@ -1742,6 +1773,10 @@ project files
 - Phase 4.3 local route verification confirms `/challenges`, filtered/search marketplace URLs, `route-optimisation`, `merchant-churn-model`, and `demo-elab-venture-readiness-dashboard` return HTTP `200`; invalid slug `/challenges/not-real-slug` returns HTTP `404`.
 - Phase 4.3 redaction verification confirms `merchant-churn-model` ordinary UI output contains the masked label `Logistics group, Hai Phong` and does not render `Bến Cảng Logistics`.
 - Phase 4.3 read-only verification confirms full public-table counts remain at the Phase 3 compact seed state after local marketplace route checks.
+- Phase 4.4 baseline verification confirmed the Phase 3 challenge counts before write tests: `challenges = 8`, `challenge_skills = 26`, `challenge_eligibility_rules = 17`, `challenge_faculty_assignments = 14`, and `challenge_reviews = 0`.
+- Phase 4.4 rollback verification covers create, update, skill replacement, eligibility replacement, submit, invalid transition, unauthorized review, managing-unit approval, explicit publish, faculty routing, slug collision, unknown skill rollback, unrelated owner denial, and CAID/E-Lab cross-unit denial.
+- Phase 4.4 rollback verification confirms public table counts remain unchanged after write tests: `challenges = 8`, `challenge_skills = 26`, `challenge_eligibility_rules = 17`, `challenge_faculty_assignments = 14`, `challenge_reviews = 0`, `applications = 8`, `assessments = 2`, `selections = 5`, `offers = 5`, `projects = 4`, and `match_results = 0`.
+- Phase 4.4 local route regression confirms `/challenges`, `route-optimisation`, `merchant-churn-model`, and `demo-elab-venture-readiness-dashboard` still return HTTP `200` after write-path implementation and rollback verification.
 - Current reproducible seed counts:
 
 ```text
@@ -1794,11 +1829,9 @@ Full 45-domain-table pre-reset/post-reset/post-idempotency count equality is rec
 
 ## Immediate next task
 
-### Phase 4.4 — Challenge Write Operations
+### Final Phase 4 approval, then Phase 5.1 — Applications
 
-Phase 4.3 has migrated the visible challenge marketplace list/detail UI to PostgreSQL-backed service reads. Do **not** begin Phase 4.4 until Phase 4.3 human review is approved.
-
-After approval, Phase 4.4 should introduce challenge write operations only, with server-side validation and transaction-safe multi-table writes.
+Phase 4.4 introduced challenge write operations only, with server-side validation and transaction-safe multi-table writes. Do **not** begin Phase 5.1 until Phase 4 receives final human approval.
 
 Immediate sequence:
 
@@ -1821,17 +1854,27 @@ Phase 4.2 challenge business layer ✅
         ↓
 Phase 4.3 challenge marketplace UI migration ✅
         ↓
-Phase 4.4 challenge write operations after human approval
+Phase 4.4 challenge write operations ✅
+        ↓
+Final Phase 4 human approval
+        ↓
+Phase 5.1 applications
 ```
 
 ### Immediate Phase 4.4 checklist
 
-- [ ] Wait for human approval of Phase 4.3 marketplace UI migration
-- [ ] Re-read the exact Phase 4.4 section in this plan before implementation
-- [ ] Create challenge write service/API boundary
-- [ ] Validate create/update server-side
-- [ ] Use transactions for multi-table challenge writes and skill changes
-- [ ] Do not migrate application, assessment, offer, project, matching, auth, or RBAC runtime flows unless explicitly requested
+- [x] Wait for human approval of Phase 4.3 marketplace UI migration
+- [x] Re-read the exact Phase 4.4 section in this plan before implementation
+- [x] Create challenge write service/API boundary
+- [x] Validate create/update server-side
+- [x] Use transactions for multi-table challenge writes and skill changes
+- [x] Do not migrate application, assessment, offer, project, matching, auth, or RBAC runtime flows unless explicitly requested
+
+### Immediate next checkpoint
+
+- [ ] Wait for final human approval of Phase 4.
+- [ ] After approval, proceed with Phase 5.1 — Applications only.
+- [ ] Do not begin applications, assessments, offers, projects, matching, authentication, RBAC, notifications, or audit writes before Phase 4 approval.
 
 ### Agent sequencing rule
 
@@ -1847,13 +1890,37 @@ Before each agent implementation task:
 
 ### Recommended next agent instruction
 
-After human approval of Phase 4.3, proceed with Phase 4.4 — Challenge Write Operations only. Do not modify Phase 3 seed behavior, application submission, assessment runtime flows, offer runtime flows, project/workspace runtime flows, authentication, matching, notifications, audit demo records, or non-challenge runtime paths unless explicitly requested.
+After final human approval of Phase 4, proceed with Phase 5.1 — Applications only. Do not modify assessment runtime flows, offer runtime flows, project/workspace runtime flows, authentication, matching, notifications, audit demo records, or unrelated runtime paths unless explicitly requested.
 
 ---
 
 # 15. Work Log
 
 Use this section after each development session.
+
+## 2026-08-22
+
+### Completed
+
+- Phase 4.4 Challenge Write Operations completed and ready for final Phase 4 human approval.
+- Added `src/db/mutations/challenges.ts` and `src/db/mutations/index.ts` as the challenge-domain mutation layer.
+- Added `src/services/challenge-write.service.ts` and exported challenge write APIs through `src/services/challenge.service.ts`.
+- Implemented server-side challenge draft creation, draft/revision update, normalized skill replacement, normalized eligibility-rule replacement, submit-for-review, review decision, explicit publish, and faculty routing replacement.
+- Preserved future Phase 6 compatibility by using explicit development-only seeded actor contexts instead of browser sessions, fake SSO, or a universal super-admin bypass.
+- Authorized owner writes through active owner-organization memberships and managing-unit writes through active managing-organization memberships; verified CAID/E-Lab cross-unit denial.
+- Added deterministic validation for challenge content, canonical skills, eligibility-rule configs, faculty profiles, owner/manager organizations, slug collisions, and lifecycle transitions.
+- Added `scripts/verify-challenge-writes.ts` to exercise challenge writes inside one transaction and roll everything back, preserving the compact Phase 3 seed counts.
+- Added `docs/database/challenge-write-path.md` documenting write architecture, operations, authorization, validation, lifecycle, transactions, rollback verification, and deferred boundaries.
+- Preserved Phase 4 scope: no schema, migration, seed, application, assessment, offer, agreement, project, workspace, matching, auth/RBAC, notification, or audit implementation was added.
+- Validation passed: `pnpm exec tsc --noEmit`, `pnpm lint`, `pnpm db:check`, `pnpm exec drizzle-kit check`, `pnpm build`, `pnpm exec tsx -r dotenv/config scripts/verify-challenge-writes.ts`, `git diff --check`, and local route regressions through `pnpm dev`.
+
+### Current blocker
+
+None.
+
+### Next action
+
+Wait for final human approval of Phase 4. After approval, proceed with Phase 5.1 — Applications only.
 
 ## 2026-08-16
 
@@ -2010,7 +2077,7 @@ None.
 
 ### Next action
 
-After human approval of Phase 4.3, proceed with Phase 4.4 — Challenge Write Operations only. Do not begin later Phase 4/5 checkpoints unless explicitly requested.
+After final human approval of Phase 4, proceed with Phase 5.1 — Applications only. Do not begin later Phase 5 checkpoints unless explicitly requested.
 
 ## 2026-08-15
 
