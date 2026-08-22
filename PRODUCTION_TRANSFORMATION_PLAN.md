@@ -3,7 +3,7 @@
 **Repository:** `VinUni-SolutionStudio-OFFICIAL`
 **Project:** VinUniversity Solution Studio / AI-in-Action Platform
 **Last updated:** 2026-08-22
-**Current phase:** Phase 5.3 Offers complete / ready for human review before Phase 5.4
+**Current phase:** Phase 5.4 Workspace complete / ready for human review before Phase 5.5
 
 ---
 
@@ -141,7 +141,7 @@ VinUni-SolutionStudio-OFFICIAL/
 | Phase 2 | Audit MVP + reconcile with ERD → Drizzle schema + migrations | ✅ Complete |
 | Phase 3 | Reconciled static mock data → production-valid database seed | ✅ Complete / human review complete |
 | Phase 4 | Challenge marketplace → real DB | ✅ Complete / human review complete |
-| Phase 5 | Applications, assessments, offers, workspace → real DB | 🚧 Phase 5.3 complete / human review pending |
+| Phase 5 | Applications, assessments, offers, workspace → real DB | 🚧 Phase 5.4 complete / human review pending |
 | Phase 6 | Authentication + RBAC | ⬜ Not started |
 | Phase 7 | Skill + semantic matching | ⬜ Not started |
 | Phase 8 | Production deployment | ⬜ Not started |
@@ -1442,12 +1442,21 @@ canonical seed, including `app-route` as the pending offer scenario.
 
 ## 5.4 Workspace
 
-- [ ] Define workspace-backed entities
-- [ ] Persist project membership
-- [ ] Persist project status
-- [ ] Persist relevant project metadata
-- [ ] Replace workspace mock state
-- [ ] Define visibility by role
+- [x] Define workspace-backed entities
+- [x] Persist project membership
+- [x] Persist project status
+- [x] Persist relevant project metadata
+- [x] Replace workspace mock state
+- [x] Define visibility by role
+
+Phase 5.4 is COMPLETE / READY FOR HUMAN REVIEW. `/workspace` and
+`/workspace/[applicationId]` now use the PostgreSQL project query/service path,
+the normalized `project_members`, milestones, deliverables, milestone reviews,
+and resources. Workspace access is enforced by explicit development actor
+contexts before Phase 6: project member, authoritative project supervisor, or
+appropriate active owner/managing-organization membership. Agreement-gated
+student resources require a current accepted agreement. No workspace write,
+schema, migration, or seed change was introduced.
 
 ## 5.5 Transaction boundaries
 
@@ -1735,7 +1744,7 @@ project files
 ## Current status
 
 **Current phase:** Phase 5 — Applications, Assessments, Offers, Workspace → Real DB
-**Active next checkpoint:** Phase 5.4 — Workspace, after Phase 5.3 human review
+**Active next checkpoint:** Phase 5.5 — Transaction boundaries, after Phase 5.4 human review
 
 ### Latest completed work
 

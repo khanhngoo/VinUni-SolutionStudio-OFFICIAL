@@ -4,3 +4,4 @@ export * from "./application-policy";
 export * from "./application.service";
 export * from "./assessment.service";
 export * from "./offer.service";
+export * from "./workspace.service";
