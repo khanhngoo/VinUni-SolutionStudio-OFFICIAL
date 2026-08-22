@@ -3,7 +3,7 @@
 **Repository:** `VinUni-SolutionStudio-OFFICIAL`
 **Project:** VinUniversity Solution Studio / AI-in-Action Platform
 **Last updated:** 2026-08-22
-**Current phase:** Phase 4.4 Challenge Write Operations complete / ready for final Phase 4 human approval
+**Current phase:** Phase 5.1 Applications complete / ready for human review before Phase 5.2
 
 ---
 
@@ -140,8 +140,8 @@ VinUni-SolutionStudio-OFFICIAL/
 | Phase 1 | Database infrastructure | ✅ Complete |
 | Phase 2 | Audit MVP + reconcile with ERD → Drizzle schema + migrations | ✅ Complete |
 | Phase 3 | Reconciled static mock data → production-valid database seed | ✅ Complete / human review complete |
-| Phase 4 | Challenge marketplace → real DB | ✅ Complete / ready for final human approval |
-| Phase 5 | Applications, assessments, offers, workspace → real DB | ⬜ Not started |
+| Phase 4 | Challenge marketplace → real DB | ✅ Complete / human review complete |
+| Phase 5 | Applications, assessments, offers, workspace → real DB | 🚧 Phase 5.1 complete / human review pending |
 | Phase 6 | Authentication + RBAC | ⬜ Not started |
 | Phase 7 | Skill + semantic matching | ⬜ Not started |
 | Phase 8 | Production deployment | ⬜ Not started |
@@ -1361,17 +1361,34 @@ Move the rest of the main workflow from static/mock state into PostgreSQL.
 
 ## 5.1 Applications
 
-- [ ] Create application query module
-- [ ] Create application service
-- [ ] Submit application
-- [ ] Prevent duplicate application
-- [ ] Validate challenge availability
-- [ ] Validate deadline
-- [ ] Validate student eligibility
-- [ ] Store application status history if required by ERD
-- [ ] Query applications by student
-- [ ] Query applications by challenge
-- [ ] Query applications for faculty/partner/admin views
+- [x] Create application query module
+- [x] Create application service
+- [x] Submit application
+- [x] Prevent duplicate application
+- [x] Validate challenge availability
+- [x] Validate deadline
+- [x] Validate student eligibility
+- [x] Store application status history if required by ERD: not required by frozen ERD v1; no status-history table was added
+- [x] Query applications by student
+- [x] Query applications by challenge
+- [x] Query applications for faculty/partner/admin views
+
+### Phase 5.1 actual results
+
+- Added PostgreSQL-backed application read queries in `src/db/queries/applications.ts` and exported them through `src/db/queries/index.ts`.
+- Added application mutation helpers in `src/db/mutations/applications.ts` and exported them through `src/db/mutations/index.ts`.
+- Added `src/services/application.service.ts` and `src/services/application-policy.ts` as the server-side application business/access boundary.
+- Added `docs/database/application-runtime-path.md` documenting application runtime architecture, access policy, submission policy, team invariants, lifecycle boundaries, verification, and deferred UI/downstream work.
+- Added `scripts/verify-application-runtime.ts` for rollback-based runtime verification against the compact Phase 3 seed data.
+- Implemented reads by student, challenge slug, application public ID, and current-student challenge membership lookup.
+- Implemented application creation as one transaction that inserts `applications.status = SUBMITTED`, the accepted leader member, and accepted/invited teammate rows.
+- Enforced server-side actor ownership for `submitted_by`; clients cannot supply authoritative actor, `submitted_by`, inviter, or internal student/user IDs.
+- Enforced challenge availability, server-side deadline checks, leader eligibility, team-size bounds, duplicate member prevention, duplicate challenge-application prevention, and committed-hours validation.
+- Preserved the frozen ERD v1 application/team model: one `applications` row plus normalized `application_members`; no separate solo/team/provider application tables were introduced.
+- Kept `application_projects` unused because transcript/portfolio evidence conversion remains intentionally deferred.
+- Kept assessment writes, selection/offer writes, agreement writes, project/workspace writes, matching, authentication/RBAC, notifications, and audit flows deferred to later checkpoints.
+- Existing application-related UI routes remain on static fixtures in Phase 5.1 because they currently mix application state with assessment, offer, project, meeting, milestone, and workspace fixture data.
+- Verification passed with Phase 3 counts preserved: `applications = 8`, `application_members = 18`, `application_projects = 0`, `supervision_requests = 1`, `assessments = 2`, `assessment_attempts = 2`, `assessment_scores = 2`, `assessment_responses = 0`, `selections = 5`, `offers = 5`, `agreements = 5`, `projects = 4`, and `match_results = 0`.
 
 ## 5.2 Assessments
 
@@ -1685,8 +1702,8 @@ project files
 
 ## Current status
 
-**Current phase:** Phase 4 — Challenge Marketplace → Real DB
-**Active next checkpoint:** Phase 5.1 — Applications, after final Phase 4 human approval
+**Current phase:** Phase 5 — Applications, Assessments, Offers, Workspace → Real DB
+**Active next checkpoint:** Phase 5.2 — Assessments, after Phase 5.1 human review
 
 ### Latest completed work
 
@@ -1742,7 +1759,15 @@ project files
 - Phase 4.4 preserves CAID/E-Lab organization separation, keeps approval separate from publish, and maps challenge review `REJECTED` decisions to the existing challenge status `CANCELLED` while recording the durable review decision.
 - Phase 4.4 includes rollback-based verification in `scripts/verify-challenge-writes.ts`; no seed rows are intentionally mutated by write verification.
 - Phase 4.4 documents the write path in `docs/database/challenge-write-path.md`.
-- Phase 4 is complete and ready for final human approval before Phase 5.1.
+- Phase 4 is complete and human reviewed.
+- Phase 5.1 is COMPLETE / READY FOR HUMAN REVIEW: application reads, application creation, application access policy, application mutation helpers, and rollback verification are implemented.
+- Phase 5.1 read APIs: `listApplicationsForStudent(...)`, `listApplicationsForChallenge(...)`, `getApplicationByPublicId(...)`, `getApplicationByChallengeAndStudent(...)`, and `countApplicationsForChallenge(...)`.
+- Phase 5.1 service APIs: `getDevelopmentApplicationActor(...)`, `listMyApplications(...)`, `getApplicationDetail(...)`, `listChallengeApplications(...)`, `getMyApplicationForChallenge(...)`, and `createApplication(...)`.
+- Phase 5.1 creates submitted applications transactionally with normalized `application_members`, exactly one accepted leader, accepted/invited non-leader members, per-application committed hours, motivation, optional relevant experience, and optional team name.
+- Phase 5.1 validates server-side actor ownership, challenge availability, deadline, leader eligibility, team-size bounds, duplicate member emails, duplicate non-terminal challenge applications, and committed-hours values.
+- Phase 5.1 uses explicit development-only seeded actors for student/owner/managing-unit verification; real authentication and global RBAC remain Phase 6.
+- Phase 5.1 intentionally keeps existing application UI routes on static fixtures until the downstream assessment, offer, project/workspace, and auth checkpoints are ready to support full route migration.
+- Phase 5.1 documents the runtime path in `docs/database/application-runtime-path.md`.
 - Current application lifecycle distribution is `SUBMITTED = 1`, `ASSESSMENT = 0`, `SELECTION_PENDING = 1`, `SELECTED = 5`, `REJECTED = 1`, `WITHDRAWN = 0`.
 - Matching outputs, notifications, meetings, resource access services, and audit demo records remain unseeded.
 - ERD v1 remains frozen; later structural DB changes require a new reviewed schema change.
@@ -1777,6 +1802,8 @@ project files
 - Phase 4.4 rollback verification covers create, update, skill replacement, eligibility replacement, submit, invalid transition, unauthorized review, managing-unit approval, explicit publish, faculty routing, slug collision, unknown skill rollback, unrelated owner denial, and CAID/E-Lab cross-unit denial.
 - Phase 4.4 rollback verification confirms public table counts remain unchanged after write tests: `challenges = 8`, `challenge_skills = 26`, `challenge_eligibility_rules = 17`, `challenge_faculty_assignments = 14`, `challenge_reviews = 0`, `applications = 8`, `assessments = 2`, `selections = 5`, `offers = 5`, `projects = 4`, and `match_results = 0`.
 - Phase 4.4 local route regression confirms `/challenges`, `route-optimisation`, `merchant-churn-model`, and `demo-elab-venture-readiness-dashboard` still return HTTP `200` after write-path implementation and rollback verification.
+- Phase 5.1 rollback verification covers seeded solo/team application reads, student-member access, unrelated-student denial, owner/managing organization reads, CAID/E-Lab cross-unit denial, current-student challenge lookup, closed challenge rejection, deadline rejection, eligibility hard failure, below/within/above team-size checks, duplicate member rejection, duplicate challenge-application rejection, valid team creation, valid solo creation, rollback preservation, and no assessment/offer/project/matching write leakage.
+- Phase 5.1 rollback verification confirms public table counts remain unchanged after write tests: `applications = 8`, `application_members = 18`, `application_projects = 0`, `supervision_requests = 1`, `assessments = 2`, `assessment_attempts = 2`, `assessment_scores = 2`, `assessment_responses = 0`, `selections = 5`, `offers = 5`, `agreements = 5`, `projects = 4`, and `match_results = 0`.
 - Current reproducible seed counts:
 
 ```text
@@ -1829,9 +1856,9 @@ Full 45-domain-table pre-reset/post-reset/post-idempotency count equality is rec
 
 ## Immediate next task
 
-### Final Phase 4 approval, then Phase 5.1 — Applications
+### Phase 5.2 — Assessments, after Phase 5.1 human review
 
-Phase 4.4 introduced challenge write operations only, with server-side validation and transaction-safe multi-table writes. Do **not** begin Phase 5.1 until Phase 4 receives final human approval.
+Phase 5.1 introduced application read/write operations only, with server-side validation and transaction-safe normalized application-member writes. Do **not** begin Phase 5.2 until Phase 5.1 receives human review.
 
 Immediate sequence:
 
@@ -1856,25 +1883,31 @@ Phase 4.3 challenge marketplace UI migration ✅
         ↓
 Phase 4.4 challenge write operations ✅
         ↓
-Final Phase 4 human approval
+Final Phase 4 human approval ✅
         ↓
-Phase 5.1 applications
+Phase 5.1 applications ✅
+        ↓
+Phase 5.1 human review
+        ↓
+Phase 5.2 assessments
 ```
 
-### Immediate Phase 4.4 checklist
+### Immediate Phase 5.1 checklist
 
-- [x] Wait for human approval of Phase 4.3 marketplace UI migration
-- [x] Re-read the exact Phase 4.4 section in this plan before implementation
-- [x] Create challenge write service/API boundary
-- [x] Validate create/update server-side
-- [x] Use transactions for multi-table challenge writes and skill changes
-- [x] Do not migrate application, assessment, offer, project, matching, auth, or RBAC runtime flows unless explicitly requested
+- [x] Wait for final human approval of Phase 4
+- [x] Re-read the exact Phase 5.1 section in this plan before implementation
+- [x] Create application query module
+- [x] Create application service/API boundary
+- [x] Create application mutation helpers
+- [x] Submit applications transactionally
+- [x] Validate challenge availability, deadline, eligibility, duplicates, and team-size policy server-side
+- [x] Do not migrate assessment, offer, agreement, project, workspace, matching, auth, RBAC, notification, or audit runtime flows
 
 ### Immediate next checkpoint
 
-- [ ] Wait for final human approval of Phase 4.
-- [ ] After approval, proceed with Phase 5.1 — Applications only.
-- [ ] Do not begin applications, assessments, offers, projects, matching, authentication, RBAC, notifications, or audit writes before Phase 4 approval.
+- [ ] Wait for human review of Phase 5.1.
+- [ ] After review, proceed with Phase 5.2 — Assessments only.
+- [ ] Do not begin offers, agreements, projects, workspace, matching, authentication, RBAC, notifications, or audit writes before the relevant later checkpoint.
 
 ### Agent sequencing rule
 
@@ -1890,7 +1923,7 @@ Before each agent implementation task:
 
 ### Recommended next agent instruction
 
-After final human approval of Phase 4, proceed with Phase 5.1 — Applications only. Do not modify assessment runtime flows, offer runtime flows, project/workspace runtime flows, authentication, matching, notifications, audit demo records, or unrelated runtime paths unless explicitly requested.
+After human review of Phase 5.1, proceed with Phase 5.2 — Assessments only. Do not modify offer runtime flows, project/workspace runtime flows, authentication, matching, notifications, audit demo records, or unrelated runtime paths unless explicitly requested.
 
 ---
 
@@ -1902,6 +1935,16 @@ Use this section after each development session.
 
 ### Completed
 
+- Phase 5.1 Applications completed and ready for human review before Phase 5.2.
+- Added `src/db/queries/applications.ts` and exported application read queries through `src/db/queries/index.ts`.
+- Added `src/db/mutations/applications.ts` and exported application mutation helpers through `src/db/mutations/index.ts`.
+- Added `src/services/application.service.ts`, `src/services/application-policy.ts`, and application service exports through `src/services/index.ts`.
+- Implemented PostgreSQL-backed application reads by student, challenge, application public ID, and current-student challenge membership.
+- Implemented transactional application submission with server-owned `submitted_by`, normalized application members, exactly one accepted leader, accepted/invited non-leader members, optional team name, motivation, relevant experience, and per-application committed hours.
+- Enforced server-side validation for student actor context, challenge availability, deadlines, leader eligibility, duplicate members, duplicate non-terminal challenge applications, team-size bounds, and committed-hours values.
+- Added `scripts/verify-application-runtime.ts` to exercise application reads/writes inside one rollback transaction and verify no downstream assessment, offer, project, or matching write leakage.
+- Added `docs/database/application-runtime-path.md` documenting Phase 5.1 architecture, read/write APIs, temporary actors, access policy, solo/team representation, lifecycle boundaries, verification, and deferred UI/downstream work.
+- Preserved Phase 5.1 scope: no schema, migration, seed, assessment write, selection/offer/agreement write, project/workspace write, matching, auth/RBAC, notification, or audit implementation was added.
 - Phase 4.4 Challenge Write Operations completed and ready for final Phase 4 human approval.
 - Added `src/db/mutations/challenges.ts` and `src/db/mutations/index.ts` as the challenge-domain mutation layer.
 - Added `src/services/challenge-write.service.ts` and exported challenge write APIs through `src/services/challenge.service.ts`.
@@ -1920,7 +1963,7 @@ None.
 
 ### Next action
 
-Wait for final human approval of Phase 4. After approval, proceed with Phase 5.1 — Applications only.
+Wait for human review of Phase 5.1. After review, proceed with Phase 5.2 — Assessments only.
 
 ## 2026-08-16
 
