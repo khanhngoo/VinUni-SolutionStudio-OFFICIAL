@@ -3,7 +3,7 @@
 **Repository:** `VinUni-SolutionStudio-OFFICIAL`
 **Project:** VinUniversity Solution Studio / AI-in-Action Platform
 **Last updated:** 2026-08-22
-**Current phase:** Phase 5.5 Transaction boundaries complete / ready for Phase 5 human review
+**Current phase:** Phase 6.1 Authentication architecture complete / ready for human review
 
 ---
 
@@ -141,8 +141,8 @@ VinUni-SolutionStudio-OFFICIAL/
 | Phase 2 | Audit MVP + reconcile with ERD → Drizzle schema + migrations | ✅ Complete |
 | Phase 3 | Reconciled static mock data → production-valid database seed | ✅ Complete / human review complete |
 | Phase 4 | Challenge marketplace → real DB | ✅ Complete / human review complete |
-| Phase 5 | Applications, assessments, offers, workspace → real DB | 🚧 Phase 5.4 complete / human review pending |
-| Phase 6 | Authentication + RBAC | ⬜ Not started |
+| Phase 5 | Applications, assessments, offers, workspace → real DB | ✅ Complete / human review complete |
+| Phase 6 | Authentication + RBAC | 🚧 Phase 6.1 complete / ready for human review |
 | Phase 7 | Skill + semantic matching | ⬜ Not started |
 | Phase 8 | Production deployment | ⬜ Not started |
 
@@ -1497,13 +1497,13 @@ Checklist:
 
 Replace assumed/static user roles with real identity and authorization.
 
-## 6.1 Authentication architecture
+## 6.1 Authentication architecture — COMPLETE / READY FOR HUMAN REVIEW
 
-- [ ] Select authentication provider/strategy
-- [ ] Determine VinUniversity SSO feasibility
-- [ ] Define development authentication approach
-- [ ] Define session strategy
-- [ ] Map authentication identity → `users`
+- [x] Select Auth.js with JWT/session-cookie strategy and Microsoft Entra ID OIDC for production
+- [x] Document VinUniversity SSO feasibility and institutional prerequisites
+- [x] Define a strict non-production seeded development authentication provider
+- [x] Add server-side session → existing `users` identity resolution
+- [x] Deny unmapped/inactive identities without auto-provisioning or token-based roles
 
 ## 6.2 Roles
 
@@ -1743,8 +1743,9 @@ project files
 
 ## Current status
 
-**Current phase:** Phase 5.5 — Transaction boundaries complete
-**Active next checkpoint:** Phase 5 human review, then Phase 6 authentication + RBAC
+**Current phase:** Phase 6.1 — Authentication architecture complete / ready for human review
+**Phase 5:** COMPLETE / HUMAN REVIEW COMPLETE
+**Active next checkpoint:** Phase 6.2 — Roles
 
 ### Latest completed work
 
@@ -1762,6 +1763,8 @@ project files
 - Phase 3.4 migration-from-zero verification recreated pgvector, 45 domain tables, 41 enums, 82 foreign keys, 35 PostgreSQL CHECK constraints, 11 partial indexes, and one Drizzle migration journal row.
 - Phase 3.4 seed-from-zero verification recreated the Phase 3.3 state exactly and a second seed run remained idempotent.
 - Phase 3.4 representative queries verified public/confidential challenge behavior, external owner + CAID manager, E-Lab owner = manager, canonical challenge-skill joins, eligibility rules, and faculty routing.
+- Phase 5 is COMPLETE / HUMAN REVIEW COMPLETE.
+- Phase 6.1 is COMPLETE / READY FOR HUMAN REVIEW: Auth.js JWT sessions, conditional tenant-specific Microsoft Entra ID OIDC, strict non-production seeded development identities, session-to-`users` resolution, and unmapped-user denial are implemented without schema, migration, seed, or domain-policy changes.
 - Downstream workflow records remain intentionally unseeded through Phase 3.4: applications, assessment history, selections/offers, agreements, projects/milestones/resources/feedback, and matching outputs remain zero.
 - Phase 3.5 is COMPLETE / HUMAN REVIEW COMPLETE: 8 compact applications, 18 application members, 0 application-project evidence links, and 1 pending supervision request are seeded.
 - Phase 3.5 application set: `app-triage`, `app-route`, `app-churn`, `app-outreach`, `app-supply`, `app-energy`, `app-archive`, and `papp-depot`.
@@ -1912,11 +1915,11 @@ Full 45-domain-table pre-reset/post-reset/post-idempotency count equality is rec
 
 ## Immediate next task
 
-### Phase 5.4 — Workspace, after Phase 5.3 human review
+### Phase 6.2 — Roles
 
-Phase 5.3 introduced offer reads and team-level offer response only, with
-server-side authorization, lifecycle validation, and status-constrained writes.
-Do **not** begin Phase 5.4 until Phase 5.3 receives human review.
+Phase 6.1 authentication architecture is complete and ready for human review.
+Do not begin Phase 6.3 authorization enforcement before the Phase 6.2 role and
+capability checkpoint is completed and reviewed.
 
 Immediate sequence:
 
@@ -1953,29 +1956,25 @@ Phase 5.2 human review ✅
         ↓
 Phase 5.3 offers ✅
         ↓
-Phase 5.3 human review
+Phase 5.4 workspace ✅
         ↓
-Phase 5.4 workspace
+Phase 5 human review ✅
+        ↓
+Phase 6.1 authentication architecture ✅
+        ↓
+Phase 6.2 roles
 ```
 
-### Immediate Phase 5.3 checklist
+### Immediate Phase 6.2 checklist
 
-- [x] Wait for final human approval of Phase 4
-- [x] Wait for human review of Phase 5.2
-- [x] Re-read the exact Phase 5.3 section in this plan before implementation
-- [x] Create offer query module
-- [x] Create offer service/API boundary
-- [x] Create status-constrained offer mutation helper
-- [x] Migrate `/offer/**` route reads to PostgreSQL
-- [x] Implement accepted-leader accept/decline runtime
-- [x] Preserve offer snapshots and derived expiration
-- [x] Do not migrate agreement, project, workspace, matching, auth, RBAC, notification, or audit runtime flows
+- [ ] Re-read the exact Phase 6.2 section in this plan before implementation.
+- [ ] Validate role/capability concepts against profiles and active organization memberships.
+- [ ] Do not begin Phase 6.3 enforcement, global RBAC middleware, or broad domain-policy rewrites.
 
 ### Immediate next checkpoint
 
-- [ ] Wait for human review of Phase 5.3.
-- [ ] After review, proceed with Phase 5.4 — Workspace only.
-- [ ] Do not begin matching, authentication, RBAC, notifications, or audit writes before the relevant later checkpoint.
+- [ ] Phase 6.2 — Roles.
+- [ ] Do not begin Phase 6.3 authorization enforcement before the relevant review checkpoint.
 
 ### Agent sequencing rule
 
@@ -1991,7 +1990,7 @@ Before each agent implementation task:
 
 ### Recommended next agent instruction
 
-After human review of Phase 5.3, proceed with Phase 5.4 — Workspace only. Do not modify matching, authentication, notifications, audit demo records, or unrelated runtime paths unless explicitly requested.
+After human review of Phase 6.1, proceed with Phase 6.2 — Roles only. Do not implement Phase 6.3 authorization enforcement, matching, notifications, audit demo records, or unrelated runtime paths unless explicitly requested.
 
 ---
 
