@@ -7,6 +7,17 @@ Phase: 5.1 Applications
 
 Phase 5.1 establishes the PostgreSQL-backed runtime boundary for applications and team applications. It adds application read queries, application mutation helpers, application service/policy logic, and rollback verification.
 
+## Post-Phase-6 Apply-flow integration
+
+The `/challenges/[slug]/apply` route now consumes the Phase 5.1 runtime boundary.
+It redirects anonymous requests to sign-in, requires the server-resolved `STUDENT`
+capability, detects an existing application with `getMyApplicationForChallenge`, and
+submits through `createApplication` from a server action. The browser supplies only
+application content and teammate email addresses; the service derives the submitting
+leader from the authenticated actor and enforces availability, eligibility, team,
+deadline, and duplicate-application rules. The old static team wizard, draft control,
+and invitation-response presentation are not part of this runtime route.
+
 This phase does not migrate assessment submission, offer response, agreement acceptance, project/workspace writes, matching, authentication, global RBAC, notifications, audit logs, schema, migrations, or seed behavior.
 
 Implemented modules:
@@ -78,7 +89,7 @@ Current static application-related routes remain intentionally unmigrated in Pha
 
 | Area | Current source | Phase 5.1 classification |
 |---|---|---|
-| `/challenges/[id]/apply` | `src/lib/data/teams`, `src/lib/queries`, peers/current student | DEFER UI WIRING |
+| `/challenges/[id]/apply` | Phase 5.1 service + authenticated actor | MIGRATED post-Phase-6 |
 | `/workspace` | `src/lib/data/applications`, `src/lib/workspace` | DEFER until application UI adapter and workspace phases |
 | `/workspace/[applicationId]` | static application/project records | DEFER to project/workspace phases |
 | `/assessment/**` | static application + assessment state | DEFER to Phase 5.2 |

@@ -10,8 +10,8 @@ export function AssessmentSection() {
             Assessment details after application
           </p>
           <p className="text-meta text-ink-3 mt-1">
-            The application and assessment workflow remains a later database
-            migration checkpoint.
+            If an assessment is required, it becomes available after your
+            application progresses.
           </p>
         </div>
         <div className="bg-card border border-line rounded-card px-4 py-3.5">

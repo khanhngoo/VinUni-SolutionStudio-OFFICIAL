@@ -51,7 +51,7 @@ export default async function ChallengeDetailPage({
       <DetailHeader challenge={challenge} />
 
       <div className="mt-7">
-        <MarketplaceApplyPanel challenge={challenge} />
+        <MarketplaceApplyPanel actor={actor} challenge={challenge} />
       </div>
 
       <SummarySection challenge={challenge} />
