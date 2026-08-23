@@ -1,135 +1,158 @@
 import Link from "next/link";
-import { CompletenessPanel } from "@/components/profile/completeness-panel";
-import { CourseTable } from "@/components/profile/course-table";
-import { ExperienceList } from "@/components/profile/experience-list";
-import { ProfileRail } from "@/components/profile/profile-rail";
-import { TeamPreferences } from "@/components/profile/team-preferences";
-import { VerifiedMark } from "@/components/profile/verified-mark";
+import { asc, eq } from "drizzle-orm";
+import { redirect } from "next/navigation";
+
+import {
+  getAuthenticatedActor,
+  hasActorCapability,
+} from "@/auth/authenticated-actor";
 import { Chip } from "@/components/ui/chip";
 import { Section } from "@/components/ui/section";
-import { currentStudent } from "@/lib/data/student";
-import { experience } from "@/lib/data/transcript";
-import { formatDate } from "@/lib/dates";
-import { isRevealed } from "@/lib/pipeline";
-import { recentCourses, registrarCourses } from "@/lib/profile";
-import { getApplicationsWithChallenge } from "@/lib/queries";
-import { STAGE_LABELS } from "@/lib/types";
+import { db } from "@/db";
+import { skills, studentProfiles, studentSkills } from "@/db/schema";
 
-const COURSE_PREVIEW = 3;
+export const dynamic = "force-dynamic";
 
-/**
- * The student's own record. Two halves, and the line between them is the
- * point of the page: the registrar's data carries a verified mark and cannot
- * be edited here, everything else is the student's own account of themselves.
- */
-export default function ProfilePage() {
-  const student = currentStudent;
-  const preview = recentCourses(COURSE_PREVIEW);
-  const totalRegistrar = registrarCourses().length;
+export default async function ProfilePage() {
+  const resolution = await getAuthenticatedActor();
+  if (resolution.status !== "RESOLVED") redirect("/sign-in");
 
-  // Studio work is neither registrar data nor a claim — faculty and partner
-  // signed these milestones off inside the product, so it gets its own block.
-  const studio = getApplicationsWithChallenge().filter(({ application }) =>
-    isRevealed(application),
-  );
+  const { actor } = resolution;
+
+  if (!hasActorCapability(actor, "STUDENT")) {
+    return (
+      <div className="max-w-[720px] mx-auto px-6 sm:px-7 py-7 pb-16">
+        <h1>Profile unavailable</h1>
+        <p className="text-ink-2 mt-2">
+          Student profile details are available only to authenticated student accounts.
+        </p>
+        <Link className="inline-block font-semibold mt-4" href="/challenges">
+          Browse challenges
+        </Link>
+      </div>
+    );
+  }
+
+  const [profile, skillRows] = await Promise.all([
+    db
+      .select({
+        availableHoursPerWeek: studentProfiles.availableHoursPerWeek,
+        gpa: studentProfiles.gpa,
+        gpaScale: studentProfiles.gpaScale,
+        interests: studentProfiles.interests,
+        major: studentProfiles.major,
+        portfolioUrl: studentProfiles.portfolioUrl,
+        school: studentProfiles.school,
+        studyYear: studentProfiles.studyYear,
+      })
+      .from(studentProfiles)
+      .where(eq(studentProfiles.userId, actor.user.userId))
+      .limit(1),
+    db
+      .select({
+        canonicalName: skills.canonicalName,
+        rawSkillName: studentSkills.rawSkillName,
+      })
+      .from(studentSkills)
+      .leftJoin(skills, eq(skills.id, studentSkills.skillId))
+      .where(eq(studentSkills.studentId, actor.user.userId))
+      .orderBy(asc(skills.canonicalName), asc(studentSkills.rawSkillName)),
+  ]);
+
+  const student = profile[0];
+  if (!student) {
+    return (
+      <div className="max-w-[720px] mx-auto px-6 sm:px-7 py-7 pb-16">
+        <h1>Profile unavailable</h1>
+        <p className="text-ink-2 mt-2">
+          Your student profile is not configured yet.
+        </p>
+      </div>
+    );
+  }
+
+  const skillsForProfile = skillRows
+    .map((skill) => skill.canonicalName ?? skill.rawSkillName)
+    .filter((skill): skill is string => Boolean(skill));
 
   return (
-    <div className="max-w-[1080px] mx-auto px-6 sm:px-7 py-7 pb-16">
-      <div className="grid gap-8 lg:grid-cols-[212px_1fr]">
-        <ProfileRail student={student} />
+    <div className="max-w-[900px] mx-auto px-6 sm:px-7 py-7 pb-16">
+      <header className="border-b border-line pb-5">
+        <h1>{actor.user.fullName}</h1>
+        <p className="text-ink-2 mt-1">{actor.user.email}</p>
+        <p className="text-ink-2 mt-3">
+          {[student.major, student.school, student.studyYear ? `Year ${student.studyYear}` : null]
+            .filter(Boolean)
+            .join(" · ") || "Student profile"}
+        </p>
+      </header>
 
-        <div className="min-w-0">
-          <CompletenessPanel student={student} />
+      <div className="grid gap-7 lg:grid-cols-2 mt-7">
+        <Section title="Academic information">
+          <dl className="space-y-2 text-ink-2">
+            <ProfileFact label="School" value={student.school} />
+            <ProfileFact label="Major" value={student.major} />
+            <ProfileFact
+              label="Study year"
+              value={student.studyYear ? `Year ${student.studyYear}` : null}
+            />
+            <ProfileFact
+              label="GPA"
+              value={
+                student.gpa !== null && student.gpaScale !== null
+                  ? `${student.gpa.toFixed(2)} / ${student.gpaScale.toFixed(1)}`
+                  : null
+              }
+            />
+          </dl>
+        </Section>
 
-          <Section title="About">
-            {student.about ? (
-              <p className="text-ink-2">{student.about}</p>
-            ) : (
-              <p className="text-ink-3">
-                Nothing yet.{" "}
-                <Link href="/profile/edit" className="font-semibold">
-                  Write a short introduction
-                </Link>
-                .
-              </p>
-            )}
-          </Section>
-
-          <Section
-            title="How I work in teams"
-            aside={<Link href="/profile/edit">Edit</Link>}
-          >
-            <TeamPreferences student={student} />
-          </Section>
-
-          <Section
-            title="Subjects & grades"
-            aside={
-              <a href={student.transcriptUrl}>Transcript PDF ↓</a>
+        <Section title="Availability">
+          <ProfileFact
+            label="Available time"
+            value={
+              student.availableHoursPerWeek !== null
+                ? `${student.availableHoursPerWeek} hours per week`
+                : null
             }
-          >
-            <div className="bg-card border border-line rounded-card px-5 py-3">
-              <CourseTable courses={preview} />
-            </div>
-            <p className="text-meta text-ink-3 mt-2.5">
-              Showing {preview.length} of {totalRegistrar} · full record in the
-              registrar PDF · <VerifiedMark className="inline-flex">
-                synced {formatDate(student.recordSyncedAt)}
-              </VerifiedMark>
-            </p>
-          </Section>
-
-          <Section
-            title="Skills"
-            aside={<Link href="/profile/edit">+ Add</Link>}
-          >
-            <div className="flex flex-wrap gap-1.5">
-              {student.skills.map((skill) => (
-                <Chip key={skill}>{skill}</Chip>
-              ))}
-            </div>
-            <p className="text-meta text-ink-3 mt-2.5">
-              Self-reported — the university does not assess these.
-            </p>
-          </Section>
-
-          <Section
-            title="Experience"
-            aside={<Link href="/profile/edit">+ Add</Link>}
-          >
-            <ExperienceList entries={experience} />
-          </Section>
-
-          {studio.length > 0 ? (
-            <Section title="Solutions Studio work" aside="Delivered on this platform">
-              <ul className="flex flex-col gap-2.5">
-                {studio.map(({ application, challenge }) => (
-                  <li
-                    key={application.id}
-                    className="bg-card border border-line rounded-card p-4 flex items-start justify-between gap-3"
-                  >
-                    <div className="min-w-0">
-                      <Link
-                        href={`/workspace/${application.id}`}
-                        className="font-semibold text-ink hover:text-brand"
-                      >
-                        {challenge.title}
-                      </Link>
-                      <p className="text-meta text-ink-3 mt-0.5">
-                        {challenge.orgName ?? challenge.orgCategory}
-                        {application.project
-                          ? ` · started ${formatDate(application.project.startedAt)}`
-                          : ""}
-                      </p>
-                    </div>
-                    <Chip>{STAGE_LABELS[application.stage]}</Chip>
-                  </li>
-                ))}
-              </ul>
-            </Section>
-          ) : null}
-        </div>
+          />
+        </Section>
       </div>
+
+      <Section title="About">
+        <p className="text-ink-2">
+          {student.interests ?? "No introduction has been added yet."}
+        </p>
+      </Section>
+
+      <Section title="Skills">
+        {skillsForProfile.length > 0 ? (
+          <div className="flex flex-wrap gap-1.5">
+            {skillsForProfile.map((skill) => (
+              <Chip key={skill}>{skill}</Chip>
+            ))}
+          </div>
+        ) : (
+          <p className="text-ink-2">No skills have been added yet.</p>
+        )}
+      </Section>
+
+      {student.portfolioUrl ? (
+        <Section title="Portfolio">
+          <a href={student.portfolioUrl} rel="noreferrer" target="_blank">
+            Open portfolio
+          </a>
+        </Section>
+      ) : null}
+    </div>
+  );
+}
+
+function ProfileFact({ label, value }: { label: string; value: string | null }) {
+  return (
+    <div className="flex items-center justify-between gap-4">
+      <dt className="text-ink-3">{label}</dt>
+      <dd className="font-semibold text-ink">{value ?? "Not provided"}</dd>
     </div>
   );
 }

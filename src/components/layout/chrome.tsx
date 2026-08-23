@@ -1,6 +1,7 @@
 "use client";
 
 import { usePathname } from "next/navigation";
+import type { AuthenticatedPresentation } from "@/auth/authenticated-presentation";
 import { FacultyNavBar } from "@/components/layout/faculty-nav-bar";
 import { NavBar } from "@/components/layout/nav-bar";
 import { PartnerNavBar } from "@/components/layout/partner-nav-bar";
@@ -10,15 +11,21 @@ import { PartnerNavBar } from "@/components/layout/partner-nav-bar";
  * app surfaces (own auth in a real deployment) from the student marketplace,
  * so each gets its own header rather than a shared nav with role-based links.
  */
-export function Chrome({ children }: { children: React.ReactNode }) {
+export function Chrome({
+  children,
+  identity,
+}: {
+  children: React.ReactNode;
+  identity: AuthenticatedPresentation | null;
+}) {
   const pathname = usePathname();
 
   const header = pathname.startsWith("/faculty") ? (
-    <FacultyNavBar />
+    <FacultyNavBar identity={identity} />
   ) : pathname.startsWith("/partner") ? (
-    <PartnerNavBar />
+    <PartnerNavBar identity={identity} />
   ) : (
-    <NavBar />
+    <NavBar identity={identity} />
   );
 
   return (

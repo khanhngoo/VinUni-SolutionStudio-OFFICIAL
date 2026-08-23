@@ -1,6 +1,5 @@
 import Link from "next/link";
-import { currentFacultyId, getFacultyById } from "@/lib/data/faculty";
-import { initials } from "@/lib/data/student";
+import type { AuthenticatedPresentation } from "@/auth/authenticated-presentation";
 
 /** The VinUniversity chevron mark: navy left half, red right half. */
 function BrandMark({ className }: { className?: string }) {
@@ -17,9 +16,7 @@ function BrandMark({ className }: { className?: string }) {
  * marketplace (different auth, different audience), so it gets its own nav
  * rather than another link bolted onto the student `NavBar`.
  */
-export function FacultyNavBar() {
-  const faculty = getFacultyById(currentFacultyId);
-
+export function FacultyNavBar({ identity }: { identity: AuthenticatedPresentation | null }) {
   return (
     <header className="h-[60px] shrink-0 bg-brand border-b border-brand-deep">
       <div className="h-full px-7 flex items-center justify-between gap-6">
@@ -35,12 +32,12 @@ export function FacultyNavBar() {
           <span className="hidden sm:inline-flex h-[60px] items-center border-b-2 border-red font-semibold text-white">
             Queue
           </span>
-          {faculty ? (
+          {identity ? (
             <span
               className="w-7 h-7 rounded-full bg-brand-deep border border-white/25 text-white grid place-items-center text-[10px] font-semibold"
-              title={faculty.name}
+              title={identity.displayName}
             >
-              {initials(faculty.name)}
+              {identity.initials}
             </span>
           ) : null}
         </nav>

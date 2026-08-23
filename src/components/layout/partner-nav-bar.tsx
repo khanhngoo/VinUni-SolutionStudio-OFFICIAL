@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { currentOrganization } from "@/lib/data/organizations";
+import type { AuthenticatedPresentation } from "@/auth/authenticated-presentation";
 import { cn } from "@/lib/cn";
 
 /** The VinUniversity chevron mark: navy left half, red right half. */
@@ -24,9 +24,8 @@ function BrandMark({ className }: { className?: string }) {
  * as two views of one record. The squared org monogram — students get a round
  * personal avatar — carries the distinction instead.
  */
-export function PartnerNavBar() {
+export function PartnerNavBar({ identity }: { identity: AuthenticatedPresentation | null }) {
   const pathname = usePathname();
-  const org = currentOrganization();
 
   const links = [
     {
@@ -77,12 +76,14 @@ export function PartnerNavBar() {
               {link.label}
             </Link>
           ))}
-          <span
-            className="w-7 h-7 rounded-card bg-brand-deep text-white grid place-items-center text-[10px] font-semibold"
-            title={org.name}
-          >
-            {org.initials}
-          </span>
+          {identity ? (
+            <span
+              className="w-7 h-7 rounded-full bg-brand text-white grid place-items-center text-[10px] font-semibold"
+              title={identity.displayName}
+            >
+              {identity.initials}
+            </span>
+          ) : null}
         </nav>
       </div>
     </header>

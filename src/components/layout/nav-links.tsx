@@ -7,7 +7,7 @@ import { usePathname } from "next/navigation";
  * Only the link list needs the pathname, so the client boundary stops here —
  * the header, brand mark and avatar stay server-rendered.
  */
-export function NavLinks() {
+export function NavLinks({ authenticated }: { authenticated: boolean }) {
   const pathname = usePathname();
 
   const links = [
@@ -17,9 +17,10 @@ export function NavLinks() {
       // A challenge detail page is still "Challenges" (prefix match).
       active: pathname === "/challenges" || pathname.startsWith("/challenges/"),
     },
-    {
-      // The hub, not a single application — it is always somewhere to go, even
-      // with nothing active, so this link no longer disappears.
+    ...(authenticated ? [
+      {
+      // The hub, not a single application — authenticated users can always
+      // reach it even when they have no active project.
       href: "/workspace",
       label: "Your work",
       active:
@@ -30,6 +31,7 @@ export function NavLinks() {
       label: "Profile",
       active: pathname.startsWith("/profile"),
     },
+    ] : []),
   ];
 
   return (

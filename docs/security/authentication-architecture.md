@@ -46,6 +46,16 @@ so changing a browser form value cannot impersonate an arbitrary user.
 The standard Auth.js route exposes sign-in, sign-out, and session endpoints.
 The local `/sign-in` page uses the same session cookie boundary as Entra.
 
+## Post-Phase-6 E2E presentation integration
+
+The shared header receives a server-derived display model only after an Auth.js
+session resolves to an active user and `AuthenticatedActor`. Anonymous users
+receive no personal navigation or identity avatar and see a sign-in affordance.
+The personal `/profile` route is server-protected and reads the authenticated
+student's supported PostgreSQL profile and skills; it never falls back to a
+static development identity. Non-student actors receive a role-aware
+unavailable state instead of another user's student profile.
+
 ## Identity mapping and authorization boundary
 
 Provider identity is normalized conservatively (trim + lowercase) and matched
