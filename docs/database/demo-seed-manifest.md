@@ -85,7 +85,7 @@ The compact future DEMO workflow set is:
 
 | Scenario coverage | Selected future fixture |
 |---|---|
-| Public technical challenge | `route-optimisation` |
+| Canonical public marketplace challenge | `route-optimisation` |
 | Confidential partner challenge | `merchant-churn-model` |
 | Solo application / rejected assessment outcome | `app-triage` |
 | Team application with pending invite | `app-route` |
@@ -98,7 +98,7 @@ The compact future DEMO workflow set is:
 | Partner approval workflow | `papp-depot` |
 | Internal E-Lab-managed challenge | `demo-elab-venture-readiness-dashboard` |
 
-`multimodal-perception` is not used as the public technical challenge because `org-vinai` is excluded until organization classification is explicitly approved. `route-optimisation` preserves public technical coverage through deterministic partner `org-bencang`.
+`multimodal-perception` is not used as the public technical challenge because `org-vinai` is excluded until organization classification is explicitly approved. `route-optimisation` is the canonical `PUBLIC_PREVIEW` marketplace scenario, preserving deterministic public coverage through partner `org-bencang` while CAID remains its manager.
 
 ## Organizations Selected
 
@@ -248,7 +248,7 @@ Phase 3.3 seeds the challenge-side records needed by the compact scenario spine.
 | Stable slug | Source fixture | Owner organization | Managing organization | Contact user | Visibility | Confidentiality | Status |
 |---|---|---|---|---|---|---|---|
 | `merchant-churn-model` | `merchant-churn-model` | `org:demo-bencang` | `org:caid` | `user:contact-org-bencang` | `PRIVATE` | `HIGH_CONFIDENTIALITY` | `APPLICATIONS_OPEN` |
-| `route-optimisation` | `route-optimisation` | `org:demo-bencang` | `org:caid` | `user:contact-org-bencang` | `VINUNI_ONLY` | `STANDARD` | `APPLICATIONS_OPEN` |
+| `route-optimisation` | `route-optimisation` | `org:demo-bencang` | `org:caid` | `user:contact-org-bencang` | `PUBLIC_PREVIEW` | `STANDARD` | `APPLICATIONS_OPEN` |
 | `triage-protocol-review` | `triage-protocol-review` | `org:demo-health` | `org:caid` | `user:contact-org-health` | `VINUNI_ONLY` | `STANDARD` | `APPLICATIONS_OPEN` |
 | `community-health-outreach` | `community-health-outreach` | `org:demo-vhf` | `org:caid` | `user:contact-org-vhf` | `VINUNI_ONLY` | `STANDARD` | `APPLICATIONS_OPEN` |
 | `supply-chain-dashboard` | `supply-chain-dashboard` | `org:demo-bencang` | `org:caid` | `user:contact-org-bencang` | `VINUNI_ONLY` | `STANDARD` | `APPLICATIONS_OPEN` |
@@ -256,7 +256,7 @@ Phase 3.3 seeds the challenge-side records needed by the compact scenario spine.
 | `archive-digitisation` | `archive-digitisation` | `org:demo-heritage` | `org:caid` | `user:contact-org-heritage` | `VINUNI_ONLY` | `STANDARD` | `APPLICATIONS_OPEN` |
 | `demo-elab-venture-readiness-dashboard` | synthesized DEMO | `org:elab` | `org:elab` | `user:elab-admin-dev` | `VINUNI_ONLY` | `DEMO_INTERNAL` | `APPLICATIONS_OPEN` |
 
-`APPLICATIONS_OPEN` is the Phase 3.3 marketplace-ready status for seeded DEMO challenges. Public marketplace examples are visible to VinUni users through `VINUNI_ONLY`; the confidential merchant challenge remains discoverable only through the private/confidential path represented by the seed data.
+`APPLICATIONS_OPEN` is the Phase 3.3 marketplace-ready status for seeded DEMO challenges. `route-optimisation` is the canonical non-confidential `PUBLIC_PREVIEW` example for anonymous and external-partner marketplace coverage; the remaining ordinary marketplace fixtures are `VINUNI_ONLY`. The confidential merchant challenge remains discoverable only through the private/confidential path represented by the seed data.
 
 ### Field Mapping Conventions
 
@@ -265,6 +265,8 @@ Phase 3.3 seeds the challenge-side records needed by the compact scenario spine.
 - `challenges.expected_deliverables` is a newline bullet list from static challenge responsibilities.
 - `challenges.domain` is the comma-joined static `domainTags` list.
 - `application_deadline` uses the fixture deadline at Vietnam end-of-day represented as `16:59:00.000Z`.
+- Open standalone marketplace fixtures use fixed 2027 dates (`route-optimisation`: deadline `2027-08-27`, start `2027-09-06`; E-Lab readiness dashboard: deadline `2027-09-03`, start `2027-09-13`) so reset data remains deterministic and suitable for durable E2E coverage. Runtime availability always evaluates the real server clock; the seed does not pin or derive a runtime date.
+- Fixtures with seeded applications, assessments, selections, offers, or projects retain their historical dates when that lifecycle evidence is intentional; an expired deadline is not rewritten merely to make every seeded challenge current.
 - Static `Work-study` compensation maps to `compensation_type = OTHER` with `compensation_description = Work-study`.
 - Static `applicantCount`, `lockedBlocks`, assessment track/minutes, and interview format remain derived, deferred, or presentation-only and are not persisted in Phase 3.3.
 
