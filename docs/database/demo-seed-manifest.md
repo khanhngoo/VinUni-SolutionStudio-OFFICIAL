@@ -473,7 +473,7 @@ Phase 3.7 seeds only selected-application, durable offer, and individual agreeme
 
 | Application | Challenge | Source | `selected_by` | `selected_at` | Offer status | `respond_by` | `responded_by` | `responded_at` | Hours/week | Duration | Start date | NDA required |
 |---|---|---|---|---|---|---|---|---|---:|---:|---|---|
-| `app-route` | `route-optimisation` | `DIRECT_FIXTURE` | `user:contact-org-bencang` | `2026-07-26T08:00:00Z` | `PENDING` | `2026-07-28T16:00:00Z` | `NULL` | `NULL` | 10 | 10 | `2026-08-17` | true |
+| `app-route` | `route-optimisation` | `DIRECT_FIXTURE` | `user:contact-org-bencang` | `2026-07-26T08:00:00Z` | `PENDING` | `2027-07-28T16:00:00Z` | `NULL` | `NULL` | 10 | 10 | `2027-08-17` | true |
 | `app-supply` | `supply-chain-dashboard` | `DIRECT_FIXTURE` | `user:contact-org-bencang` | `2026-06-18T08:00:00Z` | `ACCEPTED` | `2026-06-21T12:00:00Z` | `user:stu-jordan-lee` | `2026-06-20T10:00:00Z` | 12 | 12 | `2026-06-22` | true |
 | `app-energy` | `campus-energy-audit` | `DIRECT_FIXTURE` | `user:contact-org-facilities` | `2026-04-05T08:00:00Z` | `ACCEPTED` | `2026-04-08T12:00:00Z` | `user:stu-jordan-lee` | `2026-04-07T10:00:00Z` | 6 | 14 | `2026-04-13` | false |
 | `app-archive` | `archive-digitisation` | `DIRECT_FIXTURE` | `user:contact-org-heritage` | `2025-12-18T08:00:00Z` | `ACCEPTED` | `2025-12-21T12:00:00Z` | `user:stu-jordan-lee` | `2025-12-20T10:00:00Z` | 6 | 16 | `2026-01-12` | false |
@@ -485,6 +485,8 @@ Offer response rules:
 - Accepted offers use `responded_by` = the accepted application leader.
 - External partner selections use the deterministic partner contact where available instead of defaulting every `selected_by` to CAID.
 - Offer expiration remains derived from `offers.status = PENDING` plus `respond_by`; no `EXPIRED` status is stored.
+- The `app-route` offer is the one canonical **live** PENDING scenario, kept open on purpose for durable E2E coverage. Its `respond_by`/`start_date` are fixed deterministic dates chosen far enough in the future (currently one calendar year past their original values) that they do not derive `EXPIRED` against the real server clock; they are not computed from `Date.now()` at seed time. `selected_at`/`created_at` remain historical issuance timestamps. All other offers are historical/terminal (`ACCEPTED`) and intentionally retain their original historical dates — an expired lifecycle record is not rewritten merely to look current. This mirrors the standalone-challenge convention above: open/live demo records use fixed future dates; historical lifecycle evidence stays historical.
+- Offer terms (`hours_per_week`, `duration`, `start_date`, compensation, NDA requirement) are independent negotiated snapshots and are not derived from the current challenge posting — see the table above, where every offer's hours/duration/start date differs from its own challenge's listed values. Realigning a pending offer's terms to a challenge's current posting is not required by, and must not be inferred from, temporal-coherence fixes; only forward-looking scheduling fields (`respond_by`, and `start_date` for the one live pending scenario) need to stay in the future.
 
 ### Agreement Mapping
 

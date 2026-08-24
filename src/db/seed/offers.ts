@@ -57,12 +57,19 @@ export const DEMO_SELECTION_OFFERS: SelectionOfferSeed[] = [
     selectedByUserKey: "user:contact-org-bencang",
     selectedAt: atUtc("2026-07-26T08:00:00.000Z"),
     createdAt: atUtc("2026-07-26T09:00:00.000Z"),
-    respondBy: atUtc("2026-07-28T16:00:00.000Z"),
+    // Live canonical PENDING scenario: respond_by/start_date are fixed one
+    // year past their original values so the offer stays open (not derived
+    // EXPIRED) for durable E2E coverage. Issuance timestamps (selectedAt,
+    // createdAt) remain historical; negotiated terms (hoursPerWeek,
+    // durationWeeks, compensationNote, ndaRequired) are intentionally
+    // independent of the challenge posting, consistent with every other
+    // seeded offer, and are left unchanged.
+    respondBy: atUtc("2027-07-28T16:00:00.000Z"),
     hoursPerWeek: 10,
     durationWeeks: 10,
     compensationNote: "Paid - stipend confirmed by the partner",
     ndaRequired: true,
-    startDate: "2026-08-17",
+    startDate: "2027-08-17",
     status: "PENDING",
     respondedByLeaderUserKey: null,
     respondedAt: null,

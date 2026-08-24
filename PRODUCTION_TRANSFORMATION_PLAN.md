@@ -2,8 +2,8 @@
 
 **Repository:** `VinUni-SolutionStudio-OFFICIAL`
 **Project:** VinUniversity Solution Studio / AI-in-Action Platform
-**Last updated:** 2026-08-22
-**Current phase:** Phase 6.3 Authorization complete / ready for human review
+**Last updated:** 2026-08-23
+**Current phase:** Phase 6 complete / ready for final human review — next checkpoint: Phase 6.5 — Local containerized development
 
 ---
 
@@ -31,6 +31,8 @@ ERD v1 → Drizzle schema → migrations
 Database-backed features
    ↓
 Authentication + RBAC
+   ↓
+Local containerized development
    ↓
 AI matching
    ↓
@@ -96,6 +98,7 @@ VinUni-SolutionStudio-OFFICIAL/
 │       ├── demo-seed-manifest.md          # compact DEMO scenario/fixture authority
 │       └── phase-3-seed-verification.md   # final Phase 3 verification artifact
 │
+├── Dockerfile                             # Phase 6.5 local development container (planned)
 ├── docker-compose.yml
 ├── drizzle.config.ts
 ├── .env
@@ -143,6 +146,7 @@ VinUni-SolutionStudio-OFFICIAL/
 | Phase 4 | Challenge marketplace → real DB | ✅ Complete / human review complete |
 | Phase 5 | Applications, assessments, offers, workspace → real DB | ✅ Complete / human review complete |
 | Phase 6 | Authentication + RBAC | ✅ Complete / ready for final human review |
+| Phase 6.5 | Local containerized development | ⬜ Not started |
 | Phase 7 | Skill + semantic matching | ⬜ Not started |
 | Phase 8 | Production deployment | ⬜ Not started |
 
@@ -1567,8 +1571,102 @@ deployment/later-work boundaries documented in `docs/security/security-baseline.
 - [x] RBAC is enforced server-side
 - [x] Unauthorized operations are blocked regardless of frontend UI state
 
-Phase 6 is COMPLETE / READY FOR FINAL HUMAN REVIEW. Next checkpoint: Phase 7.1
-— Structured skill matching.
+Phase 6 is COMPLETE / READY FOR FINAL HUMAN REVIEW. Next checkpoint: Phase 6.5
+— Local containerized development, then human review, then Phase 7.1 —
+Structured skill matching.
+
+---
+
+# 10.5. Phase 6.5 — Local Containerized Development
+
+## Goal
+
+Make local development reproducible as one containerized Docker Compose environment in which the Next.js application runs as a single `app` service alongside the existing `db` service, while fully preserving the current host-based `pnpm dev` workflow.
+
+Phase 6.5 is intentionally a small bounded checkpoint recorded before Phase 7. It covers **local development infrastructure only** and must not silently pull Phase 8 production deployment work forward.
+
+Both development workflows must work after this checkpoint:
+
+```bash
+# Fast host development (unchanged)
+pnpm dev
+
+# Fully containerized local development
+docker compose --profile app up --build
+```
+
+The `app` service lives behind an optional Compose profile so that bare `docker compose up -d` — used by `pnpm db:up` and inside `pnpm db:reset` — continues to start only `db`.
+
+## 6.5.1 Application development Dockerfile
+
+- [ ] Read the relevant guides under `node_modules/next/dist/docs/` before writing dev-server/container configuration; do not assume older Next.js conventions
+- [ ] Create a `Dockerfile` for the Next.js application's local development mode only
+- [ ] Base the image on Node 20 with pnpm provided through corepack, consistent with repository tooling
+- [ ] Install dependencies with pnpm inside the image/container
+- [ ] Run the Next.js development server bound so it is reachable from the host on port 3000
+- [ ] Do not add production hardening, multi-stage production builds, or standalone output in this phase
+- [ ] Do not copy `.env*` files or any secrets into image layers
+
+## 6.5.2 Compose `app` service
+
+- [ ] Update the existing `docker-compose.yml` (filename kept; see 6.5.6) to add an `app` service alongside the existing `db` service
+- [ ] Keep the Next.js application one service; do not split frontend/backend containers
+- [ ] Publish the application on host port 3000
+- [ ] Add `depends_on` with `condition: service_healthy` against the existing `pg_isready` db health check
+- [ ] Put `app` behind an optional Compose profile so bare `docker compose up -d` still starts only `db`
+- [ ] Verify `pnpm db:up`, `pnpm db:down`, `pnpm db:logs`, and `pnpm db:reset` behavior is unchanged
+
+## 6.5.3 Source bind mount and node_modules volume
+
+- [ ] Bind-mount the repository source into the `app` container
+- [ ] Use a separate named container volume for `node_modules` so host and container installs do not collide
+- [ ] Verify hot reload works through the bind mount under OrbStack
+- [ ] Document that `docker compose down -v` (run by `pnpm db:reset`) also removes the container `node_modules` volume; the cost is a dependency reinstall on next build/start, not data loss
+
+## 6.5.4 Environment wiring
+
+- [ ] Provide environment values to the `app` container at runtime (`env_file`/`environment`), never by baking secrets into the image
+- [ ] Point the in-container `DATABASE_URL` at the `db` service hostname (`db:5432`), not `localhost`, without breaking the host-workflow `localhost:5432` value
+- [ ] Update `.env.example` guidance to document the host form and the container form
+- [ ] Keep `.env*` gitignored; only `.env.example` remains committed
+
+## 6.5.5 Documented commands
+
+- [ ] Document containerized build, start, logs, stop, in-container migrations, and guarded seeding; expected shape to verify at implementation:
+
+```bash
+docker compose --profile app build
+docker compose --profile app up --build
+docker compose logs -f app
+docker compose --profile app down
+docker compose exec app pnpm db:migrate
+docker compose exec -e ALLOW_DB_SEED=true app pnpm db:seed
+```
+
+- [ ] Optionally add a `pnpm dev:docker` wrapper script for the containerized workflow
+- [ ] Update Section 16 (Development Command Reference) and `README.md` with the verified commands
+
+## 6.5.6 Existing guard/script compatibility
+
+- [ ] Keep the Compose filename `docker-compose.yml`; `scripts/db-reset.ts` validates that exact filename and must remain untouched and passing
+- [ ] Verify `pnpm db:reset` still resets, migrates, and seeds from zero with the `app` service defined
+- [ ] Verify host `pnpm dev` remains fully functional and unaffected
+
+## Phase 6.5 not in scope
+
+- Separate frontend/backend containers — the Next.js app remains one service
+- Production image hardening, HTTPS, managed DB networking, CI/CD, monitoring, WAF, or cloud deployment (Phase 8, unchanged)
+- Schema, migration, seed, auth, or Phase 7 changes
+
+## Phase 6.5 exit criteria
+
+- [ ] `docker compose --profile app up --build` serves the app on `localhost:3000` against the containerized database
+- [ ] Hot reload works through the source bind mount
+- [ ] Migrations and guarded seeding run from inside the container
+- [ ] Host `pnpm dev` and every existing `db:*` script behave exactly as before
+- [ ] No secrets are baked into image layers
+- [ ] Containerized commands are documented in Section 16 and `README.md`
+- [ ] Human review is completed before Phase 7.1 — Structured skill matching begins
 
 ---
 
@@ -1771,10 +1869,19 @@ project files
 
 **Current phase:** Phase 6 — COMPLETE / READY FOR FINAL HUMAN REVIEW
 **Phase 5:** COMPLETE / HUMAN REVIEW COMPLETE
-**Active next checkpoint:** Phase 7.1 — Structured skill matching
+**Active next checkpoint:** Phase 6.5 — Local containerized development (after final Phase 6 human review)
 
 ### Latest completed work
 
+- 2026-08-23 roadmap amendment: Phase 6.5 — Local containerized development is
+  recorded as a new bounded checkpoint between Phase 6 and Phase 7.1 (section
+  # 10.5): dev-mode application Dockerfile, `app` Compose service beside the
+  existing `db`, source bind mount with a separate container `node_modules`
+  volume, runtime environment wiring without baking secrets into images,
+  db-health-gated startup, documented containerized commands, and an optional
+  Compose profile preserving host `pnpm dev`. The Compose filename stays
+  `docker-compose.yml` so the `scripts/db-reset.ts` guard is untouched. Phase 8
+  production deployment scope is unchanged and not pulled forward.
 - Phase 6.4 is COMPLETE / READY FOR HUMAN REVIEW: Auth.js HTTPS cookie/session
   defaults and CSRF flow were verified without weakening localhost development;
   database-backed Server Actions retain framework same-origin checks and
@@ -1783,8 +1890,8 @@ project files
   audit-sensitive-operation, and Phase 8 dependency plans were documented in
   `docs/security/security-baseline.md`.
 - Phase 6 is COMPLETE / READY FOR FINAL HUMAN REVIEW. Phase 6.3 authorization
-  is COMPLETE / HUMAN REVIEW COMPLETE. The next checkpoint is Phase 7.1 —
-  Structured skill matching; Phase 7 has not begun.
+  is COMPLETE / HUMAN REVIEW COMPLETE. The next checkpoint is Phase 6.5 —
+  Local containerized development; Phase 7 has not begun.
 - Phase 1 local PostgreSQL 18 + pgvector infrastructure is complete and reproducible under OrbStack/Docker.
 - Phase 2 is complete: MVP audit/reconciliation, frozen ERD v1, 45-table/41-enum Drizzle implementation, constraints/indexes, version-controlled initial migration, pgvector enablement, and fresh migration replay are verified.
 - Phase 3.0 is COMPLETE / HUMAN REVIEW COMPLETE: `docs/database/seed-transformation-plan.md` defines the normalized BOOTSTRAP / REFERENCE / DEMO transformation strategy.
@@ -1952,11 +2059,13 @@ Full 45-domain-table pre-reset/post-reset/post-idempotency count equality is rec
 
 ## Immediate next task
 
-### Phase 6.2 — Roles
+### Phase 6.5 — Local containerized development
 
-Phase 6.1 authentication architecture is complete and ready for human review.
-Do not begin Phase 6.3 authorization enforcement before the Phase 6.2 role and
-capability checkpoint is completed and reviewed.
+Phase 6 (authentication + RBAC) is complete and awaiting final human review.
+After that review, the next implementation checkpoint is Phase 6.5 — Local
+containerized development (section # 10.5). Do not begin Phase 7.1 structured
+skill matching or any Phase 8 production deployment work before Phase 6.5 is
+completed and reviewed.
 
 Immediate sequence:
 
@@ -1999,19 +2108,33 @@ Phase 5 human review ✅
         ↓
 Phase 6.1 authentication architecture ✅
         ↓
-Phase 6.2 roles
+Phase 6.2 roles ✅
+        ↓
+Phase 6.3 authorization ✅
+        ↓
+Phase 6.4 security baseline ✅
+        ↓
+Final Phase 6 human review
+        ↓
+Phase 6.5 local containerized development
+        ↓
+Phase 6.5 human review
+        ↓
+Phase 7.1 structured skill matching
 ```
 
-### Immediate Phase 6.2 checklist
+### Immediate Phase 6.5 checklist
 
-- [ ] Re-read the exact Phase 6.2 section in this plan before implementation.
-- [ ] Validate role/capability concepts against profiles and active organization memberships.
-- [ ] Do not begin Phase 6.3 enforcement, global RBAC middleware, or broad domain-policy rewrites.
+- [ ] Re-read the exact Phase 6.5 section (# 10.5) in this plan before implementation.
+- [ ] Read the relevant Next.js guides under `node_modules/next/dist/docs/` before writing dev-server/container configuration.
+- [ ] Keep `docker-compose.yml` as the Compose filename; do not break the `scripts/db-reset.ts` guard.
+- [ ] Preserve host `pnpm dev` and all existing `db:*` script behavior unchanged.
+- [ ] Do not begin Phase 7.1 matching or Phase 8 production deployment work.
 
 ### Immediate next checkpoint
 
-- [ ] Phase 6.2 — Roles.
-- [ ] Do not begin Phase 6.3 authorization enforcement before the relevant review checkpoint.
+- [ ] Phase 6.5 — Local containerized development, after final Phase 6 human review.
+- [ ] Do not begin Phase 7.1 before Phase 6.5 human review is complete.
 
 ### Agent sequencing rule
 
@@ -2027,13 +2150,32 @@ Before each agent implementation task:
 
 ### Recommended next agent instruction
 
-After human review of Phase 6.1, proceed with Phase 6.2 — Roles only. Do not implement Phase 6.3 authorization enforcement, matching, notifications, audit demo records, or unrelated runtime paths unless explicitly requested.
+After final human review of Phase 6, proceed with Phase 6.5 — Local containerized development only. Do not implement Phase 7.1 matching, Phase 8 production deployment, schema, migration, seed, or auth changes, or unrelated runtime paths unless explicitly requested.
 
 ---
 
 # 15. Work Log
 
 Use this section after each development session.
+
+## 2026-08-23
+
+### Completed
+
+- Roadmap amendment: recorded Phase 6.5 — Local containerized development as a new bounded checkpoint between Phase 6 and Phase 7.1 (section # 10.5).
+- Scoped Phase 6.5 to a dev-mode application Dockerfile, an `app` Compose service beside the existing `db`, a source bind mount with a separate container `node_modules` volume, runtime environment wiring without baking secrets into images, db-health-gated startup, documented containerized commands, and an optional Compose profile preserving host `pnpm dev`.
+- Recorded the decision to keep `docker-compose.yml` as the Compose filename so the `scripts/db-reset.ts` safety guard remains untouched.
+- Recorded explicit non-scope: no frontend/backend container split, no production image hardening, HTTPS, managed DB networking, CI/CD, monitoring, WAF, or cloud deployment (Phase 8 unchanged), and no schema, migration, seed, auth, or Phase 7 changes.
+- Corrected stale plan status: the header current-phase line and the Section 14 upcoming-task block (previously still pointing at Phase 6.2) now reflect Phase 6 completion and the Phase 6.5 next checkpoint.
+- Documentation-only session: no application code, schema, migration, seed, Docker, or Compose files were changed.
+
+### Current blocker
+
+None.
+
+### Next action
+
+After final human review of Phase 6, implement Phase 6.5 — Local containerized development only. Do not begin Phase 7.1.
 
 ## 2026-08-22
 
