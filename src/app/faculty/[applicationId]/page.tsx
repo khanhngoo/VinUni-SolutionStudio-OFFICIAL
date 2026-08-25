@@ -1,28 +1,25 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
-import { InviteDecision } from "@/components/faculty/invite-decision";
-import { ProjectReview } from "@/components/faculty/project-review";
-import { MemberRow } from "@/components/team/member-row";
+import { notFound, redirect } from "next/navigation";
+
+import { getAuthenticatedActor } from "@/auth/authenticated-actor";
 import { Chip } from "@/components/ui/chip";
 import { Section } from "@/components/ui/section";
-import { currentFacultyId, getFacultyById } from "@/lib/data/faculty";
-import { formatDate } from "@/lib/dates";
-import { getAllApplicationIds } from "@/lib/queries";
-import { getPendingInvites, getSupervisedRow } from "@/lib/supervision";
-import { combinedHours, teamSize } from "@/lib/teams";
-import { STAGE_LABELS } from "@/lib/types";
+import { getFacultyApplicationDetail } from "@/services/faculty.service";
+import { getApplicationByPublicId } from "@/db/queries/applications";
+import { db } from "@/db";
 
-export function generateStaticParams() {
-  return getAllApplicationIds().map((applicationId) => ({ applicationId }));
+export const dynamic = "force-dynamic";
+
+function formatDate(date: Date | null) {
+  if (!date) return "—";
+  return date.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
 }
 
 /**
- * One application, seen by its faculty supervisor. What renders depends on the
- * relationship rather than the URL: a team that has only *nominated* this
- * faculty gets the accept/decline view with nothing from the project record,
- * because supervision hasn't been agreed and the brief is not theirs to read
- * yet. Anything else must be a confirmed supervision, or this is somebody
- * else's team and the page 404s.
+ * A confirmed project supervision relationship defers to `/workspace`, the
+ * authoritative production route for project state — this page only owns
+ * the pre-supervision "has this faculty member been asked to supervise?"
+ * relationship recorded in `supervision_requests`.
  */
 export default async function FacultyApplicationPage({
   params,
@@ -30,72 +27,63 @@ export default async function FacultyApplicationPage({
   params: Promise<{ applicationId: string }>;
 }) {
   const { applicationId } = await params;
-  const faculty = getFacultyById(currentFacultyId);
-  if (!faculty) notFound();
+  const resolution = await getAuthenticatedActor();
+  if (resolution.status !== "RESOLVED") redirect("/sign-in");
+  const facultyUserId = resolution.actor.facultyProfile?.userId;
+  if (!facultyUserId) redirect("/sign-in");
 
-  const pendingInvite = getPendingInvites(currentFacultyId).find(
-    (item) => item.application.id === applicationId,
-  );
-  const supervised = getSupervisedRow(currentFacultyId, applicationId);
+  const detail = await getFacultyApplicationDetail(facultyUserId, applicationId);
+  if (!detail) notFound();
+  if (detail.kind === "SUPERVISED_PROJECT") redirect(`/workspace/${detail.applicationPublicId}`);
 
-  if (!pendingInvite && !supervised) notFound();
-
-  const { application, challenge } = pendingInvite ?? supervised!;
-  const atCapacity = faculty.slotsUsed >= faculty.slotsTotal;
+  const { request } = detail;
+  const application = await getApplicationByPublicId(db, applicationId);
+  if (!application) notFound();
 
   return (
     <div className="max-w-[980px] mx-auto px-6 sm:px-7 py-7 pb-16">
       <nav className="text-meta text-ink-3">
-        <Link href="/faculty">Action queue</Link>
+        <Link href="/faculty">Faculty dashboard</Link>
         <span className="mx-1.5">›</span>
-        {challenge.title}
+        {application.challenge.title}
       </nav>
 
       <div className="flex flex-wrap gap-1.5 mt-3.5 mb-2.5">
-        <Chip variant={pendingInvite ? "warn" : "ok"}>
-          {pendingInvite ? "Supervision requested" : STAGE_LABELS[application.stage]}
+        <Chip variant={request.status === "PENDING" ? "warn" : request.status === "ACCEPTED" ? "ok" : "default"}>
+          Supervision request · {request.status}
         </Chip>
-        <Chip>{challenge.orgName ?? challenge.orgCategory}</Chip>
-        <Chip>{challenge.subType}</Chip>
-        <Chip>{challenge.colleges.join(" · ")}</Chip>
+        <Chip>{application.challenge.ownerOrganization.name}</Chip>
       </div>
 
-      <h1>{challenge.title}</h1>
+      <h1>{application.challenge.title}</h1>
       <p className="text-ink-2 mt-2">
-        {challenge.durationWeeks} weeks · {challenge.hoursPerWeek} h/wk per student ·
-        starts {formatDate(challenge.startDate)}
+        {application.teamName ?? "Unnamed team"} · requested {formatDate(request.requestedAt)}
+        {request.respondBy ? ` · respond by ${formatDate(request.respondBy)}` : ""}
       </p>
 
       <Section title="The team">
         <ul className="flex flex-col gap-2.5">
-          {application.team.members.map((member) => (
-            <MemberRow
-              key={member.studentId}
-              member={member}
-              trailing={<Chip>{member.role}</Chip>}
-            />
+          {application.members.map((member) => (
+            <li key={member.memberId.toString()} className="bg-card border border-line rounded-card px-4 py-3.5 flex items-center justify-between">
+              <div>
+                <p className="font-semibold text-ink">{member.fullName}</p>
+                <p className="text-meta text-ink-3 mt-0.5">{member.student.major ?? "Major unspecified"}</p>
+              </div>
+              <Chip>{member.memberRole}</Chip>
+            </li>
           ))}
         </ul>
-        <p className="text-meta text-ink-3 mt-2.5">
-          {application.team.name} · {teamSize(application.team)} confirmed ·{" "}
-          {combinedHours(application.team)} h/wk between them · applied{" "}
-          {formatDate(application.appliedAt)}
-        </p>
       </Section>
 
-      {pendingInvite ? (
-        <InviteDecision
-          item={pendingInvite}
-          faculty={faculty}
-          atCapacity={atCapacity}
-        />
-      ) : (
-        <ProjectReview
-          application={application}
-          challenge={challenge}
-          supervisorName={faculty.name}
-        />
-      )}
+      {request.comments ? (
+        <Section title="Comments">
+          <p className="text-ink-2">{request.comments}</p>
+        </Section>
+      ) : null}
+
+      <p className="text-meta text-ink-3 mt-7">
+        This request is read-only. No supervision-response action is available in this build.
+      </p>
     </div>
   );
 }

@@ -155,6 +155,22 @@ D3/D4 (static `/faculty` and `/partner` dashboards) remain open and out of scope
 
 ---
 
+## Pre-Phase-7 integration closure — Cluster B (2026-08-25)
+
+**D3 — migrated.** `/faculty` and `/faculty/[applicationId]` are now DB-backed. Root cause was that both routes rendered from `@/lib/data/faculty` and `@/lib/supervision` (static MVP fixtures) despite sitting behind the real Phase 6 `FACULTY` capability gate. Added `src/db/queries/faculty.ts` (reads `challenge_faculty_assignments`, `supervision_requests`, `faculty_profiles.max_active_supervisions`) and `src/services/faculty.service.ts` (`getFacultyDashboard`, `getFacultyApplicationDetail`), reusing the existing `listProjectCores`/`listProjectMilestones` project-read model rather than duplicating policy logic. Rewrote `src/app/faculty/page.tsx` and `src/app/faculty/[applicationId]/page.tsx` to read the authenticated actor's `facultyProfile.userId` (never a client-supplied or hardcoded faculty ID) and deleted the now-unused fixture-driven `src/components/faculty/*` (queue, invite-decision, project-review, and their dialogs — none had other importers).
+
+Domain semantics preserved: challenge-faculty assignments are shown as routing/review relationships, explicitly labelled "not active supervision"; supervision requests render read-only (no accept/decline — no production mutation exists for that lifecycle); active supervision is derived solely from `projects.faculty_supervisor_id`. `/faculty/[applicationId]` now only owns the pre-supervision "has this faculty been asked to supervise?" relationship (`supervision_requests`); a confirmed project-supervisor relationship redirects to the already-authoritative `/workspace/[applicationId]` instead of re-implementing its access policy. An unrelated application (no supervision request, no supervisor relationship) 404s even though the same faculty member has unrelated challenge assignments — assignment alone was verified not to leak project/application access.
+
+The "2 of 5 supervision slots" capacity line was kept, but is now real: `faculty_profiles.max_active_supervisions` is an authoritative seeded column (Pham = 5), and the numerator is a live count of `projects` rows where `faculty_supervisor_id` matches the actor. Fake feedback-due, approval, and invitation-count metrics were removed outright (no supporting production writes exist for any of them).
+
+Verified via Playwright (dev server, isolated sign-in/sign-out cycles) against the real dataset: anonymous → redirect to `/sign-in` on both routes; Jordan (student) → 404; Bến Cảng (partner) → 404; Faculty Pham → `/faculty` 200 showing exactly 2 supervised projects (app-supply ACTIVE 1/5 milestones, app-archive COMPLETED 3/3), 1 supervision request (app-outreach, PENDING), 4 challenge assignments — all cross-checked against a new focused verifier (`scripts/verify-faculty-runtime.ts`) hitting the same service functions directly against PostgreSQL, with matching counts. `/faculty/[applicationId]` for app-outreach (supervision request) renders read-only team/status detail with no action buttons; for app-supply (confirmed supervision) redirects to `/workspace/app-supply`; for app-energy (a different faculty member's project) returns a clean 404. No console errors, no failed requests, no repeated fetch loops observed across any of the above.
+
+No writes were added or exercised; no schema, seed, or auth changes were made. Regression run after the change: `verify-faculty-runtime` (new), `verify-authorization`, `verify-role-model`, `verify-auth-architecture`, `verify-workspace-runtime`, `verify-application-runtime` (all PASS, canonical seed counts unchanged: projects 4, supervisionRequests 1, feedback 0) · `tsc --noEmit` PASS · `pnpm lint` PASS · `pnpm db:check` PASS · `pnpm exec drizzle-kit check` PASS ("Everything's fine") · `pnpm build` PASS (Next.js 16.2.12, Turbopack).
+
+D4 (`/partner`) remains open and out of scope for this closure — Partner routes were explicitly excluded from Cluster B.
+
+---
+
 ## Recommendation before Phase 7
 
 **B — fix specific P0/P1/P2 items first**, grouped into two small clusters:
