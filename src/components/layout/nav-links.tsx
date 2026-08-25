@@ -7,7 +7,13 @@ import { usePathname } from "next/navigation";
  * Only the link list needs the pathname, so the client boundary stops here —
  * the header, brand mark and avatar stay server-rendered.
  */
-export function NavLinks({ authenticated }: { authenticated: boolean }) {
+export function NavLinks({
+  authenticated,
+  isInternalUnitMember = false,
+}: {
+  authenticated: boolean;
+  isInternalUnitMember?: boolean;
+}) {
   const pathname = usePathname();
 
   const links = [
@@ -32,6 +38,11 @@ export function NavLinks({ authenticated }: { authenticated: boolean }) {
       active: pathname.startsWith("/profile"),
     },
     ] : []),
+    // Nav visibility only — `/review` independently re-checks
+    // INTERNAL_UNIT_MEMBER on every page/action regardless of this link.
+    ...(isInternalUnitMember
+      ? [{ href: "/review", label: "Review", active: pathname.startsWith("/review") }]
+      : []),
   ];
 
   return (

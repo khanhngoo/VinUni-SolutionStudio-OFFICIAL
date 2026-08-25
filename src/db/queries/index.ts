@@ -4,3 +4,6 @@ export * from "./assessments";
 export * from "./faculty";
 export * from "./offers";
 export * from "./projects";
+export * from "./partner";
+export * from "./review";
+export * from "./skills";

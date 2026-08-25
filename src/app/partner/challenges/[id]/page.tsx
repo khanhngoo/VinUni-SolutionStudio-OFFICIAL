@@ -4,10 +4,24 @@ import { notFound, redirect } from "next/navigation";
 import { getAuthenticatedActor, hasActorCapability } from "@/auth/authenticated-actor";
 import { Chip } from "@/components/ui/chip";
 import { Section } from "@/components/ui/section";
+import { listActiveCanonicalSkills } from "@/db/queries/skills";
 import { formatDate as formatDateOnlyString } from "@/lib/dates";
 import { getPartnerChallengePage } from "@/services/partner.service";
 
+import { submitChallengeForReviewAction } from "./actions";
+import { ChallengeEditForm } from "./edit-form";
+
 export const dynamic = "force-dynamic";
+
+const EDITABLE_STATUSES = new Set(["DRAFT", "REVISION_REQUESTED"]);
+
+const ERROR_MESSAGES: Record<string, string> = {
+  CONFLICT: "That change conflicts with an existing challenge.",
+  FORBIDDEN: "Your account cannot make this change.",
+  INVALID_TRANSITION: "This challenge is not in an editable status right now.",
+  NOT_FOUND: "This challenge could not be found.",
+  VALIDATION_ERROR: "Please check the challenge details and try again.",
+};
 
 function formatDate(date: Date | null) {
   if (!date) return "—";
@@ -15,23 +29,23 @@ function formatDate(date: Date | null) {
 }
 
 /**
- * One owned challenge, read live from PostgreSQL: posted terms plus every
- * application against it. `getPartnerChallengePage` scopes both by the
+ * One owned challenge, read live from PostgreSQL: posted terms, applications
+ * against it, and — while editable — the live authoring form
+ * (`updateChallengeDraft` + canonical skill replacement +
+ * `submitChallengeForReview`). `getPartnerChallengePage` scopes both by the
  * actor's real EXTERNAL_PARTNER organization — a challenge/application
  * belonging to a different owner organization resolves to `null` here, the
  * same 404 shape as a nonexistent challenge, so no cross-partner metadata
  * leaks through this route.
- *
- * No selection/shortlist actions are wired here: no production mutation
- * exists yet for a partner to move an application between statuses, so the
- * pipeline is read-only.
  */
 export default async function PartnerChallengePage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ created?: string; error?: string; submitted?: string; updated?: string }>;
 }) {
-  const { id } = await params;
+  const [{ id }, query] = await Promise.all([params, searchParams]);
   const resolution = await getAuthenticatedActor();
   if (resolution.status !== "RESOLVED") redirect("/sign-in");
   if (!hasActorCapability(resolution.actor, "PARTNER_REPRESENTATIVE")) notFound();
@@ -40,6 +54,8 @@ export default async function PartnerChallengePage({
   if (!page) notFound();
 
   const { applications, canReadApplications, challenge } = page;
+  const isEditable = EDITABLE_STATUSES.has(challenge.status);
+  const canonicalSkills = isEditable ? await listActiveCanonicalSkills() : [];
 
   return (
     <div className="max-w-[1160px] mx-auto px-6 sm:px-7 py-7 pb-16">
@@ -63,7 +79,7 @@ export default async function PartnerChallengePage({
           </p>
         </div>
 
-        {challenge.slug ? (
+        {challenge.status !== "DRAFT" && challenge.slug ? (
           <Link
             href={`/challenges/${challenge.slug}`}
             className="inline-flex items-center justify-center h-9 px-4 rounded-card border border-line text-ink-2 font-medium hover:border-brand hover:text-brand"
@@ -72,6 +88,78 @@ export default async function PartnerChallengePage({
           </Link>
         ) : null}
       </div>
+
+      {query.created ? (
+        <Banner tone="ok">Draft created. Nothing has been submitted for review yet.</Banner>
+      ) : null}
+      {query.updated ? <Banner tone="ok">Changes saved.</Banner> : null}
+      {query.submitted ? <Banner tone="ok">Submitted for review.</Banner> : null}
+      {query.error ? (
+        <Banner tone="error">{ERROR_MESSAGES[query.error] ?? "Something went wrong."}</Banner>
+      ) : null}
+
+      {challenge.status === "REVISION_REQUESTED" ? (
+        <Section title="Revision requested">
+          {latestDecision(challenge.reviews) ? (
+            <div className="bg-card border border-line rounded-card p-4">
+              <p className="text-ink-2 leading-relaxed">
+                {latestDecision(challenge.reviews)?.comments ?? "No comment was left."}
+              </p>
+              <p className="text-meta text-ink-3 mt-2">
+                {formatDate(latestDecision(challenge.reviews)?.reviewedAt ?? null)}
+              </p>
+            </div>
+          ) : (
+            <p className="text-ink-2">
+              A revision was requested, but no review comment is on record.
+            </p>
+          )}
+        </Section>
+      ) : null}
+
+      {isEditable ? (
+        <Section title={challenge.status === "DRAFT" ? "Edit draft" : "Edit and resubmit"}>
+          <ChallengeEditForm
+            canonicalSkills={canonicalSkills}
+            initialSkills={challenge.skills.map((skill) => ({
+              canonicalName: skill.canonicalName,
+              // The picker only authors REQUIRED/PREFERRED (see Part A); an
+              // existing OPTIONAL row (not producible by this form) is
+              // shown pre-checked as REQUIRED, matching this form's own
+              // two-state selector.
+              requirementType: skill.requirementType === "PREFERRED" ? "PREFERRED" : "REQUIRED",
+            }))}
+            initialValues={{
+              description: challenge.description,
+              domain: challenge.domain ?? null,
+              durationWeeks: challenge.durationWeeks,
+              subtype: challenge.subtype,
+              summary: challenge.summary,
+              teamSizeMax: challenge.teamSizeMax,
+              teamSizeMin: challenge.teamSizeMin,
+              title: challenge.title,
+              weeklyHours: challenge.weeklyHours,
+            }}
+            slug={id}
+          />
+
+          <form action={submitChallengeForReviewAction} className="mt-5">
+            <input type="hidden" name="slug" value={id} />
+            <button
+              type="submit"
+              className="inline-flex items-center justify-center h-10 px-5 rounded-card border border-brand text-brand font-semibold hover:bg-brand hover:text-white"
+            >
+              Submit for review
+            </button>
+          </form>
+        </Section>
+      ) : (
+        <Section title="Lifecycle">
+          <p className="text-ink-2">
+            {lifecycleMessage(challenge.status)}
+          </p>
+        </Section>
+      )}
 
       <Section
         title="Applications"
@@ -189,8 +277,48 @@ export default async function PartnerChallengePage({
           </div>
         </div>
       </Section>
+
+      {challenge.reviews.length > 0 ? (
+        <Section title="Review history">
+          <ul className="flex flex-col gap-2.5">
+            {challenge.reviews.map((review, index) => (
+              <li key={index} className="bg-card border border-line rounded-card p-4">
+                <div className="flex items-center gap-2">
+                  <Chip variant={review.decision === "APPROVED" ? "ok" : undefined}>
+                    {review.decision.replaceAll("_", " ")}
+                  </Chip>
+                  <span className="text-meta text-ink-3">{formatDate(review.reviewedAt)}</span>
+                </div>
+                {review.comments ? (
+                  <p className="text-ink-2 mt-2 leading-relaxed">{review.comments}</p>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        </Section>
+      ) : null}
     </div>
   );
+}
+
+function latestDecision(reviews: { comments: string | null; decision: string; reviewedAt: Date | null }[]) {
+  return reviews.find((review) => review.decision === "REVISION_REQUESTED") ?? null;
+}
+
+function lifecycleMessage(status: string) {
+  switch (status) {
+    case "SUBMITTED":
+    case "UNDER_REVIEW":
+      return "Submitted for review. You cannot edit or review your own challenge while it is under review.";
+    case "APPROVED":
+      return "Approved by the managing unit. Only the managing unit can publish it.";
+    case "APPLICATIONS_OPEN":
+      return "Published. Students can now apply.";
+    case "CANCELLED":
+      return "This challenge was cancelled during review.";
+    default:
+      return `Current status: ${status.replaceAll("_", " ")}.`;
+  }
 }
 
 function sizeLabel(min: number | null, max: number | null) {
@@ -222,5 +350,19 @@ function EmptyRow({ children }: { children: React.ReactNode }) {
     <div className="border border-dashed border-line rounded-card py-8 px-6 text-center">
       <p className="text-ink-2">{children}</p>
     </div>
+  );
+}
+
+function Banner({ children, tone }: { children: React.ReactNode; tone: "error" | "ok" }) {
+  return (
+    <p
+      className={
+        tone === "ok"
+          ? "mt-4 border border-line bg-line-2 text-ink-2 rounded-card px-4 py-3"
+          : "mt-4 border border-red/40 bg-red/5 text-red rounded-card px-4 py-3"
+      }
+    >
+      {children}
+    </p>
   );
 }

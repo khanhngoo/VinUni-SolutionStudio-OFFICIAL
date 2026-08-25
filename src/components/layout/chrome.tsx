@@ -5,6 +5,7 @@ import type { AuthenticatedPresentation } from "@/auth/authenticated-presentatio
 import { FacultyNavBar } from "@/components/layout/faculty-nav-bar";
 import { NavBar } from "@/components/layout/nav-bar";
 import { PartnerNavBar } from "@/components/layout/partner-nav-bar";
+import { ReviewNavBar } from "@/components/layout/review-nav-bar";
 
 /**
  * Picks which portal's header to render. Faculty and partner are separate
@@ -24,6 +25,8 @@ export function Chrome({
     <FacultyNavBar identity={identity} />
   ) : pathname.startsWith("/partner") ? (
     <PartnerNavBar identity={identity} />
+  ) : pathname.startsWith("/review") ? (
+    <ReviewNavBar identity={identity} />
   ) : (
     <NavBar identity={identity} />
   );

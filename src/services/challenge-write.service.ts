@@ -1,3 +1,4 @@
+import type { AuthenticatedActor } from "@/auth/authenticated-actor";
 import { db } from "@/db";
 import {
   getChallengeWriteActorByEmail,
@@ -396,6 +397,41 @@ function toActorContext(
     memberships: actor.memberships,
     source,
     userId: actor.userId,
+  };
+}
+
+/**
+ * Adapter from the real Phase 6 session actor
+ * (`@/auth/authenticated-actor`'s `AuthenticatedActor`) to this service's
+ * older `ChallengeWriteActorContext` shape — mirrors
+ * `toApplicationActorContext` in `src/services/application.service.ts`.
+ *
+ * `organizationName` is set to an empty string: nothing in this file's
+ * authorization logic (`hasActiveMembership`, `assertOwnerCanWrite`,
+ * `assertManagingCanWrite`) reads it, only `organizationId`/`role`/`status`.
+ * `AuthenticatedActor.memberships` already contains only active memberships
+ * (`resolveAuthenticatedActor` filters `status = 'ACTIVE'` at the query),
+ * so `status` is always `"ACTIVE"` here.
+ *
+ * The browser runtime must use this adapter, never
+ * `getDevelopmentChallengeWriteActor` — that helper remains for rollback
+ * verifier scripts only.
+ */
+export function toChallengeWriteActorContext(
+  actor: AuthenticatedActor
+): ChallengeWriteActorContext {
+  return {
+    email: actor.user.email,
+    fullName: actor.user.fullName,
+    memberships: actor.memberships.map((membership) => ({
+      organizationId: membership.organizationId,
+      organizationName: "",
+      organizationType: membership.organizationType,
+      role: membership.role,
+      status: "ACTIVE",
+    })),
+    source: "AUTHENTICATED",
+    userId: actor.user.userId,
   };
 }
 

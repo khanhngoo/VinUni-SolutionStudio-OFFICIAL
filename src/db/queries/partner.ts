@@ -6,6 +6,7 @@ import {
   applicationMembers,
   applications,
   challengeEligibilityRules,
+  challengeReviews,
   challengeSkills,
   challenges,
   organizations,
@@ -69,11 +70,19 @@ export interface PartnerChallengeSkillRead {
   requirementType: typeof challengeSkills.$inferSelect["requirementType"];
 }
 
+export interface PartnerChallengeReviewRead {
+  comments: string | null;
+  decision: typeof challengeReviews.$inferSelect["decision"];
+  reviewedAt: Date | null;
+}
+
 export interface PartnerChallengeDetailRead {
   applicantCount: number;
   applicationDeadline: Date | null;
   compensationDescription: string | null;
   compensationType: NonNullable<ChallengeRow["compensationType"]>;
+  description: string;
+  domain: string | null;
   durationWeeks: number | null;
   eligibilitySummary: {
     minGpa: number | null;
@@ -82,6 +91,7 @@ export interface PartnerChallengeDetailRead {
   };
   managingOrganizationName: string;
   publicId: string;
+  reviews: PartnerChallengeReviewRead[];
   skills: PartnerChallengeSkillRead[];
   slug: string | null;
   startDate: string | null;
@@ -121,6 +131,8 @@ export async function getOwnedChallengeDetail(
       applicationDeadline: challenges.applicationDeadline,
       compensationDescription: challenges.compensationDescription,
       compensationType: challenges.compensationType,
+      description: challenges.description,
+      domain: challenges.domain,
       durationWeeks: challenges.durationWeeks,
       internalId: challenges.id,
       managingOrganizationName: managing.name,
@@ -149,7 +161,7 @@ export async function getOwnedChallengeDetail(
   const row = rows[0];
   if (!row) return null;
 
-  const [skillRows, eligibilityRows] = await Promise.all([
+  const [skillRows, eligibilityRows, reviewRows] = await Promise.all([
     database
       .select({
         canonicalName: skills.canonicalName,
@@ -166,6 +178,15 @@ export async function getOwnedChallengeDetail(
       })
       .from(challengeEligibilityRules)
       .where(eq(challengeEligibilityRules.challengeId, row.internalId)),
+    database
+      .select({
+        comments: challengeReviews.comments,
+        decision: challengeReviews.decision,
+        reviewedAt: challengeReviews.createdAt,
+      })
+      .from(challengeReviews)
+      .where(eq(challengeReviews.challengeId, row.internalId))
+      .orderBy(desc(challengeReviews.createdAt)),
   ]);
 
   return {
@@ -173,10 +194,13 @@ export async function getOwnedChallengeDetail(
     applicationDeadline: row.applicationDeadline,
     compensationDescription: row.compensationDescription,
     compensationType: row.compensationType ?? "NOT_SPECIFIED",
+    description: row.description,
+    domain: row.domain,
     durationWeeks: row.durationWeeks,
     eligibilitySummary: summarizeEligibility(eligibilityRows),
     managingOrganizationName: row.managingOrganizationName,
     publicId: row.publicId,
+    reviews: reviewRows,
     skills: skillRows,
     slug: row.slug,
     startDate: row.startDate,

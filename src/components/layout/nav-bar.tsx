@@ -28,7 +28,10 @@ export function NavBar({ identity }: { identity: AuthenticatedPresentation | nul
         </Link>
 
         <nav className="flex items-center gap-5 sm:gap-[22px]">
-          <NavLinks authenticated={identity !== null} />
+          <NavLinks
+            authenticated={identity !== null}
+            isInternalUnitMember={identity?.isInternalUnitMember ?? false}
+          />
           {identity ? (
             <>
               <span
