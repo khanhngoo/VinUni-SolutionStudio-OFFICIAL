@@ -186,3 +186,43 @@ export function daysInStage(application: Application): number {
   const entered = new Date(`${application.stageEnteredAt}T00:00:00Z`);
   return Math.round((TODAY.getTime() - entered.getTime()) / 86_400_000);
 }
+
+/**
+ * The database-backed shape of an application, as the pipeline components need
+ * it. Deliberately narrow: the components want a stage, a next action and
+ * somewhere to send the student, not a whole application record.
+ */
+export interface PipelineApplicationView {
+  nextAction: string | null;
+  nextActionDue: string | null;
+  offerRespondBy: string | null;
+  publicId: string;
+  stage: ApplicationStage;
+}
+
+/**
+ * The database twin of `ctaFor`. Kept beside it so the two stage-to-destination
+ * maps stay visibly in sync; when the mock half is finally deleted this is what
+ * remains.
+ */
+export function ctaForView(view: PipelineApplicationView): CtaTarget | null {
+  switch (view.stage) {
+    case "TEST_PENDING":
+      return { label: "Start assessment", href: `/assessment/${view.publicId}` };
+    case "TEST_SUBMITTED":
+      return { label: "View status", href: `/assessment/${view.publicId}/result` };
+    case "INVITED":
+      return {
+        label: view.offerRespondBy
+          ? `Respond · ${countdownLabel(view.offerRespondBy)} left`
+          : "Respond to your invitation",
+        href: `/offer/${view.publicId}`,
+      };
+    case "ACTIVE":
+    case "IN_REVIEW":
+    case "COMPLETED":
+      return { label: "Open workspace", href: `/workspace/${view.publicId}` };
+    default:
+      return null;
+  }
+}

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { SelectionTimeline } from "@/components/challenge/selection-timeline";
 import { Section } from "@/components/ui/section";
 import {
   challengeDeadlineKey,
@@ -11,10 +12,16 @@ import { deadlineLabel, isUrgent } from "@/lib/dates";
 
 interface MarketplaceApplyPanelProps {
   challenge: MarketplaceChallengeDetailModel;
+  /**
+   * -1 before applying, which renders every node as a preview of the process
+   * rather than pretending the student has entered it.
+   */
+  timelineNodeIndex?: number;
 }
 
 export function MarketplaceApplyPanel({
   challenge,
+  timelineNodeIndex = -1,
 }: MarketplaceApplyPanelProps) {
   const deadline = challengeDeadlineKey(challenge);
   const urgent = isUrgent(deadline);
@@ -56,10 +63,7 @@ export function MarketplaceApplyPanel({
 
       <Section title="Selection timeline">
         <div className="bg-card border border-line rounded-card px-5 py-6">
-          <p className="text-ink-2">
-            Apply, then sit the assessment. Partners review shortlisted teams
-            and send offers. Accept, and your workspace opens.
-          </p>
+          <SelectionTimeline currentNodeIndex={timelineNodeIndex} />
         </div>
       </Section>
     </>

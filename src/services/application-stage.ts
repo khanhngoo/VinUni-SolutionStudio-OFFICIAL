@@ -4,6 +4,7 @@ import type {
   ApplicationProjectSummary,
   ApplicationListItemRead,
 } from "@/db/queries/applications";
+import type { PipelineApplicationView } from "@/lib/pipeline";
 import type { ApplicationStage } from "@/lib/types";
 
 /**
@@ -100,4 +101,52 @@ function hasSubmittedAssessment(
   return (summaries ?? []).some(
     (summary) => summary.submittedAt !== null || summary.attemptStatus === "SUBMITTED"
   );
+}
+
+/**
+ * What the student owes next on an application, and by when.
+ *
+ * Derived rather than stored. The mock kept `nextAction` as free text on the
+ * row, which goes stale the moment any upstream status moves; here it is a pure
+ * function of the stage and the deadlines already on the offer and challenge.
+ */
+export function toPipelineView(
+  application: {
+    challenge: { applicationDeadline: Date | null };
+    offerSummary?: ApplicationOfferSummary | null;
+    publicId: string;
+  },
+  stage: ApplicationStage
+): PipelineApplicationView {
+  const respondBy = application.offerSummary?.respondBy ?? null;
+
+  return {
+    nextAction: NEXT_ACTION[stage],
+    nextActionDue: toIsoDate(
+      stage === "INVITED" ? respondBy : application.challenge.applicationDeadline
+    ),
+    offerRespondBy: respondBy?.toISOString() ?? null,
+    publicId: application.publicId,
+    stage,
+  };
+}
+
+const NEXT_ACTION: Record<ApplicationStage, string | null> = {
+  APPLIED: "Waiting on the partner to review applications",
+  SHORTLISTED: "Shortlisted — the assessment opens next",
+  TEST_PENDING: "Sit your assessment",
+  TEST_SUBMITTED: "Waiting on your assessment review",
+  INTERVIEW_SCHEDULING: "Book your interview",
+  INTERVIEW_SCHEDULED: "Attend your interview",
+  INVITED: "Respond to your invitation",
+  ACTIVE: "Keep your milestones moving",
+  IN_REVIEW: "Your final submission is under review",
+  COMPLETED: "Completed",
+  NOT_SELECTED: null,
+  WITHDRAWN: null,
+  EXPIRED: null,
+};
+
+function toIsoDate(value: Date | null): string | null {
+  return value ? value.toISOString().slice(0, 10) : null;
 }
