@@ -7,34 +7,11 @@ import { MarketplaceApplyPanel } from "@/components/challenge/marketplace-apply-
 import { SummarySection } from "@/components/challenge/summary-section";
 import { Section } from "@/components/ui/section";
 import { marketplaceContextForActor } from "@/lib/challenge-marketplace";
+import { lockedBlocksFor } from "@/lib/disclosure";
 import { getAuthenticatedActor } from "@/auth/authenticated-actor";
 import { getMarketplaceChallengeBySlug } from "@/services/challenge.service";
 
 export const dynamic = "force-dynamic";
-
-const MARKETPLACE_LOCKED_BLOCKS = [
-  {
-    id: "brief",
-    previewLines: 4,
-    title: "Full problem statement",
-    unlockCopy: "Unlocks when you're selected",
-    unlocksAt: "T3" as const,
-  },
-  {
-    id: "resources",
-    previewLines: 3,
-    title: "Resources & datasets",
-    unlockCopy: "Unlocks after you sign the NDA",
-    unlocksAt: "T3" as const,
-  },
-  {
-    id: "contact",
-    previewLines: 2,
-    title: "Poster contact",
-    unlockCopy: "Unlocks when you're selected",
-    unlocksAt: "T3" as const,
-  },
-];
 
 export default async function ChallengeDetailPage({
   params,
@@ -87,7 +64,7 @@ export default async function ChallengeDetailPage({
         aside="Hidden until you clear each gate"
       >
         <div className="flex flex-col gap-2.5">
-          {MARKETPLACE_LOCKED_BLOCKS.map((block) => (
+          {lockedBlocksFor(challenge).map((block) => (
             <LockedBlock key={block.id} block={block} />
           ))}
         </div>
