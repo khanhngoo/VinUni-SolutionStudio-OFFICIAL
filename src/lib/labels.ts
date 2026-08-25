@@ -54,6 +54,14 @@ export const MILESTONE_REVIEW_ROLE_LABELS = {
   MANAGING_ORGANIZATION: "Managing unit",
 } as const;
 
+export const ORGANIZATION_ROLE_LABELS = {
+  ADMIN: "Administrator",
+  PROJECT_MANAGER: "Project manager",
+  CONTACT_PERSON: "Partner contact",
+  REVIEWER: "Reviewer",
+  MEMBER: "Team member",
+} as const;
+
 export const RESOURCE_SENSITIVITY_LABELS = {
   PUBLIC: "Public",
   TEAM_ONLY: "Team only",
@@ -106,6 +114,9 @@ export const milestoneReviewDecisionLabel = (
 
 export const milestoneReviewRoleLabel = (v?: string | null, fallback = "—") =>
   lookup(MILESTONE_REVIEW_ROLE_LABELS, v, fallback);
+
+export const organizationRoleLabel = (v?: string | null, fallback = "—") =>
+  lookup(ORGANIZATION_ROLE_LABELS, v, fallback);
 
 export const resourceSensitivityLabel = (v?: string | null, fallback = "—") =>
   lookup(RESOURCE_SENSITIVITY_LABELS, v, fallback);

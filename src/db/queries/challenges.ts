@@ -23,6 +23,7 @@ import {
   challenges,
   challengeSkills,
   facultyProfiles,
+  organizationMemberships,
   organizations,
   projectMembers,
   projects,
@@ -190,10 +191,13 @@ export interface ChallengeDetail extends ChallengeListItem {
   assessmentSummary: ChallengeAssessmentSummaryRead | null;
   contactPerson: {
     displayName: string;
+    email: string | null;
+    roleLabel: string | null;
   } | null;
   description: string;
   eligibilityRules: ChallengeEligibilityRuleRead[];
   expectedDeliverables: string | null;
+  fullBrief: string | null;
   interviewFormat: string | null;
   facultyAssignments: ChallengeFacultyAssignmentRead[];
 }
@@ -209,6 +213,7 @@ interface BaseChallengeRow {
   domain: string | null;
   durationWeeks: number | null;
   expectedDeliverables: string | null;
+  fullBrief: string | null;
   interviewFormat: string | null;
   internalId: InternalChallengeId;
   managingOrganization: ChallengeOrganizationSummary;
@@ -433,6 +438,7 @@ async function selectBaseChallengeRows(
       domain: challenges.domain,
       durationWeeks: challenges.durationWeeks,
       expectedDeliverables: challenges.expectedDeliverables,
+      fullBrief: challenges.fullBrief,
       interviewFormat: challenges.interviewFormat,
       internalId: challenges.id,
       managingOrganizationIndustry: managingOrganization.industry,
@@ -490,6 +496,7 @@ async function selectBaseChallengeRows(
         domain: row.domain,
         durationWeeks: row.durationWeeks,
         expectedDeliverables: row.expectedDeliverables,
+        fullBrief: row.fullBrief,
         interviewFormat: row.interviewFormat,
         internalId: row.internalId,
         managingOrganization: organizationSummary({
@@ -547,6 +554,7 @@ async function selectBaseChallengeRowBySlug(slug: string) {
       domain: challenges.domain,
       durationWeeks: challenges.durationWeeks,
       expectedDeliverables: challenges.expectedDeliverables,
+      fullBrief: challenges.fullBrief,
       interviewFormat: challenges.interviewFormat,
       internalId: challenges.id,
       managingOrganizationIndustry: managingOrganization.industry,
@@ -603,6 +611,7 @@ async function selectBaseChallengeRowBySlug(slug: string) {
     domain: row.domain,
     durationWeeks: row.durationWeeks,
     expectedDeliverables: row.expectedDeliverables,
+    fullBrief: row.fullBrief,
     interviewFormat: row.interviewFormat,
     internalId: row.internalId,
     managingOrganization: organizationSummary({
@@ -745,9 +754,18 @@ async function selectContactPerson(challengeId: InternalChallengeId) {
   const rows = await db
     .select({
       displayName: users.fullName,
+      email: users.email,
+      roleLabel: organizationMemberships.role,
     })
     .from(challenges)
     .innerJoin(users, eq(users.id, challenges.contactPersonId))
+    .leftJoin(
+      organizationMemberships,
+      and(
+        eq(organizationMemberships.userId, users.id),
+        eq(organizationMemberships.organizationId, challenges.ownerOrganizationId)
+      )
+    )
     .where(eq(challenges.id, challengeId))
     .limit(1);
 
@@ -952,6 +970,7 @@ export async function getPublishedChallengeBySlug(
       ruleType: rule.ruleType,
     })),
     expectedDeliverables: row.expectedDeliverables,
+    fullBrief: row.fullBrief,
     interviewFormat: row.interviewFormat,
     facultyAssignments,
   };

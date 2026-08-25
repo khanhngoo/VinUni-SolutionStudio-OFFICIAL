@@ -6,7 +6,7 @@ import { resolveAuthenticatedUserByEmail } from "@/auth/authenticated-user";
 import { marketplaceContextForActor } from "@/lib/challenge-marketplace";
 import { toApplicationActorContext } from "@/services/application.service";
 import { getAssessmentPreflight, AssessmentError } from "@/services/assessment.service";
-import { listMarketplaceChallenges } from "@/services/challenge.service";
+import { getMarketplaceChallengeBySlug, listMarketplaceChallenges } from "@/services/challenge.service";
 import { getOfferDetail, OfferError } from "@/services/offer.service";
 import { getWorkspaceDetail, WorkspaceError } from "@/services/workspace.service";
 
@@ -29,6 +29,24 @@ async function main() {
   assert(anonymous.items.every((item) => item.visibility === "PUBLIC_PREVIEW"), "anonymous visibility leaked");
   assert(external.items.every((item) => item.visibility === "PUBLIC_PREVIEW"), "external partner gained VINUNI_ONLY visibility");
   assert(internal.items.length >= anonymous.items.length, "internal marketplace scope regressed");
+
+  // The full brief is T3 content — the payoff for being selected. No amount of
+  // browsing may reach it, whoever is browsing.
+  const BRIEFED_SLUG = "supply-chain-dashboard";
+  for (const [label, viewer] of [
+    ["anonymous", null],
+    ["external partner", partner],
+    ["internal student", jordan],
+  ] as const) {
+    const detail = await getMarketplaceChallengeBySlug(
+      BRIEFED_SLUG,
+      marketplaceContextForActor(viewer)
+    );
+    assert(
+      detail === null || detail.fullBrief === null,
+      `${label} viewer read the full brief from the marketplace`
+    );
+  }
 
   await expectError(() => getAssessmentPreflight(APP_CHURN, toApplicationActorContext(bao)), AssessmentError, "FORBIDDEN", "unrelated student assessment");
   assert(await getAssessmentPreflight(APP_CHURN, toApplicationActorContext(jordan)), "assessment owner denied");

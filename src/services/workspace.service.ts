@@ -119,3 +119,24 @@ function toListItem(project: ProjectCoreRead, milestones: Awaited<ReturnType<typ
   const next = milestones.find((milestone) => milestone.status !== "COMPLETED" && milestone.deadline !== null);
   return { applicationPublicId: project.application.publicId, challengeSlug: project.challenge.slug, challengeTitle: project.challenge.title, nextDeadline: next?.deadline ?? null, projectStatus: project.status, progress: { completed, total: milestones.length } };
 }
+
+/**
+ * Names only — no URLs, no credentials — of the resources waiting on a
+ * project, for the offer reveal.
+ *
+ * Returns empty when no project row exists yet, which is the normal case at
+ * offer time. The reveal says so rather than inventing rows: seeding fake
+ * resources to make the panel look fuller would put fictional material in
+ * front of a student about to sign an NDA over the real thing.
+ */
+export async function listRevealedResourceNames(
+  applicationPublicId: string,
+  actor: ApplicationActorContext
+): Promise<string[]> {
+  const core = await getProjectCoreByApplicationPublicId(db, applicationPublicId);
+  if (!core) return [];
+  if (!(await isProjectMember(db, core.id, actor.userId))) return [];
+
+  const resources = await listProjectResources(db, core.id);
+  return resources.map((resource) => resource.title);
+}

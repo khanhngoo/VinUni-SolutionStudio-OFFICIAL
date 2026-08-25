@@ -59,6 +59,13 @@ export const challenges = pgTable(
     expectedDeliverables: text("expected_deliverables"),
     /** How the partner runs the conversation after the assessment clears. */
     interviewFormat: varchar("interview_format", { length: 255 }),
+    /**
+     * The real problem statement, withheld until a student is selected. Lives
+     * on the challenge rather than the project because the offer reveal
+     * happens before any project row exists. Never serve this without going
+     * through `applyChallengeDetailDisclosure`.
+     */
+    fullBrief: text("full_brief"),
     durationWeeks: integer("duration_weeks"),
     weeklyHours: integer("weekly_hours"),
     teamSizeMin: integer("team_size_min"),

@@ -36,6 +36,12 @@ export interface ChallengeAccessOrganizationMembership {
 export interface ChallengeAccessContext {
   audience: ChallengeAccessAudience;
   facultyUserId?: ChallengeAccessId;
+  /**
+   * Set only by callers that have already checked this viewer holds a selected
+   * application on this challenge. Absent everywhere in the marketplace, so
+   * browsing cannot reach T3 content by accident.
+   */
+  hasSelectedApplication?: boolean;
   organizationMemberships?: ChallengeAccessOrganizationMembership[];
   userId?: ChallengeAccessId;
 }
@@ -232,13 +238,35 @@ export function applyChallengeDetailDisclosure(
 ): ChallengeDetail {
   const redacted = applyChallengeDisclosure(challenge, context);
 
-  if (!isHighConfidentialPrivateChallenge(redacted)) return redacted;
-  if (canAccessRestrictedChallengeFields(redacted, context)) return redacted;
+  // The full brief is T3 content: it is the payoff for being selected, and it
+  // is the one field on the detail that a partner would consider genuinely
+  // confidential. Withheld from everyone who has not earned it, independently
+  // of the high-confidentiality rules below — those govern who the poster is,
+  // not what the work actually involves.
+  const withBrief = canAccessFullBrief(redacted, context)
+    ? redacted
+    : { ...redacted, fullBrief: null };
+
+  if (!isHighConfidentialPrivateChallenge(withBrief)) return withBrief;
+  if (canAccessRestrictedChallengeFields(withBrief, context)) return withBrief;
 
   return {
-    ...redacted,
+    ...withBrief,
     contactPerson: null,
   };
+}
+
+/**
+ * Who may read the full brief. Everyone with a stake in running the challenge,
+ * plus — supplied by the caller — a student whose team has been selected. The
+ * marketplace never sets that flag, so browsing can never reveal it.
+ */
+export function canAccessFullBrief(
+  challenge: ChallengeAccessSubject,
+  context: ChallengeAccessContext = DEFAULT_CHALLENGE_ACCESS_CONTEXT
+) {
+  if (context.hasSelectedApplication === true) return true;
+  return canAccessRestrictedChallengeFields(challenge, context);
 }
 
 export function evaluateChallengeEligibility(

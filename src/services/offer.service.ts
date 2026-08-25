@@ -1,4 +1,7 @@
+import { and, eq, isNotNull, isNull } from "drizzle-orm";
+
 import { db } from "@/db";
+import { agreements } from "@/db/schema";
 import {
   getOfferByApplicationPublicId,
   getOfferMember,
@@ -240,4 +243,82 @@ function isTransaction(
 
 function notFound(message: string) {
   return new OfferError("NOT_FOUND", message);
+}
+
+/**
+ * Whether this individual has accepted the challenge NDA.
+ *
+ * Deliberately per-user, unlike the offer response itself, which the team
+ * leader gives on everyone's behalf. A leader accepting a place cannot waive
+ * their teammates' confidentiality obligations, so each member signs before
+ * restricted materials are released to them.
+ */
+export async function hasAcceptedChallengeNda(
+  applicationPublicId: string,
+  actor: ApplicationActorContext,
+  options: OfferServiceOptions = {}
+): Promise<boolean> {
+  const database = options.database ?? db;
+  const context = await loadOfferContext(applicationPublicId, actor, {
+    database,
+    now: options.now ?? new Date(),
+  });
+  if (!context) throw notFound("Offer was not found.");
+
+  const [row] = await database
+    .select({ id: agreements.id })
+    .from(agreements)
+    .where(
+      and(
+        eq(agreements.userId, actor.userId),
+        eq(agreements.challengeId, context.offer.challenge.id),
+        eq(agreements.agreementType, "NDA"),
+        isNotNull(agreements.acceptedAt),
+        isNull(agreements.revokedAt)
+      )
+    );
+
+  return Boolean(row);
+}
+
+/**
+ * Records this user's NDA acceptance. Only reachable once the team offer is
+ * accepted — signing before there is anything to protect would be theatre.
+ */
+export async function acceptChallengeNda(
+  applicationPublicId: string,
+  signature: string,
+  actor: ApplicationActorContext,
+  options: OfferServiceOptions = {}
+): Promise<void> {
+  if (signature.trim().length < 3) {
+    throw new OfferError("VALIDATION_ERROR", "A signature must be your full name.");
+  }
+
+  const database = options.database ?? db;
+  const now = options.now ?? new Date();
+
+  const context = await loadOfferContext(applicationPublicId, actor, {
+    database,
+    now,
+  });
+  if (!context) throw notFound("Offer was not found.");
+
+  if (context.offer.status !== "ACCEPTED") {
+    throw new OfferError(
+      "CONFLICT",
+      "The team offer must be accepted before the agreement can be signed."
+    );
+  }
+
+  if (await hasAcceptedChallengeNda(applicationPublicId, actor, options)) return;
+
+  await database.insert(agreements).values({
+    acceptedAt: now,
+    agreementType: "NDA",
+    agreementVersion: "v1",
+    applicationId: context.offer.application.id,
+    challengeId: context.offer.challenge.id,
+    userId: actor.userId,
+  });
 }

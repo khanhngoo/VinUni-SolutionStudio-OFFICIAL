@@ -39,6 +39,7 @@ interface DemoChallengeSeed {
   eligibilityRules: DemoChallengeEligibilityRuleSeed[];
   expectedDeliverables: string;
   facultyAssignments: string[];
+  fullBrief: string | null;
   interviewFormat: string;
   managingOrganizationKey: string;
   ownerOrganizationKey: string;
@@ -100,6 +101,7 @@ function minGpaRule(value: number): DemoChallengeEligibilityRuleSeed {
 
 export const DEMO_CHALLENGES: DemoChallengeSeed[] = [
   {
+    fullBrief: null,
     interviewFormat: "45-min MS Teams call with the data lead",
     sourceFixtureId: "merchant-churn-model",
     slug: "merchant-churn-model",
@@ -144,6 +146,7 @@ export const DEMO_CHALLENGES: DemoChallengeSeed[] = [
     facultyAssignments: ["user:fac-osei", "user:fac-pham"],
   },
   {
+    fullBrief: null,
     interviewFormat: "30-min MS Teams call with the operations manager",
     sourceFixtureId: "route-optimisation",
     slug: "route-optimisation",
@@ -185,6 +188,7 @@ export const DEMO_CHALLENGES: DemoChallengeSeed[] = [
     facultyAssignments: ["user:fac-pham", "user:fac-nguyen-k"],
   },
   {
+    fullBrief: null,
     interviewFormat: "45-min on-campus conversation with the supervising clinician",
     sourceFixtureId: "triage-protocol-review",
     slug: "triage-protocol-review",
@@ -225,6 +229,7 @@ export const DEMO_CHALLENGES: DemoChallengeSeed[] = [
     facultyAssignments: ["user:fac-vu"],
   },
   {
+    fullBrief: null,
     interviewFormat: "30-min MS Teams call with the programme director",
     sourceFixtureId: "community-health-outreach",
     slug: "community-health-outreach",
@@ -266,6 +271,8 @@ export const DEMO_CHALLENGES: DemoChallengeSeed[] = [
   },
   {
     interviewFormat: "45-min MS Teams call with the operations director",
+    fullBrief:
+      "The partner runs a regional distribution network of eleven warehouses feeding roughly 1,400 retail points across northern Vietnam. Inbound shipment data lands in four systems that were never designed to talk to each other: a legacy ERP, two warehouse management tools acquired with regional operators, and a spreadsheet process still used for cross-border freight.\n\nThe operational consequence is that nobody can answer, on any given morning, how much stock is genuinely in transit versus stalled at a depot. Planners compensate by over-ordering, which the finance team estimates ties up a material amount of working capital across the network.\n\nYour work is to build the first unified view. That means reconciling the four sources into a single warehouse schema, establishing which fields can be trusted from which system, and producing a forecast module that flags likely stockouts two weeks ahead. The dashboard is the visible deliverable, but the reconciliation logic underneath it is the part the partner will keep.\n\nYou will have direct access to eighteen months of historical shipment data under NDA, and a weekly slot with the analytics team. The partner has been explicit that they would rather have a defensible, well-documented model over a sophisticated one they cannot maintain after handover.",
     sourceFixtureId: "supply-chain-dashboard",
     slug: "supply-chain-dashboard",
     publicId: "33333333-3333-4333-8333-000000000005",
@@ -309,6 +316,8 @@ export const DEMO_CHALLENGES: DemoChallengeSeed[] = [
   },
   {
     interviewFormat: "30-min on-campus conversation with the facilities lead",
+    fullBrief:
+      "VinUniversity has committed to a measurable reduction in campus energy consumption, but the estimates it currently reports are extrapolated from a small number of building-level meters rather than measured directly.\n\nThis audit establishes the real baseline: what each building consumes, when, and how much of that is avoidable. The output feeds directly into the university's capital planning cycle, so the recommendations need to be costed, not just identified.",
     sourceFixtureId: "campus-energy-audit",
     slug: "campus-energy-audit",
     publicId: "33333333-3333-4333-8333-000000000006",
@@ -349,6 +358,8 @@ export const DEMO_CHALLENGES: DemoChallengeSeed[] = [
   },
   {
     interviewFormat: "30-min on-campus conversation with the head archivist",
+    fullBrief:
+      "The university's regional history collection exists only on paper, is consulted rarely because nobody can search it, and is deteriorating.\n\nThis project built the digitisation pipeline and the searchable front end that replaced it, along with the runbook the library uses to continue the work.",
     sourceFixtureId: "archive-digitisation",
     slug: "archive-digitisation",
     publicId: "33333333-3333-4333-8333-000000000007",
@@ -388,6 +399,7 @@ export const DEMO_CHALLENGES: DemoChallengeSeed[] = [
     facultyAssignments: ["user:fac-le", "user:fac-tran"],
   },
   {
+    fullBrief: null,
     interviewFormat: "30-min MS Teams call with an investment associate",
     sourceFixtureId: "synthesized-demo-elab-venture-readiness-dashboard",
     slug: "demo-elab-venture-readiness-dashboard",
@@ -446,6 +458,7 @@ async function ensureDemoChallenge(ctx: SeedContext, seed: DemoChallengeSeed) {
       domain: seed.domain,
       durationWeeks: seed.durationWeeks,
       expectedDeliverables: seed.expectedDeliverables,
+      fullBrief: seed.fullBrief,
       interviewFormat: seed.interviewFormat,
       managingOrganizationId: ctx.getId(seed.managingOrganizationKey),
       ownerOrganizationId: ctx.getId(seed.ownerOrganizationKey),
@@ -474,6 +487,7 @@ async function ensureDemoChallenge(ctx: SeedContext, seed: DemoChallengeSeed) {
         domain: seed.domain,
         durationWeeks: seed.durationWeeks,
         expectedDeliverables: seed.expectedDeliverables,
+        fullBrief: seed.fullBrief,
         interviewFormat: seed.interviewFormat,
         managingOrganizationId: ctx.getId(seed.managingOrganizationKey),
         ownerOrganizationId: ctx.getId(seed.ownerOrganizationKey),
