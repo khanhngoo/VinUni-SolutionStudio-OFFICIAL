@@ -5,7 +5,11 @@ import { Chip } from "@/components/ui/chip";
 import { LockIcon } from "@/components/ui/icons";
 import { getAuthenticatedActor } from "@/auth/authenticated-actor";
 import { toApplicationActorContext } from "@/services/application.service";
-import { getAssessmentPreflight } from "@/services/assessment.service";
+import {
+  AssessmentError,
+  getAssessmentPreflight,
+  type AssessmentPreflight,
+} from "@/services/assessment.service";
 import { startAssessmentForAuthenticatedActor } from "./actions";
 
 export const dynamic = "force-dynamic";
@@ -19,7 +23,13 @@ export default async function AssessmentPreflightPage({
   const resolution = await getAuthenticatedActor();
   if (resolution.status !== "RESOLVED") redirect("/sign-in");
   const actor = toApplicationActorContext(resolution.actor);
-  const preflight = await getAssessmentPreflight(applicationId, actor);
+  let preflight: AssessmentPreflight | null;
+  try {
+    preflight = await getAssessmentPreflight(applicationId, actor);
+  } catch (error) {
+    if (error instanceof AssessmentError && error.code === "FORBIDDEN") notFound();
+    throw error;
+  }
   if (!preflight) notFound();
 
   const startAction = startAssessmentForAuthenticatedActor.bind(
