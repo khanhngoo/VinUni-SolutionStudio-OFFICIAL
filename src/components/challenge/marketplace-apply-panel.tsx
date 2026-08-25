@@ -57,8 +57,8 @@ export function MarketplaceApplyPanel({
       <Section title="Selection timeline">
         <div className="bg-card border border-line rounded-card px-5 py-6">
           <p className="text-ink-2">
-            Application submission, assessment, offer, and workspace state are
-            still handled by the static MVP flows until Phase 5 migrates them.
+            Apply, then sit the assessment. Partners review shortlisted teams
+            and send offers. Accept, and your workspace opens.
           </p>
         </div>
       </Section>

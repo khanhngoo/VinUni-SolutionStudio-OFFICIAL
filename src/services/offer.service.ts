@@ -46,6 +46,7 @@ export interface OfferServiceDetail {
     managingOrganizationName: string;
     ownerOrganizationName: string;
     slug: string;
+    subtype: string | null;
     summary: string;
     title: string;
   };
@@ -166,6 +167,7 @@ function toServiceDetail(context: OfferContext, now: Date): OfferServiceDetail {
       managingOrganizationName: offer.challenge.managingOrganizationName,
       ownerOrganizationName: offer.challenge.ownerOrganizationName,
       slug: offer.challenge.slug,
+      subtype: offer.challenge.subtype,
       summary: offer.challenge.summary,
       title: offer.challenge.title,
     },

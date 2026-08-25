@@ -6,6 +6,7 @@ import { OfferFlow } from "@/components/offer/offer-flow";
 import { Chip } from "@/components/ui/chip";
 import { Section } from "@/components/ui/section";
 import { formatDate } from "@/lib/dates";
+import { offerStatusLabel } from "@/lib/labels";
 import { getAuthenticatedActor } from "@/auth/authenticated-actor";
 import { toApplicationActorContext } from "@/services/application.service";
 import { getOfferDetail } from "@/services/offer.service";
@@ -41,7 +42,7 @@ export default async function OfferPage({
 
       <div className="flex flex-wrap gap-1.5 mt-3.5 mb-2.5">
         <Chip variant="ok">Selected</Chip>
-        <Chip>{detail.offer.status}</Chip>
+        {detail.challenge.subtype ? <Chip>{detail.challenge.subtype}</Chip> : null}
         {detail.offer.terms.ndaRequired ? <Chip variant="warn">NDA required</Chip> : null}
       </div>
 
@@ -60,7 +61,7 @@ export default async function OfferPage({
           </p>
         </div>
         <div className="bg-card rounded-card px-4 py-2.5">
-          {detail.offer.isExpired ? <span className="font-semibold text-warn">Invitation lapsed</span> : detail.offer.status === "PENDING" && detail.offer.remainingHours !== null ? <OfferCountdown initialHours={detail.offer.remainingHours} /> : <span className="font-semibold text-ink">{detail.offer.status}</span>}
+          {detail.offer.isExpired ? <span className="font-semibold text-warn">Invitation lapsed</span> : detail.offer.status === "PENDING" && detail.offer.remainingHours !== null ? <OfferCountdown initialHours={detail.offer.remainingHours} /> : <span className="font-semibold text-ink">{offerStatusLabel(detail.offer.status)}</span>}
         </div>
       </div>
 
