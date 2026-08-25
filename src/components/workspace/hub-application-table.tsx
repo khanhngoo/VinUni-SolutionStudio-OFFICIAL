@@ -2,20 +2,20 @@ import Link from "next/link";
 import { Chip } from "@/components/ui/chip";
 import { ProgressBar } from "@/components/workspace/progress-bar";
 import { cn } from "@/lib/cn";
-import { STAGE_VARIANT } from "@/lib/pipeline";
-import type { ApplicationWithChallenge } from "@/lib/queries";
+import { deadlineLabel, isUrgent } from "@/lib/dates";
+import { ctaForView, STAGE_VARIANT } from "@/lib/pipeline";
 import { STAGE_LABELS } from "@/lib/types";
-import { hubCtaFor, hubDueFor, milestoneProgress } from "@/lib/workspace";
+import type { WorkspaceHubRow } from "@/services/workspace-hub.service";
 
 interface HubApplicationTableProps {
-  rows: ApplicationWithChallenge[];
+  rows: WorkspaceHubRow[];
   /** Live projects trade the stage chip for milestone progress. */
   showProgress?: boolean;
 }
 
 /**
  * One group of applications as table rows. Denser than a card grid, which
- * matters once a student is carrying eleven of them.
+ * matters once a student is carrying a dozen of them.
  */
 export function HubApplicationTable({
   rows,
@@ -25,28 +25,32 @@ export function HubApplicationTable({
     <table className="w-full border-collapse">
       <tbody>
         {rows.map((row) => {
-          const { application, challenge } = row;
-          const cta = hubCtaFor(row);
-          const due = hubDueFor(row);
-          const progress =
-            showProgress && application.project
-              ? milestoneProgress(application.project)
-              : null;
+          const cta = ctaForView({
+            nextAction: null,
+            nextActionDue: row.nextActionDue,
+            offerRespondBy: null,
+            publicId: row.publicId,
+            stage: row.stage,
+          });
+          const progress = showProgress ? row.progress : null;
+          const urgent = row.nextActionDue
+            ? isUrgent(row.nextActionDue)
+            : false;
 
           return (
             <tr
-              key={application.id}
+              key={row.publicId}
               className="border-b border-line-2 last:border-b-0"
             >
               <td className="py-2.5 pr-3 align-middle">
                 <Link
-                  href={`/challenges/${challenge.id}`}
+                  href={`/challenges/${row.challengeSlug}`}
                   className="font-medium text-ink hover:text-brand"
                 >
-                  {challenge.title}
+                  {row.challengeTitle}
                 </Link>
                 <p className="text-meta text-ink-3 mt-0.5">
-                  {challenge.orgName ?? challenge.orgCategory}
+                  {row.ownerOrganizationName}
                 </p>
               </td>
 
@@ -63,8 +67,8 @@ export function HubApplicationTable({
                     </span>
                   </span>
                 ) : (
-                  <Chip variant={STAGE_VARIANT[application.stage]}>
-                    {STAGE_LABELS[application.stage]}
+                  <Chip variant={STAGE_VARIANT[row.stage]}>
+                    {STAGE_LABELS[row.stage]}
                   </Chip>
                 )}
               </td>
@@ -73,19 +77,19 @@ export function HubApplicationTable({
                 <span
                   className={cn(
                     "text-meta whitespace-nowrap",
-                    due?.urgent ? "text-warn font-medium" : "text-ink-3",
+                    urgent ? "text-warn font-medium" : "text-ink-3"
                   )}
                 >
-                  {due ? due.label : "—"}
+                  {row.nextActionDue ? deadlineLabel(row.nextActionDue) : "—"}
                 </span>
               </td>
 
               <td className="py-2.5 align-middle w-[76px] text-right">
                 <Link
-                  href={cta.href}
+                  href={cta?.href ?? `/challenges/${row.challengeSlug}`}
                   className="text-meta font-semibold text-brand hover:text-brand-deep whitespace-nowrap"
                 >
-                  {cta.label} →
+                  {cta?.label ?? "View"} →
                 </Link>
               </td>
             </tr>

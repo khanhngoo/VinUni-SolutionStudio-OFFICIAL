@@ -208,6 +208,20 @@ export async function listApplicationsForStudent(
   return hydrateApplicationList(database, base);
 }
 
+/**
+ * Every application a student holds, with the offer, assessment and project
+ * summaries attached. The hub needs those to work out what stage each one is
+ * at; `hydrateApplicationDetails` batches them, so this costs the same handful
+ * of queries whether the student holds one application or twenty.
+ */
+export async function listApplicationDetailsForStudent(
+  database: ApplicationQueryDatabase,
+  studentUserId: bigint
+): Promise<ApplicationDetailRead[]> {
+  const base = await selectBaseApplications(database, { studentUserId });
+  return hydrateApplicationDetails(database, base);
+}
+
 export async function listApplicationsForChallenge(
   database: ApplicationQueryDatabase,
   challengeSlug: string
