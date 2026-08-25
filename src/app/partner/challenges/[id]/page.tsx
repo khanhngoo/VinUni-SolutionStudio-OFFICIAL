@@ -1,24 +1,30 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
-import { Chip } from "@/components/ui/chip";
-import { GroupHeading } from "@/components/partner/group-heading";
-import { PipelineBoard } from "@/components/partner/pipeline-board";
-import { deadlineLabel, formatDate, isUrgent } from "@/lib/dates";
-import { orgChallenges, getOrgChallengeById, pipelineFor } from "@/lib/provider";
-import { sizeLabel } from "@/lib/teams";
-import { cn } from "@/lib/cn";
+import { notFound, redirect } from "next/navigation";
 
-export function generateStaticParams() {
-  return orgChallenges().map((challenge) => ({ id: challenge.id }));
+import { getAuthenticatedActor, hasActorCapability } from "@/auth/authenticated-actor";
+import { Chip } from "@/components/ui/chip";
+import { Section } from "@/components/ui/section";
+import { formatDate as formatDateOnlyString } from "@/lib/dates";
+import { getPartnerChallengePage } from "@/services/partner.service";
+
+export const dynamic = "force-dynamic";
+
+function formatDate(date: Date | null) {
+  if (!date) return "—";
+  return date.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
 }
 
 /**
- * One challenge, as its owner sees it: the selection pipeline across the top,
- * the posting's own terms below.
+ * One owned challenge, read live from PostgreSQL: posted terms plus every
+ * application against it. `getPartnerChallengePage` scopes both by the
+ * actor's real EXTERNAL_PARTNER organization — a challenge/application
+ * belonging to a different owner organization resolves to `null` here, the
+ * same 404 shape as a nonexistent challenge, so no cross-partner metadata
+ * leaks through this route.
  *
- * The board runs left to right along the same stages the student's selection
- * timeline runs top to bottom. One record, two readings — a student watching
- * their own position, a partner watching everyone's.
+ * No selection/shortlist actions are wired here: no production mutation
+ * exists yet for a partner to move an application between statuses, so the
+ * pipeline is read-only.
  */
 export default async function PartnerChallengePage({
   params,
@@ -26,12 +32,14 @@ export default async function PartnerChallengePage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const challenge = getOrgChallengeById(id);
-  if (!challenge) notFound();
+  const resolution = await getAuthenticatedActor();
+  if (resolution.status !== "RESOLVED") redirect("/sign-in");
+  if (!hasActorCapability(resolution.actor, "PARTNER_REPRESENTATIVE")) notFound();
 
-  const buckets = pipelineFor(challenge.id);
-  const total = buckets.reduce((n, b) => n + b.applications.length, 0);
-  const urgent = isUrgent(challenge.deadline);
+  const page = await getPartnerChallengePage(resolution.actor, { slug: id });
+  if (!page) notFound();
+
+  const { applications, canReadApplications, challenge } = page;
 
   return (
     <div className="max-w-[1160px] mx-auto px-6 sm:px-7 py-7 pb-16">
@@ -44,71 +52,95 @@ export default async function PartnerChallengePage({
       <div className="flex flex-wrap items-start justify-between gap-4 mt-3.5">
         <div className="min-w-0">
           <div className="flex flex-wrap gap-1.5 mb-2.5">
-            <Chip>{challenge.subType}</Chip>
-            {challenge.confidential ? (
-              <Chip variant="outline-dashed">Confidential posting</Chip>
-            ) : null}
-            {challenge.colleges.map((college) => (
-              <Chip key={college}>{college}</Chip>
-            ))}
+            <Chip>{challenge.status.replaceAll("_", " ")}</Chip>
+            <Chip variant="outline-dashed">{challenge.visibility.replaceAll("_", " ")}</Chip>
+            {challenge.subtype ? <Chip>{challenge.subtype}</Chip> : null}
           </div>
           <h1>{challenge.title}</h1>
           <p className="text-ink-2 mt-2">
-            {total} team{total === 1 ? "" : "s"} in selection ·{" "}
-            <span
-              className={cn(urgent ? "text-warn font-medium" : "text-ink-2")}
-            >
-              {deadlineLabel(challenge.deadline)}
-            </span>
+            {challenge.applicantCount} team{challenge.applicantCount === 1 ? "" : "s"} applied ·
+            Managed by {challenge.managingOrganizationName}
           </p>
         </div>
 
-        <div className="flex gap-2">
+        {challenge.slug ? (
           <Link
-            href={`/challenges/${challenge.id}`}
+            href={`/challenges/${challenge.slug}`}
             className="inline-flex items-center justify-center h-9 px-4 rounded-card border border-line text-ink-2 font-medium hover:border-brand hover:text-brand"
           >
             View as student
           </Link>
-          <Link
-            href={`/partner/students?challenge=${challenge.id}`}
-            className="inline-flex items-center justify-center h-9 px-4 rounded-card bg-brand text-white font-semibold hover:bg-brand-deep hover:text-white"
-          >
-            Find students
-          </Link>
-        </div>
+        ) : null}
       </div>
 
-      <section className="mt-7">
-        <GroupHeading title="Selection pipeline" />
-        <PipelineBoard buckets={buckets} />
-      </section>
+      <Section
+        title="Applications"
+        aside={canReadApplications ? `${applications.length} total` : "requires ADMIN/CONTACT_PERSON role"}
+      >
+        {!canReadApplications ? (
+          <EmptyRow>
+            Your organization membership role does not include application
+            read access (requires ADMIN or CONTACT_PERSON).
+          </EmptyRow>
+        ) : applications.length === 0 ? (
+          <EmptyRow>No applications yet.</EmptyRow>
+        ) : (
+          <table className="w-full border-collapse">
+            <tbody>
+              {applications.map((application) => (
+                <tr
+                  key={application.publicId}
+                  className="border-b border-line-2 last:border-b-0"
+                >
+                  <td className="py-2.5 pr-3 align-middle">
+                    <p className="font-medium text-ink">
+                      {application.teamName ?? application.memberSummary.leaderName ?? "Unnamed team"}
+                    </p>
+                    <p className="text-meta text-ink-3 mt-0.5">
+                      {application.memberSummary.total} member{application.memberSummary.total === 1 ? "" : "s"}
+                    </p>
+                  </td>
+                  <td className="py-2.5 pr-3 align-middle w-[140px]">
+                    <Chip>{application.status.replaceAll("_", " ")}</Chip>
+                  </td>
+                  <td className="py-2.5 align-middle w-[110px] text-right">
+                    <span className="text-meta text-ink-3 whitespace-nowrap">
+                      {application.submittedAt ? formatDate(application.submittedAt) : "—"}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+        <p className="text-meta text-ink-3 mt-2.5 leading-relaxed">
+          Read-only: no production workflow exists yet for a partner to move
+          an application between statuses.
+        </p>
+      </Section>
 
-      <section className="mt-8">
-        <GroupHeading title="What you posted" />
+      <Section title="What you posted">
         <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
-          <Stat label="Team size" value={sizeLabel(challenge)} />
+          <Stat label="Team size" value={sizeLabel(challenge.teamSizeMin, challenge.teamSizeMax)} />
           <Stat
             label="Commitment"
-            value={`${challenge.hoursPerWeek} hrs/wk · ${challenge.durationWeeks} wks`}
+            value={`${challenge.weeklyHours ?? "—"} hrs/wk · ${challenge.durationWeeks ?? "—"} wks`}
           />
-          <Stat label="Compensation" value={challenge.compensation} />
-          <Stat label="Work mode" value={challenge.workMode} />
+          <Stat label="Compensation" value={challenge.compensationType.replaceAll("_", " ")} />
+          <Stat label="Work mode" value={challenge.workMode?.replaceAll("_", " ") ?? "—"} />
         </div>
 
         <div className="grid gap-4 lg:grid-cols-2 mt-4">
           <div className="bg-card border border-line rounded-card p-5">
             <h3 className="text-h3 text-ink-3">Summary students see</h3>
-            <p className="text-ink-2 mt-2 leading-relaxed">
-              {challenge.summary}
-            </p>
+            <p className="text-ink-2 mt-2 leading-relaxed">{challenge.summary}</p>
             <div className="flex flex-wrap gap-1.5 mt-4">
               {challenge.skills.map((skill) => (
                 <Chip
-                  key={skill.name}
-                  variant={skill.level === "must" ? "default" : "outline-dashed"}
+                  key={skill.canonicalName}
+                  variant={skill.requirementType === "REQUIRED" ? "default" : "outline-dashed"}
                 >
-                  {skill.name}
+                  {skill.canonicalName}
                 </Chip>
               ))}
             </div>
@@ -119,39 +151,52 @@ export default async function PartnerChallengePage({
             <dl className="mt-2 flex flex-col gap-2">
               <Row
                 label="Minimum GPA"
-                value={challenge.minGpa === null ? "None" : String(challenge.minGpa)}
+                value={
+                  challenge.eligibilitySummary.minGpa === null
+                    ? "None"
+                    : String(challenge.eligibilitySummary.minGpa)
+                }
               />
               <Row
                 label="Eligible years"
                 value={
-                  challenge.eligibleYears.length === 0
+                  challenge.eligibilitySummary.studyYears === null
                     ? "Any"
-                    : challenge.eligibleYears.join(", ")
+                    : challenge.eligibilitySummary.studyYears.join(", ")
                 }
               />
               <Row
-                label="Eligible colleges"
+                label="Eligible schools"
                 value={
-                  challenge.eligibleColleges === null
-                    ? "All colleges"
-                    : challenge.eligibleColleges.join(", ")
+                  challenge.eligibilitySummary.schools === null
+                    ? "All schools"
+                    : challenge.eligibilitySummary.schools.join(", ")
                 }
               />
               <Row
-                label="Assessment"
-                value={`${challenge.assessmentTrack} · ${challenge.assessmentMinutes} min`}
+                label="Deadline"
+                value={
+                  challenge.applicationDeadline
+                    ? formatDate(challenge.applicationDeadline)
+                    : "None set"
+                }
               />
-              <Row label="Starts" value={formatDate(challenge.startDate)} />
+              <Row
+                label="Starts"
+                value={challenge.startDate ? formatDateOnlyString(challenge.startDate) : "Not set"}
+              />
             </dl>
-            <p className="text-meta text-ink-3 mt-3 pt-3 border-t border-line-2 leading-relaxed">
-              Gating never hides your posting — students who do not qualify
-              still see it, and simply cannot apply.
-            </p>
           </div>
         </div>
-      </section>
+      </Section>
     </div>
   );
+}
+
+function sizeLabel(min: number | null, max: number | null) {
+  if (min === null && max === null) return "—";
+  if (min === max) return `${min}`;
+  return `${min ?? "?"}–${max ?? "?"}`;
 }
 
 function Stat({ label, value }: { label: string; value: string }) {
@@ -168,6 +213,14 @@ function Row({ label, value }: { label: string; value: string }) {
     <div className="flex items-baseline justify-between gap-4">
       <dt className="text-meta text-ink-3">{label}</dt>
       <dd className="text-ink font-medium text-right">{value}</dd>
+    </div>
+  );
+}
+
+function EmptyRow({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="border border-dashed border-line rounded-card py-8 px-6 text-center">
+      <p className="text-ink-2">{children}</p>
     </div>
   );
 }
