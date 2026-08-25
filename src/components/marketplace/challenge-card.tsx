@@ -2,36 +2,45 @@ import Link from "next/link";
 import { Chip } from "@/components/ui/chip";
 import { LockIcon } from "@/components/ui/icons";
 import { StripedPlaceholder } from "@/components/ui/striped-placeholder";
+import {
+  challengeCompensationLabel,
+  challengeDeadlineKey,
+  challengeIsRedacted,
+  challengeOrganizationLabel,
+  challengeWorkModeLabel,
+  type MarketplaceChallengeCardModel,
+} from "@/lib/challenge-marketplace";
 import { deadlineLabel, isUrgent } from "@/lib/dates";
-import type { Challenge } from "@/lib/types";
 
 interface ChallengeCardProps {
-  challenge: Challenge;
+  challenge: MarketplaceChallengeCardModel;
 }
 
 export function ChallengeCard({ challenge }: ChallengeCardProps) {
-  const urgent = isUrgent(challenge.deadline);
+  const deadline = challengeDeadlineKey(challenge);
+  const urgent = isUrgent(deadline);
+  const schools = challenge.eligibilitySummary.schools ?? [];
 
   return (
     <Link
-      href={`/challenges/${challenge.id}`}
+      href={`/challenges/${challenge.slug}`}
       className="group flex flex-col bg-card border border-line rounded-card overflow-hidden transition-colors hover:border-brand focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
     >
       <div className="flex flex-col gap-2.5 p-4 flex-1">
         <div className="flex items-center gap-2 text-ink-2">
           <StripedPlaceholder className="w-8 h-8 rounded-card shrink-0" />
           <span className="text-[12px] font-semibold truncate">
-            {challenge.orgName ?? challenge.orgCategory}
+            {challengeOrganizationLabel(challenge)}
           </span>
-          {challenge.confidential ? (
+          {challengeIsRedacted(challenge) ? (
             <LockIcon className="w-3.5 h-3.5 shrink-0 text-ink-3" />
           ) : null}
         </div>
 
         <div>
           <div className="flex flex-wrap gap-1.5 mb-2">
-            <Chip>{challenge.subType}</Chip>
-            {challenge.colleges.map((college) => (
+            <Chip>{challenge.subtype ?? "Challenge"}</Chip>
+            {schools.map((college) => (
               <Chip key={college}>{college}</Chip>
             ))}
           </div>
@@ -41,9 +50,9 @@ export function ChallengeCard({ challenge }: ChallengeCardProps) {
         </div>
 
         <p className="text-meta text-ink-3 leading-relaxed">
-          {challenge.workMode} · {challenge.hoursPerWeek} hrs/wk
+          {challengeWorkModeLabel(challenge)} · {challenge.weeklyHours ?? "TBD"} hrs/wk
           <br />
-          {challenge.compensation} · {challenge.durationWeeks} weeks
+          {challengeCompensationLabel(challenge)} · {challenge.durationWeeks ?? "TBD"} weeks
         </p>
 
         <div className="mt-auto pt-2.5 border-t border-line-2 flex items-center justify-between gap-2">
@@ -52,7 +61,7 @@ export function ChallengeCard({ challenge }: ChallengeCardProps) {
               urgent ? "text-meta text-warn font-medium" : "text-meta text-ink-3"
             }
           >
-            {deadlineLabel(challenge.deadline)}
+            {challenge.applicationDeadline ? deadlineLabel(deadline) : "Deadline TBD"}
           </span>
           <span className="text-meta text-ink-3">
             {challenge.applicantCount} applied

@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import { CheckIcon } from "@/components/ui/icons";
 import { cn } from "@/lib/cn";
 
@@ -10,6 +9,7 @@ interface PreflightCheckProps {
   trackLabel: string;
   minutes: number;
   itemCount: string;
+  startAction: (formData: FormData) => void | Promise<void>;
 }
 
 type CheckState = "pending" | "pass" | "fail";
@@ -31,6 +31,7 @@ export function PreflightCheck({
   trackLabel,
   minutes,
   itemCount,
+  startAction,
 }: PreflightCheckProps) {
   const [checks, setChecks] = useState<SystemCheck[]>([
     {
@@ -171,12 +172,15 @@ export function PreflightCheck({
           </p>
         </div>
         {canStart ? (
-          <Link
-            href={`/assessment/${applicationId}/take`}
-            className="h-10 px-5 grid place-items-center rounded-card bg-brand text-white font-semibold hover:bg-brand-deep hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-          >
-            Start assessment
-          </Link>
+          <form action={startAction}>
+            <input type="hidden" name="applicationId" value={applicationId} />
+            <button
+              type="submit"
+              className="h-10 px-5 rounded-card bg-brand text-white font-semibold hover:bg-brand-deep hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+            >
+              Start assessment
+            </button>
+          </form>
         ) : (
           <div className="text-right">
             <button

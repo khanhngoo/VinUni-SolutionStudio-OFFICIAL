@@ -1,82 +1,93 @@
 import { notFound } from "next/navigation";
-import { ApplyPanel } from "@/components/challenge/apply-panel";
 import { AssessmentSection } from "@/components/challenge/assessment-section";
 import { DetailHeader } from "@/components/challenge/detail-header";
 import { EligibilitySection } from "@/components/challenge/eligibility-section";
 import { LockedBlock } from "@/components/challenge/locked-block";
-import { PipelineCta } from "@/components/challenge/pipeline-cta";
-import { SelectionTimeline } from "@/components/challenge/selection-timeline";
+import { MarketplaceApplyPanel } from "@/components/challenge/marketplace-apply-panel";
 import { SummarySection } from "@/components/challenge/summary-section";
-import { TeamRoster } from "@/components/team/team-roster";
 import { Section } from "@/components/ui/section";
-import { currentStudent } from "@/lib/data/student";
-import { checkEligibility } from "@/lib/eligibility";
-import { timelineIndex } from "@/lib/pipeline";
-import {
-  getAllChallengeIds,
-  getApplicationByChallengeId,
-  getChallengeById,
-  getFacultyOptions,
-} from "@/lib/queries";
+import { marketplaceContextForActor } from "@/lib/challenge-marketplace";
+import { getAuthenticatedActor } from "@/auth/authenticated-actor";
+import { getMarketplaceChallengeBySlug } from "@/services/challenge.service";
 
-export function generateStaticParams() {
-  return getAllChallengeIds().map((id) => ({ id }));
-}
+export const dynamic = "force-dynamic";
+
+const MARKETPLACE_LOCKED_BLOCKS = [
+  {
+    id: "brief",
+    previewLines: 4,
+    title: "Full problem statement",
+    unlockCopy: "Unlocks when you're selected",
+    unlocksAt: "T3" as const,
+  },
+  {
+    id: "resources",
+    previewLines: 3,
+    title: "Resources & datasets",
+    unlockCopy: "Unlocks after you sign the NDA",
+    unlocksAt: "T3" as const,
+  },
+  {
+    id: "contact",
+    previewLines: 2,
+    title: "Poster contact",
+    unlockCopy: "Unlocks when you're selected",
+    unlocksAt: "T3" as const,
+  },
+];
 
 export default async function ChallengeDetailPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const { id } = await params;
-  const challenge = getChallengeById(id);
+  const { id: slug } = await params;
+  const actor = await getAuthenticatedActor();
+  const challenge = await getMarketplaceChallengeBySlug(slug, marketplaceContextForActor(actor.status === "RESOLVED" ? actor.actor : null));
   if (!challenge) notFound();
-
-  const eligibility = checkEligibility(currentStudent, challenge);
-  const application = getApplicationByChallengeId(challenge.id);
 
   return (
     <article className="max-w-[820px] mx-auto px-6 sm:px-7 py-7 pb-16">
       <DetailHeader challenge={challenge} />
 
       <div className="mt-7">
-        {application ? (
-          <>
-            <PipelineCta application={application} />
-            <TeamRoster team={application.team} challenge={challenge} />
-            <Section title="Selection timeline">
-              <div className="bg-card border border-line rounded-card px-5 py-6">
-                <SelectionTimeline
-                  currentNodeIndex={timelineIndex(application.stage)}
-                />
-              </div>
-            </Section>
-          </>
-        ) : (
-          <ApplyPanel
-            challenge={challenge}
-            eligibility={eligibility}
-            facultyOptions={getFacultyOptions(challenge)}
-            defaultHours={currentStudent.hoursAvailable}
-          />
-        )}
+        <MarketplaceApplyPanel challenge={challenge} />
       </div>
 
-      <SummarySection
-        challenge={challenge}
-        studentSkills={currentStudent.skills}
-      />
+      <SummarySection challenge={challenge} />
 
-      <AssessmentSection challenge={challenge} />
+      <AssessmentSection />
 
-      <EligibilitySection challenge={challenge} result={eligibility} />
+      <EligibilitySection challenge={challenge} />
+
+      <Section title="Contact and academic routing">
+        <div className="grid sm:grid-cols-2 gap-2.5">
+          <div className="bg-card border border-line rounded-card px-4 py-3.5">
+            <h3 className="mb-1.5">Partner contact</h3>
+            <p className="text-ink-2">
+              {challenge.contactPerson?.displayName ??
+                "Revealed after selection"}
+            </p>
+          </div>
+          <div className="bg-card border border-line rounded-card px-4 py-3.5">
+            <h3 className="mb-1.5">Faculty routing</h3>
+            <p className="text-ink-2">
+              {challenge.facultyAssignments.length > 0
+                ? `${challenge.facultyAssignments.length} faculty suggestion${
+                    challenge.facultyAssignments.length === 1 ? "" : "s"
+                  }`
+                : "To be assigned"}
+            </p>
+          </div>
+        </div>
+      </Section>
 
       <Section
         title="Unlocks as you progress"
         aside="Hidden until you clear each gate"
       >
         <div className="flex flex-col gap-2.5">
-          {challenge.lockedBlocks.map((block) => (
+          {MARKETPLACE_LOCKED_BLOCKS.map((block) => (
             <LockedBlock key={block.id} block={block} />
           ))}
         </div>

@@ -4,14 +4,13 @@ import { useEffect, useState } from "react";
 import { cn } from "@/lib/cn";
 
 interface OfferCountdownProps {
-  /** Hours remaining at render time, derived server-side from the pinned TODAY. */
+  /** Hours remaining at render time, derived from the server's offer deadline. */
   initialHours: number;
 }
 
 /**
- * Ticks down from the server-derived figure. The baseline comes from the pinned
- * TODAY rather than wall-clock, so the seeded 72-hour window keeps demonstrating
- * the countdown; only the display animates.
+ * Ticks down from the server-derived remaining time. The service remains the
+ * authority for whether a response is accepted after this display changes.
  */
 export function OfferCountdown({ initialHours }: OfferCountdownProps) {
   const [seconds, setSeconds] = useState(initialHours * 3600);

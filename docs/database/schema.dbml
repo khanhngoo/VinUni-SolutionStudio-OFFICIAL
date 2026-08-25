@@ -1,0 +1,1849 @@
+//////////////////////////////////////////////////////////////
+// VINUNI SOLUTIONS STUDIO PLATFORM
+// Implementation-ready ERD v1
+// Phase 2.3 freeze candidate
+//////////////////////////////////////////////////////////////
+
+
+//////////////////////////////////////////////////////////////
+// ENUMS
+//////////////////////////////////////////////////////////////
+
+Enum user_status {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+}
+
+Enum organization_type {
+  INTERNAL_UNIT
+  EXTERNAL_PARTNER
+}
+
+Enum organization_verification_status {
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
+Enum membership_role {
+  ADMIN
+  PROJECT_MANAGER
+  CONTACT_PERSON
+  REVIEWER
+  MEMBER
+}
+
+Enum membership_status {
+  ACTIVE
+  INACTIVE
+}
+
+Enum skill_status {
+  ACTIVE
+  INACTIVE
+}
+
+Enum normalization_status {
+  PENDING
+  NORMALIZED
+  REJECTED
+}
+
+Enum skill_requirement_type {
+  REQUIRED
+  PREFERRED
+  OPTIONAL
+}
+
+Enum skill_source {
+  SELF_DECLARED
+  PROJECT
+  COURSE
+  PORTFOLIO
+  FACULTY_VERIFIED
+  ASSESSMENT
+  AI_EXTRACTED
+}
+
+Enum proficiency_level {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
+}
+
+Enum skill_relationship_type {
+  RELATED
+  TRANSFERABLE
+  PREREQUISITE
+  ECOSYSTEM
+}
+
+Enum challenge_status {
+  DRAFT
+  SUBMITTED
+  UNDER_REVIEW
+  AWAITING_FACULTY
+  FACULTY_REVIEW
+  REVISION_REQUESTED
+  APPROVED
+  PUBLISHED
+  APPLICATIONS_OPEN
+  MATCHING
+  SHORTLISTING
+  ASSESSMENT
+  SELECTION_PENDING
+  SELECTED
+  ACTIVE
+  FINAL_REVIEW
+  COMPLETED
+  ARCHIVED
+  CANCELLED
+}
+
+Enum challenge_visibility {
+  PUBLIC_PREVIEW
+  VINUNI_ONLY
+  INVITE_ONLY
+  PRIVATE
+}
+
+Enum work_mode {
+  ONSITE
+  HYBRID
+  REMOTE
+}
+
+Enum compensation_type {
+  PAID
+  UNPAID
+  CREDIT
+  OTHER
+  NOT_SPECIFIED
+}
+
+Enum eligibility_rule_type {
+  MIN_GPA
+  STUDY_YEAR
+  SCHOOL
+  MAJOR
+  AVAILABLE_HOURS
+  MAX_ACTIVE_PROJECTS
+}
+
+Enum review_decision {
+  APPROVED
+  REVISION_REQUESTED
+  REJECTED
+}
+
+Enum faculty_assignment_status {
+  PENDING
+  ACCEPTED
+  DECLINED
+}
+
+Enum application_status {
+  SUBMITTED
+  SHORTLISTED
+  ASSESSMENT
+  SELECTION_PENDING
+  SELECTED
+  REJECTED
+  WITHDRAWN
+}
+
+Enum application_member_role {
+  LEADER
+  MEMBER
+}
+
+Enum application_member_status {
+  INVITED
+  ACCEPTED
+  DECLINED
+  REMOVED
+}
+
+Enum supervision_request_status {
+  PENDING
+  ACCEPTED
+  DECLINED
+  CANCELLED
+}
+
+Enum evidence_confidence {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+Enum skill_match_type {
+  EXACT
+  RELATED
+  TRANSFERABLE
+  NO_MATCH
+}
+
+Enum evidence_type {
+  GITHUB
+  PORTFOLIO
+  REPORT
+  DEMO
+  COURSE_PROJECT
+  CERTIFICATE
+  FACULTY_VERIFICATION
+  OTHER
+}
+
+Enum verification_status {
+  UNVERIFIED
+  VERIFIED
+  REJECTED
+}
+
+Enum assessment_question_type {
+  MULTIPLE_CHOICE
+  CODING
+  PRACTICAL_TASK
+  REASONING
+  ADAPTIVE_FOLLOWUP
+}
+
+Enum assessment_ai_policy {
+  ALLOWED
+  ALLOWED_WITH_DISCLOSURE
+  RESTRICTED
+}
+
+Enum assessment_status {
+  DRAFT
+  REVIEW
+  APPROVED
+  ACTIVE
+  CLOSED
+}
+
+Enum assessment_scope {
+  TEAM
+  INDIVIDUAL
+}
+
+Enum assessment_attempt_status {
+  NOT_STARTED
+  IN_PROGRESS
+  SUBMITTED
+  REVIEWED
+}
+
+Enum offer_status {
+  PENDING
+  ACCEPTED
+  DECLINED
+  CANCELLED
+}
+
+Enum agreement_type {
+  NDA
+  CONFIDENTIALITY
+  DATA_ACCESS
+  OTHER
+}
+
+Enum project_status {
+  ACTIVE
+  PAUSED
+  FINAL_REVIEW
+  COMPLETED
+  ARCHIVED
+}
+
+Enum milestone_status {
+  PENDING
+  IN_PROGRESS
+  SUBMITTED
+  REVISION_REQUESTED
+  COMPLETED
+}
+
+Enum milestone_review_role {
+  FACULTY
+  PARTNER
+  MANAGING_ORGANIZATION
+}
+
+Enum milestone_review_decision {
+  APPROVED
+  REVISION_REQUESTED
+}
+
+Enum deliverable_type {
+  FILE
+  LINK
+  TEXT
+  OTHER
+}
+
+Enum feedback_type {
+  GENERAL
+  FACULTY_CLOSEOUT
+  PARTNER_CLOSEOUT
+}
+
+Enum feedback_visibility {
+  RECIPIENT
+  PROJECT_TEAM
+  FACULTY
+  PARTNER
+  MANAGING_ORGANIZATION
+  PRIVATE_ADMIN
+}
+
+Enum resource_sensitivity {
+  PUBLIC
+  TEAM_ONLY
+  CONFIDENTIAL
+  RESTRICTED
+}
+
+
+//////////////////////////////////////////////////////////////
+// USERS
+//////////////////////////////////////////////////////////////
+
+Table users {
+  id bigint [pk, increment]
+
+  email varchar [not null, unique]
+  full_name varchar [not null]
+
+  status user_status [default: 'ACTIVE']
+
+  created_at timestamptz
+  updated_at timestamptz
+}
+
+
+//////////////////////////////////////////////////////////////
+// STUDENT PROFILE
+// One user can have AT MOST one student profile.
+//
+// ERD v1 stores a minimal academic summary only.
+// Full registrar courses, transcript persistence, and pinned
+// course showcases are deferred.
+//////////////////////////////////////////////////////////////
+
+Table student_profiles {
+  user_id bigint [pk]
+
+  school varchar
+  major varchar
+  study_year int
+
+  gpa decimal
+  gpa_scale decimal
+  academic_data_verified_at timestamptz
+
+  interests text
+  available_hours_per_week int
+
+  profile_visibility varchar [default: 'VINUNI_ONLY']
+
+  ai_matching_consent boolean [default: false]
+
+  cv_url varchar
+  portfolio_url varchar
+
+  created_at timestamptz
+  updated_at timestamptz
+}
+
+
+//////////////////////////////////////////////////////////////
+// FACULTY PROFILE
+// One user can have AT MOST one faculty profile.
+//
+// configured capacity = stored max_active_supervisions
+// used capacity = derived from active/final-review projects
+//////////////////////////////////////////////////////////////
+
+Table faculty_profiles {
+  user_id bigint [pk]
+
+  school varchar
+  department varchar
+  academic_title varchar
+
+  max_active_supervisions int
+
+  created_at timestamptz
+  updated_at timestamptz
+}
+
+
+//////////////////////////////////////////////////////////////
+// ORGANIZATIONS
+//
+// Represents BOTH:
+// - Internal VinUni units: CAID, E-Lab, Library, etc.
+// - External partners: companies, NGOs, hospitals, etc.
+//
+// CAID and E-Lab are organizations, not shared users.
+//////////////////////////////////////////////////////////////
+
+Table organizations {
+  id bigint [pk, increment]
+
+  name varchar [not null]
+
+  organization_type organization_type [not null]
+
+  description text
+  industry varchar
+
+  verification_status organization_verification_status [
+    default: 'PENDING'
+  ]
+
+  created_at timestamptz
+  updated_at timestamptz
+}
+
+
+//////////////////////////////////////////////////////////////
+// ORGANIZATION MEMBERSHIP
+//
+// Organization-scoped permissions live here.
+//
+// ADMIN means admin within the organization membership scope;
+// it does not mean global platform administrator.
+//////////////////////////////////////////////////////////////
+
+Table organization_memberships {
+  id bigint [pk, increment]
+
+  user_id bigint [not null]
+  organization_id bigint [not null]
+
+  role membership_role [not null]
+
+  status membership_status [default: 'ACTIVE']
+
+  job_title varchar
+
+  created_at timestamptz
+  updated_at timestamptz
+
+  indexes {
+    (user_id, organization_id, role) [unique]
+  }
+}
+
+
+//////////////////////////////////////////////////////////////
+// SKILL TAXONOMY
+//////////////////////////////////////////////////////////////
+
+Table skill_categories {
+  id bigint [pk, increment]
+
+  name varchar [not null]
+
+  parent_id bigint
+
+  description text
+}
+
+
+Table skills {
+  id bigint [pk, increment]
+
+  canonical_name varchar [not null, unique]
+
+  category_id bigint
+
+  description text
+
+  status skill_status [default: 'ACTIVE']
+
+  created_at timestamptz
+  updated_at timestamptz
+}
+
+
+//////////////////////////////////////////////////////////////
+// SKILL ALIASES
+//////////////////////////////////////////////////////////////
+
+Table skill_aliases {
+  id bigint [pk, increment]
+
+  skill_id bigint [not null]
+
+  alias varchar [not null]
+
+  indexes {
+    (skill_id, alias) [unique]
+  }
+}
+
+
+//////////////////////////////////////////////////////////////
+// STUDENT SKILLS
+//
+// skill_id can temporarily be NULL if the student entered
+// a new skill that has not yet been normalized.
+//////////////////////////////////////////////////////////////
+
+Table student_skills {
+  id bigint [pk, increment]
+
+  student_id bigint [not null]
+
+  skill_id bigint
+
+  raw_skill_name varchar
+
+  proficiency proficiency_level
+
+  source skill_source
+
+  // Normalized confidence, intended range 0.0-1.0.
+  confidence decimal
+
+  normalization_status normalization_status [
+    default: 'PENDING'
+  ]
+
+  created_at timestamptz
+  updated_at timestamptz
+}
+
+
+//////////////////////////////////////////////////////////////
+// STUDENT PROJECT EXPERIENCE
+//////////////////////////////////////////////////////////////
+
+Table student_projects {
+  id bigint [pk, increment]
+
+  student_id bigint [not null]
+
+  title varchar [not null]
+
+  description text
+
+  // What the student specifically contributed
+  role_description text
+
+  start_date date
+  end_date date
+
+  created_at timestamptz
+  updated_at timestamptz
+}
+
+
+//////////////////////////////////////////////////////////////
+// SKILLS USED IN STUDENT PROJECTS
+//////////////////////////////////////////////////////////////
+
+Table project_skills {
+  id bigint [pk, increment]
+
+  project_id bigint [not null]
+
+  skill_id bigint
+
+  raw_skill_name varchar
+
+  source skill_source
+
+  // Normalized confidence, intended range 0.0-1.0.
+  confidence decimal
+
+  normalization_status normalization_status [
+    default: 'PENDING'
+  ]
+
+  created_at timestamptz
+}
+
+
+//////////////////////////////////////////////////////////////
+// PROJECT EVIDENCE
+//////////////////////////////////////////////////////////////
+
+Table project_evidence {
+  id bigint [pk, increment]
+
+  project_id bigint [not null]
+
+  evidence_type evidence_type
+
+  evidence_url varchar
+
+  verification_status verification_status [
+    default: 'UNVERIFIED'
+  ]
+
+  created_at timestamptz
+}
+
+
+//////////////////////////////////////////////////////////////
+// NEW / UNKNOWN SKILL CANDIDATES
+//////////////////////////////////////////////////////////////
+
+Table skill_candidates {
+  id bigint [pk, increment]
+
+  raw_name varchar [not null]
+
+  submitted_by bigint
+
+  source_type varchar [
+    note: 'CHALLENGE, STUDENT_PROFILE, PROJECT, AI_EXTRACTION'
+  ]
+
+  source_id bigint
+
+  // Existing skill suggested as a possible equivalent.
+  suggested_skill_id bigint
+
+  status varchar [
+    default: 'PENDING',
+    note: 'PENDING, APPROVED_NEW_SKILL, MERGED, REJECTED'
+  ]
+
+  created_at timestamptz
+  resolved_at timestamptz
+}
+
+
+//////////////////////////////////////////////////////////////
+// RELATED / TRANSFERABLE SKILLS
+//////////////////////////////////////////////////////////////
+
+Table skill_relationships {
+  id bigint [pk, increment]
+
+  skill_id bigint [not null]
+  related_skill_id bigint [not null]
+
+  relationship_type skill_relationship_type
+
+  // Similarity score, intended range 0.0-1.0.
+  similarity_score decimal
+
+  created_at timestamptz
+
+  indexes {
+    (skill_id, related_skill_id) [unique]
+  }
+}
+
+
+//////////////////////////////////////////////////////////////
+// CHALLENGES
+//
+// owner_organization_id:
+// organization that owns/submitted the challenge
+//
+// managing_organization_id:
+// VinUni internal unit operationally managing the challenge
+//
+// Example:
+// VinFast challenge: owner = VinFast, managing = CAID
+// E-Lab internal challenge: owner = E-Lab, managing = E-Lab
+//////////////////////////////////////////////////////////////
+
+Table challenges {
+  id bigint [pk, increment]
+
+  // Externally safe route identifier.
+  public_id uuid [not null, unique]
+
+  // Human-readable challenge URL identifier.
+  slug varchar [unique]
+
+  owner_organization_id bigint [not null]
+
+  managing_organization_id bigint [not null]
+
+  contact_person_id bigint
+
+  title varchar [not null]
+
+  // Marketplace-safe overview.
+  summary text [not null]
+
+  // Fuller challenge brief. Access control is enforced in
+  // services/RBAC, not by storing static MVP locked blocks.
+  description text [not null]
+
+  subtype varchar
+
+  domain varchar
+
+  expected_deliverables text
+
+  duration_weeks int
+
+  weekly_hours int
+
+  team_size_min int
+  team_size_max int
+
+  work_mode work_mode
+
+  start_date date
+
+  compensation_type compensation_type [
+    default: 'NOT_SPECIFIED'
+  ]
+
+  compensation_description text
+
+  visibility challenge_visibility [
+    default: 'VINUNI_ONLY'
+  ]
+
+  confidentiality_level varchar
+
+  status challenge_status [
+    default: 'DRAFT'
+  ]
+
+  application_deadline timestamptz
+
+  created_at timestamptz
+  updated_at timestamptz
+}
+
+
+//////////////////////////////////////////////////////////////
+// CHALLENGE ELIGIBILITY RULES
+//
+// Flexible rule model for GPA, study year, school, major,
+// available hours, and active-project caps.
+//
+// config is JSONB by design. It should hold only rule-specific
+// data, not core relational relationships.
+//////////////////////////////////////////////////////////////
+
+Table challenge_eligibility_rules {
+  id bigint [pk, increment]
+
+  challenge_id bigint [not null]
+
+  rule_type eligibility_rule_type [not null]
+
+  config jsonb
+
+  required boolean [default: true]
+
+  created_at timestamptz
+  updated_at timestamptz
+}
+
+
+//////////////////////////////////////////////////////////////
+// CHALLENGE SKILLS
+//////////////////////////////////////////////////////////////
+
+Table challenge_skills {
+  id bigint [pk, increment]
+
+  challenge_id bigint [not null]
+
+  // Nullable if partner added a new unknown skill.
+  skill_id bigint
+
+  raw_skill_name varchar
+
+  requirement_type skill_requirement_type [not null]
+
+  // Matching weight, intended non-negative normalized weight.
+  weight decimal [default: 1.0]
+
+  normalization_status normalization_status [
+    default: 'PENDING'
+  ]
+
+  created_at timestamptz
+}
+
+
+//////////////////////////////////////////////////////////////
+// FACULTY ROUTING / ASSIGNMENT
+//
+// Challenge-level academic/review routing only.
+// This is not application/team supervision.
+//////////////////////////////////////////////////////////////
+
+Table challenge_faculty_assignments {
+  id bigint [pk, increment]
+
+  challenge_id bigint [not null]
+
+  faculty_id bigint [not null]
+
+  assigned_by bigint [not null]
+
+  status faculty_assignment_status [
+    default: 'PENDING'
+  ]
+
+  comments text
+
+  assigned_at timestamptz
+  responded_at timestamptz
+}
+
+
+//////////////////////////////////////////////////////////////
+// CHALLENGE REVIEW HISTORY
+//////////////////////////////////////////////////////////////
+
+Table challenge_reviews {
+  id bigint [pk, increment]
+
+  challenge_id bigint [not null]
+
+  reviewer_id bigint [not null]
+
+  // Useful for determining whether review came from
+  // CAID, E-Lab, etc.
+  reviewer_organization_id bigint
+
+  decision review_decision [not null]
+
+  comments text
+
+  created_at timestamptz
+}
+
+
+//////////////////////////////////////////////////////////////
+// APPLICATIONS
+//
+// One application represents one submission to one challenge.
+// It can be solo or team-based.
+//
+// submitted_by is the initiating/submitting user. Applicant
+// membership lives in application_members.
+//////////////////////////////////////////////////////////////
+
+Table applications {
+  id bigint [pk, increment]
+
+  // Externally safe route identifier.
+  public_id uuid [not null, unique]
+
+  challenge_id bigint [not null]
+
+  submitted_by bigint [not null]
+
+  // Nullable team identity chosen before project creation.
+  // Solo applications may leave this NULL.
+  team_name varchar
+
+  motivation text
+
+  // Optional applicant/team narrative. Structured evidence
+  // remains in application_projects.
+  relevant_experience text
+
+  status application_status [
+    default: 'SUBMITTED'
+  ]
+
+  submitted_at timestamptz
+  created_at timestamptz
+  updated_at timestamptz
+}
+
+
+//////////////////////////////////////////////////////////////
+// APPLICATION MEMBERS
+//
+// Solo application = one application with one accepted leader.
+// Team application = multiple application members.
+//
+// A student must not appear more than once per application.
+// Each application must have exactly one leader. DBML records
+// the relationship and unique membership; PostgreSQL/Drizzle
+// must enforce exactly one leader with a partial unique index
+// or equivalent application logic.
+//
+// member_role is leadership/membership role.
+// preferred_role is the desired project contribution role.
+//////////////////////////////////////////////////////////////
+
+Table application_members {
+  id bigint [pk, increment]
+
+  application_id bigint [not null]
+
+  student_id bigint [not null]
+
+  member_role application_member_role [not null]
+
+  status application_member_status [
+    default: 'INVITED'
+  ]
+
+  preferred_role varchar
+
+  committed_hours_per_week int
+
+  availability_confirmed boolean
+
+  invited_at timestamptz
+  responded_at timestamptz
+
+  created_at timestamptz
+  updated_at timestamptz
+
+  indexes {
+    (application_id, student_id) [unique]
+  }
+}
+
+
+//////////////////////////////////////////////////////////////
+// STUDENT SELECTS WHICH PROJECTS ARE RELEVANT
+// TO A PARTICULAR APPLICATION
+//
+// Because applications may have multiple members, the linked
+// student_project_id must belong to an accepted/relevant member
+// of the application. That invariant needs service-layer or
+// PostgreSQL-specific enforcement in Drizzle/migrations.
+//////////////////////////////////////////////////////////////
+
+Table application_projects {
+  id bigint [pk, increment]
+
+  application_id bigint [not null]
+
+  student_project_id bigint [not null]
+
+  indexes {
+    (application_id, student_project_id) [unique]
+  }
+}
+
+
+//////////////////////////////////////////////////////////////
+// APPLICATION-LEVEL FACULTY SUPERVISION REQUESTS
+//
+// Asks whether this faculty member will supervise this
+// specific application/team. May exist before project creation.
+//
+// Distinct concepts:
+// challenge_faculty_assignments != supervision_requests
+// supervision_requests != projects.faculty_supervisor_id
+//////////////////////////////////////////////////////////////
+
+Table supervision_requests {
+  id bigint [pk, increment]
+
+  application_id bigint [not null]
+
+  faculty_id bigint [not null]
+
+  requested_by bigint [not null]
+
+  status supervision_request_status [
+    default: 'PENDING'
+  ]
+
+  comments text
+
+  requested_at timestamptz
+  respond_by timestamptz
+  responded_at timestamptz
+
+  created_at timestamptz
+}
+
+
+//////////////////////////////////////////////////////////////
+// AI MATCH RESULTS
+//
+// Stores component scores separately for explainability.
+// Scores are normalized decimals; exact precision/scale is
+// finalized during Drizzle translation.
+//////////////////////////////////////////////////////////////
+
+Table match_results {
+  id bigint [pk, increment]
+
+  challenge_id bigint [not null]
+
+  student_id bigint [not null]
+
+  skill_score decimal
+
+  semantic_experience_score decimal
+
+  domain_score decimal
+
+  eligibility_score decimal
+
+  overall_fit_score decimal
+
+  evidence_confidence evidence_confidence
+
+  explanation text
+
+  model_version varchar
+
+  created_at timestamptz
+
+  indexes {
+    (challenge_id, student_id)
+  }
+}
+
+
+//////////////////////////////////////////////////////////////
+// DETAILED SKILL MATCHING
+//////////////////////////////////////////////////////////////
+
+Table match_skill_details {
+  id bigint [pk, increment]
+
+  match_result_id bigint [not null]
+
+  challenge_skill_id bigint [not null]
+
+  matched_student_skill_id bigint
+
+  // Similarity score, intended range 0.0-1.0.
+  similarity_score decimal
+
+  match_type skill_match_type
+
+  explanation text
+}
+
+
+//////////////////////////////////////////////////////////////
+// SEMANTIC EXPERIENCE MATCH
+//////////////////////////////////////////////////////////////
+
+Table match_experience_details {
+  id bigint [pk, increment]
+
+  match_result_id bigint [not null]
+
+  student_project_id bigint [not null]
+
+  // Similarity score, intended range 0.0-1.0.
+  semantic_similarity decimal
+
+  explanation text
+}
+
+
+//////////////////////////////////////////////////////////////
+// ASSESSMENTS
+//
+// Multi-disciplinary assessment parent definition.
+//////////////////////////////////////////////////////////////
+
+Table assessments {
+  id bigint [pk, increment]
+
+  challenge_id bigint [not null]
+
+  title varchar
+
+  instructions text
+
+  time_limit_minutes int
+
+  ai_policy assessment_ai_policy
+
+  scope assessment_scope [not null, default: 'INDIVIDUAL']
+
+  status assessment_status [
+    default: 'DRAFT'
+  ]
+
+  created_by bigint
+
+  created_at timestamptz
+  updated_at timestamptz
+}
+
+
+//////////////////////////////////////////////////////////////
+// ASSESSMENT SECTIONS
+//
+// A simple assessment may have one section.
+//////////////////////////////////////////////////////////////
+
+Table assessment_sections {
+  id bigint [pk, increment]
+
+  assessment_id bigint [not null]
+
+  title varchar
+
+  instructions text
+
+  sequence int
+
+  time_limit_minutes int
+
+  created_at timestamptz
+}
+
+
+//////////////////////////////////////////////////////////////
+// ASSESSMENT QUESTIONS
+//
+// Questions remain generic across disciplines. config is JSONB
+// only for type-specific details such as MC options, coding
+// language/starter/sample tests, or case context.
+//
+// Questions belong to an assessment through their section to
+// avoid mismatched assessment/section ownership.
+//////////////////////////////////////////////////////////////
+
+Table assessment_questions {
+  id bigint [pk, increment]
+
+  section_id bigint [not null]
+
+  question_type assessment_question_type
+
+  prompt text [not null]
+
+  sequence int
+
+  max_score decimal
+
+  config jsonb
+}
+
+
+//////////////////////////////////////////////////////////////
+// ASSESSMENT ATTEMPTS
+//
+// TEAM assessment scope:
+// application_member_id must be NULL, one attempt represents
+// the application/team.
+//
+// INDIVIDUAL assessment scope:
+// application_member_id identifies the member taking it.
+//
+// Conditional uniqueness/check rules are enforced later in
+// Drizzle/PostgreSQL/service validation.
+//////////////////////////////////////////////////////////////
+
+Table assessment_attempts {
+  id bigint [pk, increment]
+
+  assessment_id bigint [not null]
+
+  application_id bigint [not null]
+
+  application_member_id bigint
+
+  status assessment_attempt_status [
+    default: 'NOT_STARTED'
+  ]
+
+  started_at timestamptz
+  submitted_at timestamptz
+
+  ai_usage_declared boolean
+
+  ai_usage_description text
+}
+
+
+//////////////////////////////////////////////////////////////
+// ASSESSMENT ANSWERS
+//////////////////////////////////////////////////////////////
+
+Table assessment_responses {
+  id bigint [pk, increment]
+
+  attempt_id bigint [not null]
+
+  question_id bigint [not null]
+
+  response text
+
+  response_data jsonb
+
+  attachment_url varchar
+
+  submitted_at timestamptz
+}
+
+
+//////////////////////////////////////////////////////////////
+// HUMAN ASSESSMENT SCORING
+//
+// User-facing bands are derived from numeric scores and policy
+// thresholds, not stored as authoritative result state.
+//////////////////////////////////////////////////////////////
+
+Table assessment_scores {
+  id bigint [pk, increment]
+
+  attempt_id bigint [not null]
+
+  reviewer_id bigint [not null]
+
+  overall_score decimal
+
+  rubric_scores jsonb
+
+  comments text
+
+  created_at timestamptz
+}
+
+
+//////////////////////////////////////////////////////////////
+// FINAL STUDENT/TEAM SELECTION
+//
+// Selection records the internal decision that an application
+// has been selected. Offer response semantics live in offers.
+//////////////////////////////////////////////////////////////
+
+Table selections {
+  id bigint [pk, increment]
+
+  application_id bigint [not null, unique]
+
+  selected_by bigint [not null]
+
+  selected_at timestamptz
+
+  created_at timestamptz
+}
+
+
+//////////////////////////////////////////////////////////////
+// OFFERS
+//
+// Offer terms are historical snapshots of what was offered,
+// even when similar values exist on the challenge.
+//
+// EXPIRED is derived:
+// status = PENDING AND respond_by < current time
+//////////////////////////////////////////////////////////////
+
+Table offers {
+  id bigint [pk, increment]
+
+  selection_id bigint [not null, unique]
+
+  respond_by timestamptz
+
+  hours_per_week int
+
+  duration_weeks int
+
+  start_date date
+
+  compensation_note text
+
+  nda_required boolean [default: false]
+
+  status offer_status [
+    default: 'PENDING'
+  ]
+
+  // For team applications, the accepted application leader is
+  // the authorized team-level offer responder.
+  responded_by bigint
+
+  created_at timestamptz
+  responded_at timestamptz
+  updated_at timestamptz
+}
+
+
+//////////////////////////////////////////////////////////////
+// AGREEMENTS / NDA
+//
+// Do not use consent_records for NDAs. Agreements support
+// challenge/application-specific legal or confidentiality
+// acceptance.
+//
+// accepted offer + required agreement accepted
+// -> eligible for restricted/T3 resource access
+//////////////////////////////////////////////////////////////
+
+Table agreements {
+  id bigint [pk, increment]
+
+  user_id bigint [not null]
+
+  challenge_id bigint [not null]
+
+  application_id bigint
+
+  agreement_type agreement_type [not null]
+
+  agreement_version varchar
+
+  document_url varchar
+
+  accepted_at timestamptz
+
+  revoked_at timestamptz
+
+  created_at timestamptz
+}
+
+
+//////////////////////////////////////////////////////////////
+// ACTIVE PROJECT
+//
+// Created after accepted offer/selection. Accepted application
+// members later become project_members.
+//
+// Canonical chain:
+// Challenge -> Application -> Project
+//////////////////////////////////////////////////////////////
+
+Table projects {
+  id bigint [pk, increment]
+
+  // Externally safe route identifier.
+  public_id uuid [not null, unique]
+
+  application_id bigint [not null, unique]
+
+  faculty_supervisor_id bigint
+
+  status project_status [
+    default: 'ACTIVE'
+  ]
+
+  start_date date
+  end_date date
+
+  created_at timestamptz
+  updated_at timestamptz
+}
+
+
+//////////////////////////////////////////////////////////////
+// PROJECT TEAM MEMBERS
+//////////////////////////////////////////////////////////////
+
+Table project_members {
+  id bigint [pk, increment]
+
+  project_id bigint [not null]
+
+  student_id bigint [not null]
+
+  project_role varchar
+
+  joined_at timestamptz
+
+  indexes {
+    (project_id, student_id) [unique]
+  }
+}
+
+
+//////////////////////////////////////////////////////////////
+// PROJECT MILESTONES
+//
+// OVERDUE is derived:
+// deadline < current date AND status != COMPLETED
+//////////////////////////////////////////////////////////////
+
+Table milestones {
+  id bigint [pk, increment]
+
+  project_id bigint [not null]
+
+  title varchar [not null]
+
+  description text
+
+  deadline date
+
+  status milestone_status [
+    default: 'PENDING'
+  ]
+
+  created_at timestamptz
+  updated_at timestamptz
+}
+
+
+//////////////////////////////////////////////////////////////
+// PROJECT DELIVERABLES
+//
+// File/URL fields are object-storage or external references,
+// not PostgreSQL blobs.
+//////////////////////////////////////////////////////////////
+
+Table deliverables {
+  id bigint [pk, increment]
+
+  milestone_id bigint [not null]
+
+  submitted_by bigint [not null]
+
+  title varchar
+
+  description text
+
+  deliverable_type deliverable_type
+
+  file_url varchar
+
+  external_url varchar
+
+  submitted_at timestamptz
+}
+
+
+//////////////////////////////////////////////////////////////
+// MILESTONE REVIEWS / APPROVALS
+//
+// Replaces MVP facultyApproved/posterApproved booleans.
+// Dual approval is derived from required review records.
+// Repeated review/revision rounds are preserved as rows.
+//////////////////////////////////////////////////////////////
+
+Table milestone_reviews {
+  id bigint [pk, increment]
+
+  milestone_id bigint [not null]
+
+  reviewer_id bigint [not null]
+
+  reviewer_organization_id bigint
+
+  reviewer_role milestone_review_role [not null]
+
+  decision milestone_review_decision [not null]
+
+  comments text
+
+  created_at timestamptz
+  updated_at timestamptz
+}
+
+
+//////////////////////////////////////////////////////////////
+// PROJECT FEEDBACK
+//
+// Generic feedback system with structured metrics and
+// visibility rules. Private admin notes must remain restricted
+// by service/RBAC policy.
+//////////////////////////////////////////////////////////////
+
+Table feedback {
+  id bigint [pk, increment]
+
+  project_id bigint [not null]
+
+  milestone_id bigint
+
+  author_id bigint [not null]
+
+  recipient_id bigint
+
+  feedback_type feedback_type [
+    default: 'GENERAL'
+  ]
+
+  visibility feedback_visibility [
+    default: 'RECIPIENT'
+  ]
+
+  metrics jsonb
+
+  content text
+
+  created_at timestamptz
+}
+
+
+//////////////////////////////////////////////////////////////
+// RESTRICTED PROJECT RESOURCES / T3
+//
+// Resource rows store metadata/access references only.
+// Do not store plaintext credentials or secrets in PostgreSQL.
+//////////////////////////////////////////////////////////////
+
+Table project_resources {
+  id bigint [pk, increment]
+
+  project_id bigint [not null]
+
+  title varchar [not null]
+
+  description text
+
+  resource_type varchar
+
+  storage_key varchar
+
+  external_url varchar
+
+  sensitivity_level resource_sensitivity [
+    default: 'TEAM_ONLY'
+  ]
+
+  requires_agreement boolean [default: false]
+
+  created_by bigint
+
+  created_at timestamptz
+  updated_at timestamptz
+}
+
+
+//////////////////////////////////////////////////////////////
+// USER CONSENT
+//
+// For privacy, data-processing, profile visibility, and AI
+// matching consent. Do not use this table for NDAs.
+//////////////////////////////////////////////////////////////
+
+Table consent_records {
+  id bigint [pk, increment]
+
+  user_id bigint [not null]
+
+  consent_type varchar [
+    note: 'AI_MATCHING, PROFILE_VISIBILITY, DATA_PROCESSING'
+  ]
+
+  granted boolean [not null]
+
+  granted_at timestamptz
+
+  revoked_at timestamptz
+}
+
+
+//////////////////////////////////////////////////////////////
+// NOTIFICATIONS
+//////////////////////////////////////////////////////////////
+
+Table notifications {
+  id bigint [pk, increment]
+
+  user_id bigint [not null]
+
+  notification_type varchar
+
+  title varchar
+
+  message text
+
+  is_read boolean [default: false]
+
+  created_at timestamptz
+  read_at timestamptz
+}
+
+
+//////////////////////////////////////////////////////////////
+// AUDIT LOG
+//////////////////////////////////////////////////////////////
+
+Table audit_logs {
+  id bigint [pk, increment]
+
+  user_id bigint
+
+  action varchar [not null]
+
+  entity_type varchar
+
+  entity_id bigint
+
+  details jsonb
+
+  created_at timestamptz
+}
+
+
+
+//////////////////////////////////////////////////////////////
+// RELATIONSHIPS
+//////////////////////////////////////////////////////////////
+
+
+//////////////////////////////////////////////////////////////
+// USER PROFILE RELATIONSHIPS
+// Explicit ONE-TO-ONE
+//////////////////////////////////////////////////////////////
+
+Ref: users.id - student_profiles.user_id
+
+Ref: users.id - faculty_profiles.user_id
+
+
+//////////////////////////////////////////////////////////////
+// ORGANIZATIONS
+//////////////////////////////////////////////////////////////
+
+Ref: users.id < organization_memberships.user_id
+
+Ref: organizations.id < organization_memberships.organization_id
+
+
+//////////////////////////////////////////////////////////////
+// SKILL CATEGORY
+//////////////////////////////////////////////////////////////
+
+Ref: skill_categories.id < skill_categories.parent_id
+
+Ref: skill_categories.id < skills.category_id
+
+
+//////////////////////////////////////////////////////////////
+// SKILL ALIASES
+//////////////////////////////////////////////////////////////
+
+Ref: skills.id < skill_aliases.skill_id
+
+
+//////////////////////////////////////////////////////////////
+// STUDENT SKILLS
+//////////////////////////////////////////////////////////////
+
+Ref: student_profiles.user_id < student_skills.student_id
+
+Ref: skills.id < student_skills.skill_id
+
+
+//////////////////////////////////////////////////////////////
+// STUDENT PROJECTS
+//////////////////////////////////////////////////////////////
+
+Ref: student_profiles.user_id < student_projects.student_id
+
+Ref: student_projects.id < project_skills.project_id
+
+Ref: skills.id < project_skills.skill_id
+
+Ref: student_projects.id < project_evidence.project_id
+
+
+//////////////////////////////////////////////////////////////
+// SKILL CANDIDATES
+//////////////////////////////////////////////////////////////
+
+Ref: users.id < skill_candidates.submitted_by
+
+Ref: skills.id < skill_candidates.suggested_skill_id
+
+
+//////////////////////////////////////////////////////////////
+// SKILL RELATIONSHIPS
+//////////////////////////////////////////////////////////////
+
+Ref: skills.id < skill_relationships.skill_id
+
+Ref: skills.id < skill_relationships.related_skill_id
+
+
+//////////////////////////////////////////////////////////////
+// CHALLENGES
+//
+// Same organizations table is referenced twice:
+// owner_organization_id and managing_organization_id
+//////////////////////////////////////////////////////////////
+
+Ref: organizations.id < challenges.owner_organization_id
+
+Ref: organizations.id < challenges.managing_organization_id
+
+Ref: users.id < challenges.contact_person_id
+
+Ref: challenges.id < challenge_eligibility_rules.challenge_id
+
+
+//////////////////////////////////////////////////////////////
+// CHALLENGE SKILLS
+//////////////////////////////////////////////////////////////
+
+Ref: challenges.id < challenge_skills.challenge_id
+
+Ref: skills.id < challenge_skills.skill_id
+
+
+//////////////////////////////////////////////////////////////
+// FACULTY ROUTING
+//////////////////////////////////////////////////////////////
+
+Ref: challenges.id < challenge_faculty_assignments.challenge_id
+
+Ref: faculty_profiles.user_id < challenge_faculty_assignments.faculty_id
+
+Ref: users.id < challenge_faculty_assignments.assigned_by
+
+
+//////////////////////////////////////////////////////////////
+// CHALLENGE REVIEWS
+//////////////////////////////////////////////////////////////
+
+Ref: challenges.id < challenge_reviews.challenge_id
+
+Ref: users.id < challenge_reviews.reviewer_id
+
+Ref: organizations.id < challenge_reviews.reviewer_organization_id
+
+
+//////////////////////////////////////////////////////////////
+// APPLICATIONS
+//////////////////////////////////////////////////////////////
+
+Ref: challenges.id < applications.challenge_id
+
+Ref: users.id < applications.submitted_by
+
+Ref: applications.id < application_members.application_id
+
+Ref: student_profiles.user_id < application_members.student_id
+
+Ref: applications.id < application_projects.application_id
+
+Ref: student_projects.id < application_projects.student_project_id
+
+Ref: applications.id < supervision_requests.application_id
+
+Ref: faculty_profiles.user_id < supervision_requests.faculty_id
+
+Ref: users.id < supervision_requests.requested_by
+
+
+//////////////////////////////////////////////////////////////
+// AI MATCHING
+//////////////////////////////////////////////////////////////
+
+Ref: challenges.id < match_results.challenge_id
+
+Ref: student_profiles.user_id < match_results.student_id
+
+Ref: match_results.id < match_skill_details.match_result_id
+
+Ref: challenge_skills.id < match_skill_details.challenge_skill_id
+
+Ref: student_skills.id < match_skill_details.matched_student_skill_id
+
+Ref: match_results.id < match_experience_details.match_result_id
+
+Ref: student_projects.id < match_experience_details.student_project_id
+
+
+//////////////////////////////////////////////////////////////
+// ASSESSMENT
+//////////////////////////////////////////////////////////////
+
+Ref: challenges.id < assessments.challenge_id
+
+Ref: users.id < assessments.created_by
+
+Ref: assessments.id < assessment_sections.assessment_id
+
+Ref: assessment_sections.id < assessment_questions.section_id
+
+Ref: assessments.id < assessment_attempts.assessment_id
+
+Ref: applications.id < assessment_attempts.application_id
+
+Ref: application_members.id < assessment_attempts.application_member_id
+
+Ref: assessment_attempts.id < assessment_responses.attempt_id
+
+Ref: assessment_questions.id < assessment_responses.question_id
+
+Ref: assessment_attempts.id < assessment_scores.attempt_id
+
+Ref: users.id < assessment_scores.reviewer_id
+
+
+//////////////////////////////////////////////////////////////
+// SELECTION AND OFFER
+//////////////////////////////////////////////////////////////
+
+Ref: applications.id < selections.application_id
+
+Ref: users.id < selections.selected_by
+
+Ref: selections.id < offers.selection_id
+
+Ref: users.id < offers.responded_by
+
+
+//////////////////////////////////////////////////////////////
+// AGREEMENTS
+//////////////////////////////////////////////////////////////
+
+Ref: users.id < agreements.user_id
+
+Ref: challenges.id < agreements.challenge_id
+
+Ref: applications.id < agreements.application_id
+
+
+//////////////////////////////////////////////////////////////
+// PROJECT EXECUTION
+//////////////////////////////////////////////////////////////
+
+Ref: applications.id < projects.application_id
+
+Ref: faculty_profiles.user_id < projects.faculty_supervisor_id
+
+Ref: projects.id < project_members.project_id
+
+Ref: student_profiles.user_id < project_members.student_id
+
+Ref: projects.id < milestones.project_id
+
+Ref: milestones.id < deliverables.milestone_id
+
+Ref: users.id < deliverables.submitted_by
+
+Ref: milestones.id < milestone_reviews.milestone_id
+
+Ref: users.id < milestone_reviews.reviewer_id
+
+Ref: organizations.id < milestone_reviews.reviewer_organization_id
+
+Ref: projects.id < feedback.project_id
+
+Ref: milestones.id < feedback.milestone_id
+
+Ref: users.id < feedback.author_id
+
+Ref: users.id < feedback.recipient_id
+
+Ref: projects.id < project_resources.project_id
+
+Ref: users.id < project_resources.created_by
+
+
+//////////////////////////////////////////////////////////////
+// GOVERNANCE
+//////////////////////////////////////////////////////////////
+
+Ref: users.id < consent_records.user_id
+
+Ref: users.id < notifications.user_id
+
+Ref: users.id < audit_logs.user_id

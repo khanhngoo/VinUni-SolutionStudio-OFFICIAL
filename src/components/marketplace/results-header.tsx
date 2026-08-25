@@ -1,20 +1,33 @@
 import Link from "next/link";
 import { CloseIcon } from "@/components/ui/icons";
-import { countActive, hrefWithout, type FilterState } from "@/lib/filters";
+import {
+  marketplaceFilterCount,
+  marketplaceHrefWithout,
+  type MarketplaceFilterState,
+} from "@/lib/challenge-marketplace";
 
 interface ResultsHeaderProps {
+  page: number;
   shown: number;
   total: number;
-  filters: FilterState;
+  filters: MarketplaceFilterState;
 }
 
-type Group = "college" | "type" | "comp";
+type Group = "college" | "type" | "comp" | "search";
 
-export function ResultsHeader({ shown, total, filters }: ResultsHeaderProps) {
+export function ResultsHeader({
+  page,
+  shown,
+  total,
+  filters,
+}: ResultsHeaderProps) {
   const active: { group: Group; value: string }[] = [
     ...filters.college.map((value) => ({ group: "college" as const, value })),
     ...filters.type.map((value) => ({ group: "type" as const, value })),
     ...filters.comp.map((value) => ({ group: "comp" as const, value })),
+    ...(filters.search
+      ? [{ group: "search" as const, value: filters.search }]
+      : []),
   ];
 
   return (
@@ -25,9 +38,10 @@ export function ResultsHeader({ shown, total, filters }: ResultsHeaderProps) {
       </div>
 
       <p className="text-ink-2 marker-triangle font-semibold">
-        {countActive(filters) > 0
-          ? `${shown} of ${total} challenges`
+        {marketplaceFilterCount(filters) > 0
+          ? `${shown} shown of ${total} matching challenges`
           : `${total} open challenges`}
+        {total > shown ? ` · page ${page}` : ""}
       </p>
 
       {active.length > 0 ? (
@@ -35,7 +49,7 @@ export function ResultsHeader({ shown, total, filters }: ResultsHeaderProps) {
           {active.map(({ group, value }) => (
             <Link
               key={`${group}-${value}`}
-              href={hrefWithout(filters, group, value)}
+              href={marketplaceHrefWithout(filters, group, value)}
               className="inline-flex items-center gap-1.5 rounded-card bg-brand-soft pl-2.5 pr-2 py-1 text-[11px] leading-none text-brand hover:bg-line hover:text-brand-deep"
             >
               {value}
