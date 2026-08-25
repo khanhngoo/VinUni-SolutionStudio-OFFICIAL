@@ -2,15 +2,23 @@ import { Section } from "@/components/ui/section";
 import { CheckIcon } from "@/components/ui/icons";
 import {
   challengeEligibilityLabels,
+  eligibilityReasons,
   type MarketplaceChallengeDetailModel,
 } from "@/lib/challenge-marketplace";
+import type { EligibilityEvaluation } from "@/services/challenge-policy";
 
 interface EligibilitySectionProps {
   challenge: MarketplaceChallengeDetailModel;
+  /** Null for a viewer with no student profile — there is nothing to check. */
+  evaluation?: EligibilityEvaluation | null;
 }
 
-export function EligibilitySection({ challenge }: EligibilitySectionProps) {
+export function EligibilitySection({
+  challenge,
+  evaluation,
+}: EligibilitySectionProps) {
   const rules = challengeEligibilityLabels(challenge);
+  const reasons = evaluation ? eligibilityReasons(evaluation) : null;
 
   return (
     <Section title="Eligibility">
@@ -25,6 +33,31 @@ export function EligibilitySection({ challenge }: EligibilitySectionProps) {
           </p>
         ))}
       </div>
+
+      {reasons && reasons.failed.length > 0 ? (
+        <div className="mt-2.5 bg-warn-soft rounded-card px-4 py-3">
+          {reasons.failed.map((reason) => (
+            <p key={reason} className="text-warn">
+              {reason}
+            </p>
+          ))}
+        </div>
+      ) : null}
+
+      {reasons && reasons.failed.length === 0 && reasons.unknown.length > 0 ? (
+        <div className="mt-2.5 bg-card border border-line rounded-card px-4 py-3">
+          <p className="text-ink-2">
+            We can&apos;t check every requirement against your profile yet.
+          </p>
+          <ul className="mt-1.5 flex flex-col gap-1">
+            {reasons.unknown.map((reason) => (
+              <li key={reason} className="text-meta text-ink-3">
+                {reason}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
     </Section>
   );
 }

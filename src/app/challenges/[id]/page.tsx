@@ -8,6 +8,8 @@ import { SummarySection } from "@/components/challenge/summary-section";
 import { Section } from "@/components/ui/section";
 import { marketplaceContextForActor } from "@/lib/challenge-marketplace";
 import { lockedBlocksFor } from "@/lib/disclosure";
+import { getStudentEligibilityProfile, listStudentSkillNames } from "@/db/queries/challenges";
+import { evaluateChallengeEligibility } from "@/services/challenge-policy";
 import { getAuthenticatedActor } from "@/auth/authenticated-actor";
 import { getMarketplaceChallengeBySlug } from "@/services/challenge.service";
 
@@ -20,8 +22,19 @@ export default async function ChallengeDetailPage({
 }) {
   const { id: slug } = await params;
   const actor = await getAuthenticatedActor();
-  const challenge = await getMarketplaceChallengeBySlug(slug, marketplaceContextForActor(actor.status === "RESOLVED" ? actor.actor : null));
+  const resolvedActor = actor.status === "RESOLVED" ? actor.actor : null;
+  const challenge = await getMarketplaceChallengeBySlug(slug, marketplaceContextForActor(resolvedActor));
   if (!challenge) notFound();
+
+  const isStudent = Boolean(resolvedActor?.studentProfile);
+  const [studentSkills, eligibilityProfile] = await Promise.all([
+    isStudent ? listStudentSkillNames(resolvedActor!.user.userId) : null,
+    isStudent ? getStudentEligibilityProfile(resolvedActor!.user.userId) : null,
+  ]);
+
+  const evaluation = eligibilityProfile
+    ? evaluateChallengeEligibility(challenge.eligibilityRules, eligibilityProfile)
+    : null;
 
   return (
     <article className="max-w-[820px] mx-auto px-6 sm:px-7 py-7 pb-16">
@@ -31,11 +44,11 @@ export default async function ChallengeDetailPage({
         <MarketplaceApplyPanel challenge={challenge} />
       </div>
 
-      <SummarySection challenge={challenge} />
+      <SummarySection challenge={challenge} studentSkills={studentSkills} />
 
-      <AssessmentSection />
+      <AssessmentSection challenge={challenge} />
 
-      <EligibilitySection challenge={challenge} />
+      <EligibilitySection challenge={challenge} evaluation={evaluation} />
 
       <Section title="Contact and academic routing">
         <div className="grid sm:grid-cols-2 gap-2.5">

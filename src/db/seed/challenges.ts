@@ -39,6 +39,7 @@ interface DemoChallengeSeed {
   eligibilityRules: DemoChallengeEligibilityRuleSeed[];
   expectedDeliverables: string;
   facultyAssignments: string[];
+  interviewFormat: string;
   managingOrganizationKey: string;
   ownerOrganizationKey: string;
   publicId: string;
@@ -99,6 +100,7 @@ function minGpaRule(value: number): DemoChallengeEligibilityRuleSeed {
 
 export const DEMO_CHALLENGES: DemoChallengeSeed[] = [
   {
+    interviewFormat: "45-min MS Teams call with the data lead",
     sourceFixtureId: "merchant-churn-model",
     slug: "merchant-churn-model",
     publicId: "33333333-3333-4333-8333-000000000001",
@@ -142,6 +144,7 @@ export const DEMO_CHALLENGES: DemoChallengeSeed[] = [
     facultyAssignments: ["user:fac-osei", "user:fac-pham"],
   },
   {
+    interviewFormat: "30-min MS Teams call with the operations manager",
     sourceFixtureId: "route-optimisation",
     slug: "route-optimisation",
     publicId: "33333333-3333-4333-8333-000000000002",
@@ -182,6 +185,7 @@ export const DEMO_CHALLENGES: DemoChallengeSeed[] = [
     facultyAssignments: ["user:fac-pham", "user:fac-nguyen-k"],
   },
   {
+    interviewFormat: "45-min on-campus conversation with the supervising clinician",
     sourceFixtureId: "triage-protocol-review",
     slug: "triage-protocol-review",
     publicId: "33333333-3333-4333-8333-000000000003",
@@ -221,6 +225,7 @@ export const DEMO_CHALLENGES: DemoChallengeSeed[] = [
     facultyAssignments: ["user:fac-vu"],
   },
   {
+    interviewFormat: "30-min MS Teams call with the programme director",
     sourceFixtureId: "community-health-outreach",
     slug: "community-health-outreach",
     publicId: "33333333-3333-4333-8333-000000000004",
@@ -260,6 +265,7 @@ export const DEMO_CHALLENGES: DemoChallengeSeed[] = [
     facultyAssignments: ["user:fac-vu", "user:fac-le"],
   },
   {
+    interviewFormat: "45-min MS Teams call with the operations director",
     sourceFixtureId: "supply-chain-dashboard",
     slug: "supply-chain-dashboard",
     publicId: "33333333-3333-4333-8333-000000000005",
@@ -302,6 +308,7 @@ export const DEMO_CHALLENGES: DemoChallengeSeed[] = [
     facultyAssignments: ["user:fac-pham", "user:fac-osei"],
   },
   {
+    interviewFormat: "30-min on-campus conversation with the facilities lead",
     sourceFixtureId: "campus-energy-audit",
     slug: "campus-energy-audit",
     publicId: "33333333-3333-4333-8333-000000000006",
@@ -341,6 +348,7 @@ export const DEMO_CHALLENGES: DemoChallengeSeed[] = [
     facultyAssignments: ["user:fac-nguyen-k", "user:fac-le"],
   },
   {
+    interviewFormat: "30-min on-campus conversation with the head archivist",
     sourceFixtureId: "archive-digitisation",
     slug: "archive-digitisation",
     publicId: "33333333-3333-4333-8333-000000000007",
@@ -380,6 +388,7 @@ export const DEMO_CHALLENGES: DemoChallengeSeed[] = [
     facultyAssignments: ["user:fac-le", "user:fac-tran"],
   },
   {
+    interviewFormat: "30-min MS Teams call with an investment associate",
     sourceFixtureId: "synthesized-demo-elab-venture-readiness-dashboard",
     slug: "demo-elab-venture-readiness-dashboard",
     publicId: "33333333-3333-4333-8333-000000000008",
@@ -437,6 +446,7 @@ async function ensureDemoChallenge(ctx: SeedContext, seed: DemoChallengeSeed) {
       domain: seed.domain,
       durationWeeks: seed.durationWeeks,
       expectedDeliverables: seed.expectedDeliverables,
+      interviewFormat: seed.interviewFormat,
       managingOrganizationId: ctx.getId(seed.managingOrganizationKey),
       ownerOrganizationId: ctx.getId(seed.ownerOrganizationKey),
       publicId: seed.publicId,
@@ -464,6 +474,7 @@ async function ensureDemoChallenge(ctx: SeedContext, seed: DemoChallengeSeed) {
         domain: seed.domain,
         durationWeeks: seed.durationWeeks,
         expectedDeliverables: seed.expectedDeliverables,
+        interviewFormat: seed.interviewFormat,
         managingOrganizationId: ctx.getId(seed.managingOrganizationKey),
         ownerOrganizationId: ctx.getId(seed.ownerOrganizationKey),
         publicId: seed.publicId,

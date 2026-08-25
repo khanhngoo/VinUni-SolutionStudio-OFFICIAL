@@ -5,7 +5,10 @@ import type {
   ListPublishedChallengesOptions,
   PublishedChallengeSort,
 } from "@/db/queries/challenges";
-import type { ChallengeAccessContext } from "@/services/challenge-policy";
+import type {
+  ChallengeAccessContext,
+  EligibilityEvaluation,
+} from "@/services/challenge-policy";
 import type { AuthenticatedActor } from "@/auth/authenticated-actor";
 
 export type MarketplaceSortKey =
@@ -259,6 +262,25 @@ export function challengeEligibilityLabels(challenge: ChallengeDetail) {
   if (challenge.eligibilityRules.length === 0) return ["Eligibility to be confirmed"];
 
   return challenge.eligibilityRules.map((rule) => formatEligibilityRule(rule));
+}
+
+/**
+ * Why a student fails, or why we cannot tell. Splits the evaluation into the
+ * two states that read differently: a FAILED required rule is a hard no and
+ * gets the warning treatment, while an UNKNOWN one usually means the student's
+ * own profile is incomplete — that is a prompt to fix their profile, not a
+ * rejection, and colouring it as one would be wrong.
+ */
+export function eligibilityReasons(evaluation: EligibilityEvaluation) {
+  const failed = evaluation.rules
+    .filter((rule) => rule.required && rule.result === "FAILED")
+    .map((rule) => rule.reason);
+
+  const unknown = evaluation.rules
+    .filter((rule) => rule.required && rule.result === "UNKNOWN")
+    .map((rule) => rule.reason);
+
+  return { failed, unknown };
 }
 
 export function requiredSkillCount(challenge: ChallengeListItem) {
