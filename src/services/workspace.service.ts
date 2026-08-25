@@ -1,4 +1,5 @@
 import { db } from "@/db";
+import { getChallengeWorkspaceExtras } from "@/db/queries/challenges";
 import {
   getProjectCoreByApplicationPublicId,
   hasAcceptedProjectAgreement,
@@ -35,12 +36,21 @@ export interface WorkspaceListItem {
 
 export interface WorkspaceDetail extends WorkspaceListItem {
   applicationStatus: string;
-  challenge: { ownerOrganizationName: string; weeklyHours: number | null };
+  challenge: {
+    durationWeeks: number | null;
+    fullBrief: string | null;
+    ownerOrganizationName: string;
+    subtype: string | null;
+    weeklyHours: number | null;
+  };
+  contactPerson: { displayName: string; email: string | null; roleLabel: string | null } | null;
   members: Array<{ fullName: string; major: string | null; projectRole: string | null; studyYear: number | null }>;
   project: { endDate: string | null; startDate: string | null; supervisorName: string | null };
   milestones: Array<{
     deadline: string | null;
     description: string | null;
+    facultyApproved: boolean;
+    partnerApproved: boolean;
     deliverables: Array<{ description: string | null; submittedAt: Date | null; submittedByName: string; title: string | null; type: string | null }>;
     id: string;
     latestReviews: Array<{ comments: string | null; createdAt: Date | null; decision: string; reviewerName: string; reviewerRole: string }>;
@@ -75,15 +85,25 @@ export async function getWorkspaceDetail(applicationPublicId: string, actor: App
   if (!(await canAccessProject(database, project, actor))) {
     throw new WorkspaceError("FORBIDDEN", "Actor cannot access this workspace.");
   }
-  const [members, milestones, resources] = await Promise.all([
+  const [members, milestones, resources, challengeExtras] = await Promise.all([
     listProjectMembers(database, project.id), listProjectMilestones(database, project.id), listProjectResources(database, project.id),
+    // Safe to read unredacted: reaching this point already required passing
+    // canAccessProject, which is a stricter gate than the brief's own.
+    getChallengeWorkspaceExtras(project.challenge.id),
   ]);
   const agreementSatisfied = actor.isStudent
     ? await hasAcceptedProjectAgreement(database, project.application.id, project.challenge.id, actor.userId)
     : true;
   return {
     ...toListItem(project, milestones), applicationStatus: project.application.status,
-    challenge: { ownerOrganizationName: project.challenge.ownerOrganizationName, weeklyHours: project.challenge.weeklyHours },
+    challenge: {
+      durationWeeks: challengeExtras?.durationWeeks ?? null,
+      fullBrief: challengeExtras?.fullBrief ?? null,
+      ownerOrganizationName: project.challenge.ownerOrganizationName,
+      subtype: challengeExtras?.subtype ?? null,
+      weeklyHours: project.challenge.weeklyHours,
+    },
+    contactPerson: challengeExtras?.contactPerson ?? null,
     members: members.map((member) => ({
       fullName: member.fullName,
       major: member.major,
@@ -91,7 +111,15 @@ export async function getWorkspaceDetail(applicationPublicId: string, actor: App
       studyYear: member.studyYear,
     })),
     project: { endDate: project.endDate, startDate: project.startDate, supervisorName: project.facultySupervisor?.fullName ?? null },
-    milestones: milestones.map((milestone) => ({ ...milestone, id: milestone.id.toString() })),
+    milestones: milestones.map((milestone) => ({
+      ...milestone,
+      // Fold the per-role review rows into the two booleans the UI asks about.
+      // Kept here rather than in the component so every surface that shows
+      // sign-off agrees on what "approved" means.
+      facultyApproved: hasApproval(milestone.latestReviews, "FACULTY"),
+      id: milestone.id.toString(),
+      partnerApproved: hasApproval(milestone.latestReviews, "PARTNER"),
+    })),
     resources: resources.map((resource) => ({
       access: resource.requiresAgreement && !agreementSatisfied ? "AGREEMENT_REQUIRED" : "AVAILABLE",
       description: resource.description, resourceType: resource.resourceType, sensitivityLevel: resource.sensitivityLevel, title: resource.title,
@@ -139,4 +167,13 @@ export async function listRevealedResourceNames(
 
   const resources = await listProjectResources(db, core.id);
   return resources.map((resource) => resource.title);
+}
+
+function hasApproval(
+  reviews: Array<{ decision: string; reviewerRole: string }>,
+  role: string
+) {
+  return reviews.some(
+    (review) => review.reviewerRole === role && review.decision === "APPROVED"
+  );
 }

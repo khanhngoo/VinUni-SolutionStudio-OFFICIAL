@@ -1083,3 +1083,39 @@ export async function getChallengeAssessmentSummary(
     trackLabel: assessmentTrackLabel(questionTypes),
   };
 }
+
+export interface ChallengeWorkspaceExtrasRead {
+  contactPerson: {
+    displayName: string;
+    email: string | null;
+    roleLabel: string | null;
+  } | null;
+  durationWeeks: number | null;
+  fullBrief: string | null;
+  subtype: string | null;
+}
+
+/**
+ * The challenge fields a live workspace shows that the project row does not
+ * carry — including the full brief.
+ *
+ * Unredacted by design: every caller has already cleared `canAccessProject`,
+ * which is a stricter gate than the brief's own. Do not call this from the
+ * marketplace, which must go through `applyChallengeDetailDisclosure`.
+ */
+export async function getChallengeWorkspaceExtras(
+  challengeId: InternalChallengeId
+): Promise<ChallengeWorkspaceExtrasRead | null> {
+  const [row] = await db
+    .select({
+      durationWeeks: challenges.durationWeeks,
+      fullBrief: challenges.fullBrief,
+      subtype: challenges.subtype,
+    })
+    .from(challenges)
+    .where(eq(challenges.id, challengeId));
+
+  if (!row) return null;
+
+  return { ...row, contactPerson: await selectContactPerson(challengeId) };
+}
