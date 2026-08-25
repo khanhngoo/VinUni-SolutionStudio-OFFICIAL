@@ -315,8 +315,27 @@ export function buildAgenda(
     })
     .slice(0, maxEvents);
 
+  return groupAgendaEvents(visible);
+}
+
+/**
+ * Windows, sorts and groups loose agenda events into days.
+ *
+ * Split out of `buildAgenda` so the database-backed hub can share the ordering
+ * rules — all-day items heading their day, meetings sorted by instant — rather
+ * than growing a second, subtly different copy.
+ */
+export function groupAgendaEvents(
+  events: AgendaEvent[],
+  { horizonDays, maxEvents }: AgendaOptions = {}
+): AgendaDay[] {
+  const windowed =
+    horizonDays === undefined && maxEvents === undefined
+      ? events
+      : windowEvents(events, { horizonDays, maxEvents });
+
   const days: AgendaDay[] = [];
-  for (const event of visible) {
+  for (const event of windowed) {
     const key = dayKey(event.at);
     const day = days.at(-1);
     if (day?.key === key) {
@@ -326,4 +345,27 @@ export function buildAgenda(
     }
   }
   return days;
+}
+
+function windowEvents(
+  events: AgendaEvent[],
+  { horizonDays = 45, maxEvents = 12 }: AgendaOptions
+): AgendaEvent[] {
+  const from = TODAY.getTime();
+  const until = TODAY.getTime() + horizonDays * MS_PER_DAY;
+
+  return events
+    .filter((event) => {
+      const at = toDate(event.at).getTime();
+      return at >= from && at <= until;
+    })
+    .sort(compareAgendaEvents)
+    .slice(0, maxEvents);
+}
+
+function compareAgendaEvents(a: AgendaEvent, b: AgendaEvent) {
+  const dayDiff = dayKey(a.at).localeCompare(dayKey(b.at));
+  if (dayDiff !== 0) return dayDiff;
+  if (a.allDay !== b.allDay) return a.allDay ? -1 : 1;
+  return toDate(a.at).getTime() - toDate(b.at).getTime();
 }

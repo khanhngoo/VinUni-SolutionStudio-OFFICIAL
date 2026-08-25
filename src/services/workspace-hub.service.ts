@@ -1,7 +1,19 @@
 import { db } from "@/db";
 import { listApplicationDetailsForStudent } from "@/db/queries/applications";
-import { listProjectCores, listProjectMilestones } from "@/db/queries/projects";
-import { hubGroupFor, type HubGroup } from "@/lib/workspace";
+import {
+  isProjectMember,
+  listProjectCores,
+  listProjectMeetings,
+  listProjectMilestones,
+} from "@/db/queries/projects";
+import { meetingState, meetingTimeLabel } from "@/lib/meetings";
+import {
+  groupAgendaEvents,
+  hubGroupFor,
+  type AgendaDay,
+  type AgendaEvent,
+  type HubGroup,
+} from "@/lib/workspace";
 import type { ApplicationStage } from "@/lib/types";
 
 import {
@@ -108,4 +120,87 @@ async function milestoneProgress(projectId: bigint) {
       .length,
     total: milestones.length,
   };
+}
+
+/**
+ * The "Coming up" rail: what is scheduled, and what falls due, across
+ * everything the student is carrying.
+ *
+ * Deadlines only appear while the student is still being selected — once work
+ * has started, the application deadline is history and the milestones are what
+ * matter.
+ */
+export async function buildHubAgenda(
+  actor: ApplicationActorContext,
+  rows: WorkspaceHubRow[]
+): Promise<AgendaDay[]> {
+  const events: AgendaEvent[] = [];
+
+  for (const row of rows) {
+    const group = hubGroupFor(row.stage);
+
+    if ((group === "needs-you" || group === "waiting") && row.nextActionDue) {
+      events.push({
+        allDay: true,
+        at: row.nextActionDue,
+        context: row.challengeTitle,
+        href: `/challenges/${row.challengeSlug}`,
+        id: `${row.publicId}:deadline`,
+        kind: "deadline",
+        timeLabel: "All day",
+        title: row.stage === "INVITED" ? "Invitation expires" : "Applications close",
+      });
+    }
+  }
+
+  const cores = await listProjectCores(db);
+  const mine = cores.filter((core) =>
+    rows.some((row) => row.publicId === core.application.publicId)
+  );
+
+  for (const core of mine) {
+    if (!(await isProjectMember(db, core.id, actor.userId))) continue;
+
+    const [projectMeetings, projectMilestones] = await Promise.all([
+      listProjectMeetings(db, core.id),
+      listProjectMilestones(db, core.id),
+    ]);
+
+    for (const milestone of projectMilestones) {
+      if (!milestone.deadline || milestone.status === "COMPLETED") continue;
+      events.push({
+        allDay: true,
+        at: milestone.deadline,
+        context: core.challenge.title,
+        href: `/workspace/${core.application.publicId}?tab=milestones`,
+        id: `${core.application.publicId}:milestone:${milestone.id}`,
+        kind: "milestone",
+        timeLabel: "All day",
+        title: milestone.title,
+      });
+    }
+
+    for (const meeting of projectMeetings) {
+      const timing = {
+        durationMinutes: meeting.durationMinutes,
+        startsAt: meeting.startsAt.toISOString(),
+      };
+      if (meetingState(timing) === "past") continue;
+
+      events.push({
+        allDay: false,
+        at: timing.startsAt,
+        context: core.challenge.title,
+        href: `/workspace/${core.application.publicId}`,
+        id: `meeting:${meeting.publicId}`,
+        kind: "meeting",
+        meetingId: meeting.publicId,
+        meetingState: meetingState(timing),
+        timeLabel: meetingTimeLabel(timing),
+        title: meeting.title,
+      });
+    }
+  }
+
+  return groupAgendaEvents(events, { maxEvents: 10 });
 }

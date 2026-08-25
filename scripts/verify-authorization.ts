@@ -8,7 +8,7 @@ import { toApplicationActorContext } from "@/services/application.service";
 import { getAssessmentPreflight, AssessmentError } from "@/services/assessment.service";
 import { getMarketplaceChallengeBySlug, listMarketplaceChallenges } from "@/services/challenge.service";
 import { getOfferDetail, OfferError } from "@/services/offer.service";
-import { getWorkspaceDetail, WorkspaceError } from "@/services/workspace.service";
+import { getMeetingDetail, getWorkspaceDetail, WorkspaceError } from "@/services/workspace.service";
 
 const APP_CHURN = "44444444-4444-4444-8444-000000000003";
 const APP_ROUTE = "44444444-4444-4444-8444-000000000002";
@@ -54,6 +54,11 @@ async function main() {
   assert(await getOfferDetail(APP_ROUTE, toApplicationActorContext(jordan)), "application member offer denied");
   await expectError(() => getWorkspaceDetail(APP_SUPPLY, toApplicationActorContext(bao)), WorkspaceError, "FORBIDDEN", "unrelated student workspace");
   assert(await getWorkspaceDetail(APP_SUPPLY, toApplicationActorContext(jordan)), "project member workspace denied");
+
+  // A meeting URL must be no more reachable than the workspace it belongs to.
+  const SUPPLY_MEETING = "66666666-6666-4666-8666-000000000002";
+  await expectError(() => getMeetingDetail(SUPPLY_MEETING, toApplicationActorContext(bao)), WorkspaceError, "FORBIDDEN", "unrelated student meeting");
+  assert(await getMeetingDetail(SUPPLY_MEETING, toApplicationActorContext(jordan)), "project member meeting denied");
 
   const caidScope = marketplaceContextForActor(caid).organizationMemberships?.map((membership) => membership.organizationId.toString()) ?? [];
   const elabScope = marketplaceContextForActor(elab).organizationMemberships?.map((membership) => membership.organizationId.toString()) ?? [];

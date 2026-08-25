@@ -4,6 +4,7 @@ import { notFound, redirect } from "next/navigation";
 import { Chip } from "@/components/ui/chip";
 import { LockIcon } from "@/components/ui/icons";
 import { Section } from "@/components/ui/section";
+import { NextMeetingCard } from "@/components/workspace/next-meeting-card";
 import { ProgressBar } from "@/components/workspace/progress-bar";
 import { parseTab, WorkspaceTabs } from "@/components/workspace/workspace-tabs";
 import { daysUntil, formatDate } from "@/lib/dates";
@@ -155,6 +156,10 @@ export default async function WorkspacePage({
                 {overdue ? " · overdue" : ""}
               </p>
             ) : null}
+          </Section>
+
+          <Section title="Next meeting">
+            <NextMeetingCard meetings={detail.meetings} />
           </Section>
 
           <Section title="People">

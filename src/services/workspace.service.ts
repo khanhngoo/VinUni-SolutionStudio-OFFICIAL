@@ -7,6 +7,7 @@ import {
   listProjectCores,
   listProjectMembers,
   listProjectMilestones,
+  listProjectMeetings,
   listProjectResources,
   type ProjectCoreRead,
   type ProjectQueryDatabase,
@@ -44,6 +45,16 @@ export interface WorkspaceDetail extends WorkspaceListItem {
     weeklyHours: number | null;
   };
   contactPerson: { displayName: string; email: string | null; roleLabel: string | null } | null;
+  meetings: Array<{
+    attendees: Array<{ fullName: string; role: string | null }>;
+    durationMinutes: number | null;
+    joinUrl: string | null;
+    kind: string;
+    milestoneId: string | null;
+    publicId: string;
+    startsAt: string;
+    title: string;
+  }>;
   members: Array<{ fullName: string; major: string | null; projectRole: string | null; studyYear: number | null }>;
   project: { endDate: string | null; startDate: string | null; supervisorName: string | null };
   milestones: Array<{
@@ -85,11 +96,12 @@ export async function getWorkspaceDetail(applicationPublicId: string, actor: App
   if (!(await canAccessProject(database, project, actor))) {
     throw new WorkspaceError("FORBIDDEN", "Actor cannot access this workspace.");
   }
-  const [members, milestones, resources, challengeExtras] = await Promise.all([
+  const [members, milestones, resources, challengeExtras, projectMeetings] = await Promise.all([
     listProjectMembers(database, project.id), listProjectMilestones(database, project.id), listProjectResources(database, project.id),
     // Safe to read unredacted: reaching this point already required passing
     // canAccessProject, which is a stricter gate than the brief's own.
     getChallengeWorkspaceExtras(project.challenge.id),
+    listProjectMeetings(database, project.id),
   ]);
   const agreementSatisfied = actor.isStudent
     ? await hasAcceptedProjectAgreement(database, project.application.id, project.challenge.id, actor.userId)
@@ -104,6 +116,11 @@ export async function getWorkspaceDetail(applicationPublicId: string, actor: App
       weeklyHours: project.challenge.weeklyHours,
     },
     contactPerson: challengeExtras?.contactPerson ?? null,
+    meetings: projectMeetings.map((meeting) => ({
+      ...meeting,
+      milestoneId: meeting.milestoneId?.toString() ?? null,
+      startsAt: meeting.startsAt.toISOString(),
+    })),
     members: members.map((member) => ({
       fullName: member.fullName,
       major: member.major,
@@ -176,4 +193,68 @@ function hasApproval(
   return reviews.some(
     (review) => review.reviewerRole === role && review.decision === "APPROVED"
   );
+}
+
+export interface MeetingDetail {
+  applicationPublicId: string;
+  attendees: Array<{ fullName: string; role: string | null }>;
+  challengeTitle: string;
+  durationMinutes: number | null;
+  joinUrl: string | null;
+  kind: string;
+  startsAt: string;
+  title: string;
+}
+
+/**
+ * A meeting, for anyone who may already see its workspace.
+ *
+ * Authorization deliberately delegates to canAccessProject rather than
+ * introducing a second rule: a meeting URL must be exactly as reachable as the
+ * workspace it belongs to, no more.
+ */
+export async function getMeetingDetail(
+  meetingPublicId: string,
+  actor: ApplicationActorContext,
+  options: WorkspaceServiceOptions = {}
+): Promise<MeetingDetail | null> {
+  const database = options.database ?? db;
+  const found = await findMeetingByPublicId(database, meetingPublicId.trim());
+  if (!found) return null;
+
+  const project = await getProjectCoreByApplicationPublicId(
+    database,
+    found.applicationPublicId
+  );
+  if (!project) return null;
+
+  if (!(await canAccessProject(database, project, actor))) {
+    throw new WorkspaceError("FORBIDDEN", "Actor cannot access this meeting.");
+  }
+
+  return {
+    applicationPublicId: found.applicationPublicId,
+    attendees: found.meeting.attendees,
+    challengeTitle: project.challenge.title,
+    durationMinutes: found.meeting.durationMinutes,
+    joinUrl: found.meeting.joinUrl,
+    kind: found.meeting.kind,
+    startsAt: found.meeting.startsAt.toISOString(),
+    title: found.meeting.title,
+  };
+}
+
+async function findMeetingByPublicId(
+  database: ProjectQueryDatabase,
+  meetingPublicId: string
+) {
+  for (const core of await listProjectCores(database)) {
+    const found = (await listProjectMeetings(database, core.id)).find(
+      (meeting) => meeting.publicId === meetingPublicId
+    );
+    if (found) {
+      return { applicationPublicId: core.application.publicId, meeting: found };
+    }
+  }
+  return null;
 }

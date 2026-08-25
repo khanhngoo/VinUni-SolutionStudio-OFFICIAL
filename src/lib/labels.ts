@@ -62,6 +62,14 @@ export const ORGANIZATION_ROLE_LABELS = {
   MEMBER: "Team member",
 } as const;
 
+export const MEETING_KIND_LABELS = {
+  KICKOFF: "Kickoff",
+  WEEKLY_SYNC: "Weekly sync",
+  SUPERVISOR_ONE_ON_ONE: "Supervisor 1:1",
+  MILESTONE_REVIEW: "Milestone review",
+  FINAL_PRESENTATION: "Final presentation",
+} as const;
+
 export const RESOURCE_SENSITIVITY_LABELS = {
   PUBLIC: "Public",
   TEAM_ONLY: "Team only",
@@ -117,6 +125,9 @@ export const milestoneReviewRoleLabel = (v?: string | null, fallback = "—") =>
 
 export const organizationRoleLabel = (v?: string | null, fallback = "—") =>
   lookup(ORGANIZATION_ROLE_LABELS, v, fallback);
+
+export const meetingKindLabel = (v?: string | null, fallback = "Meeting") =>
+  lookup(MEETING_KIND_LABELS, v, fallback);
 
 export const resourceSensitivityLabel = (v?: string | null, fallback = "—") =>
   lookup(RESOURCE_SENSITIVITY_LABELS, v, fallback);

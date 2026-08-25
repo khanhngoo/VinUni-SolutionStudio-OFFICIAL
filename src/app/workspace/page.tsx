@@ -3,12 +3,14 @@ import { redirect } from "next/navigation";
 
 import { GroupHeading } from "@/components/partner/group-heading";
 import { Chip } from "@/components/ui/chip";
+import { AgendaRail } from "@/components/workspace/agenda-rail";
 import { HubApplicationTable } from "@/components/workspace/hub-application-table";
 import { HUB_GROUP_LABELS } from "@/lib/workspace";
 import { STAGE_LABELS } from "@/lib/types";
 import { getAuthenticatedActor } from "@/auth/authenticated-actor";
 import { toApplicationActorContext } from "@/services/application.service";
 import {
+  buildHubAgenda,
   groupHubRows,
   hubUrgentCount,
   listWorkspaceHubRows,
@@ -57,6 +59,10 @@ export default async function WorkspaceHubPage() {
 
   const buckets = groupHubRows(rows);
   const urgent = hubUrgentCount(rows);
+  const agenda = await buildHubAgenda(
+    toApplicationActorContext(resolution.actor),
+    rows
+  );
 
   // Closed applications are a footnote, not a table — no dates, no actions
   // worth a column, and they would otherwise be the longest group on screen.
@@ -111,9 +117,7 @@ export default async function WorkspaceHubPage() {
 
         <aside className="lg:border-l lg:border-line lg:pl-6">
           <GroupHeading title="Coming up" />
-          <p className="text-meta text-ink-3">
-            Nothing scheduled in the next six weeks.
-          </p>
+          <AgendaRail days={agenda} />
         </aside>
       </div>
     </div>

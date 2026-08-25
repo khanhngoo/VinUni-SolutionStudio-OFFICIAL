@@ -7,6 +7,8 @@ import {
   applications,
   challenges,
   deliverables,
+  meetingAttendees,
+  meetings,
   milestoneReviews,
   milestones,
   organizations,
@@ -142,4 +144,61 @@ export async function hasAcceptedProjectAgreement(database: ProjectQueryDatabase
 function latestReviews<T extends { reviewerRole: string }>(reviews: T[]) {
   const seen = new Set<string>();
   return reviews.filter((review) => (seen.has(review.reviewerRole) ? false : (seen.add(review.reviewerRole), true)));
+}
+
+export interface ProjectMeetingRead {
+  attendees: Array<{ fullName: string; role: string | null }>;
+  durationMinutes: number | null;
+  joinUrl: string | null;
+  kind: string;
+  milestoneId: bigint | null;
+  publicId: string;
+  startsAt: Date;
+  title: string;
+}
+
+export async function listProjectMeetings(
+  database: ProjectQueryDatabase,
+  projectId: bigint
+): Promise<ProjectMeetingRead[]> {
+  const rows = await database
+    .select({
+      durationMinutes: meetings.durationMinutes,
+      id: meetings.id,
+      joinUrl: meetings.joinUrl,
+      kind: meetings.kind,
+      milestoneId: meetings.milestoneId,
+      publicId: meetings.publicId,
+      startsAt: meetings.startsAt,
+      title: meetings.title,
+    })
+    .from(meetings)
+    .where(eq(meetings.projectId, projectId))
+    .orderBy(asc(meetings.startsAt));
+
+  if (!rows.length) return [];
+
+  const attendeeRows = await database
+    .select({
+      fullName: users.fullName,
+      meetingId: meetingAttendees.meetingId,
+      role: meetingAttendees.attendeeRole,
+    })
+    .from(meetingAttendees)
+    .innerJoin(users, eq(users.id, meetingAttendees.userId))
+    .where(inArray(meetingAttendees.meetingId, rows.map((row) => row.id)))
+    .orderBy(asc(users.fullName));
+
+  const byMeeting = new Map<string, Array<{ fullName: string; role: string | null }>>();
+  for (const attendee of attendeeRows) {
+    const key = attendee.meetingId.toString();
+    const list = byMeeting.get(key) ?? [];
+    list.push({ fullName: attendee.fullName, role: attendee.role });
+    byMeeting.set(key, list);
+  }
+
+  return rows.map(({ id, ...row }) => ({
+    ...row,
+    attendees: byMeeting.get(id.toString()) ?? [],
+  }));
 }
