@@ -7,7 +7,7 @@ import { cn } from "@/lib/cn";
 import { formatDate } from "@/lib/dates";
 import { getAuthenticatedActor } from "@/auth/authenticated-actor";
 import { toApplicationActorContext } from "@/services/application.service";
-import { getAssessmentResult } from "@/services/assessment.service";
+import { AssessmentError, getAssessmentResult } from "@/services/assessment.service";
 
 export const dynamic = "force-dynamic";
 
@@ -20,7 +20,13 @@ export default async function AssessmentResultPage({
   const resolution = await getAuthenticatedActor();
   if (resolution.status !== "RESOLVED") redirect("/sign-in");
   const actor = toApplicationActorContext(resolution.actor);
-  const assessment = await getAssessmentResult(applicationId, actor);
+  let assessment: Awaited<ReturnType<typeof getAssessmentResult>>;
+  try {
+    assessment = await getAssessmentResult(applicationId, actor);
+  } catch (error) {
+    if (error instanceof AssessmentError && error.code === "FORBIDDEN") notFound();
+    throw error;
+  }
   if (!assessment) notFound();
 
   const { attempt, challenge, result } = assessment;
