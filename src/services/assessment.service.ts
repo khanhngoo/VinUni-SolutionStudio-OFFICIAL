@@ -94,6 +94,7 @@ export interface AssessmentPreflight {
     title: string;
   };
   challenge: {
+    applicationDeadline: Date | null;
     slug: string;
     title: string;
   };
@@ -680,6 +681,7 @@ function toPreflight(context: AssessmentContext): AssessmentPreflight {
       title: assessmentTitle(context.assessment),
     },
     challenge: {
+      applicationDeadline: context.application.challenge.applicationDeadline,
       slug: context.application.challenge.slug,
       title: context.application.challenge.title,
     },
