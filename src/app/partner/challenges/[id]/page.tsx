@@ -43,9 +43,16 @@ export default async function PartnerChallengePage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ created?: string; error?: string; submitted?: string; updated?: string }>;
+  searchParams: Promise<{
+    created?: string;
+    details?: string;
+    error?: string;
+    submitted?: string;
+    updated?: string;
+  }>;
 }) {
   const [{ id }, query] = await Promise.all([params, searchParams]);
+  const errorDetails = query.details ? query.details.split("|").filter(Boolean) : [];
   const resolution = await getAuthenticatedActor();
   if (resolution.status !== "RESOLVED") redirect("/sign-in");
   if (!hasActorCapability(resolution.actor, "PARTNER_REPRESENTATIVE")) notFound();
@@ -95,7 +102,16 @@ export default async function PartnerChallengePage({
       {query.updated ? <Banner tone="ok">Changes saved.</Banner> : null}
       {query.submitted ? <Banner tone="ok">Submitted for review.</Banner> : null}
       {query.error ? (
-        <Banner tone="error">{ERROR_MESSAGES[query.error] ?? "Something went wrong."}</Banner>
+        <Banner tone="error">
+          <p>{ERROR_MESSAGES[query.error] ?? "Something went wrong."}</p>
+          {errorDetails.length > 0 ? (
+            <ul className="mt-2 list-disc pl-5 space-y-0.5">
+              {errorDetails.map((detail) => (
+                <li key={detail}>{detail}</li>
+              ))}
+            </ul>
+          ) : null}
+        </Banner>
       ) : null}
 
       {challenge.status === "REVISION_REQUESTED" ? (
@@ -181,9 +197,12 @@ export default async function PartnerChallengePage({
                   className="border-b border-line-2 last:border-b-0"
                 >
                   <td className="py-2.5 pr-3 align-middle">
-                    <p className="font-medium text-ink">
+                    <Link
+                      href={`/applications/${application.publicId}`}
+                      className="font-medium text-ink hover:text-brand"
+                    >
                       {application.teamName ?? application.memberSummary.leaderName ?? "Unnamed team"}
-                    </p>
+                    </Link>
                     <p className="text-meta text-ink-3 mt-0.5">
                       {application.memberSummary.total} member{application.memberSummary.total === 1 ? "" : "s"}
                     </p>
@@ -355,7 +374,7 @@ function EmptyRow({ children }: { children: React.ReactNode }) {
 
 function Banner({ children, tone }: { children: React.ReactNode; tone: "error" | "ok" }) {
   return (
-    <p
+    <div
       className={
         tone === "ok"
           ? "mt-4 border border-line bg-line-2 text-ink-2 rounded-card px-4 py-3"
@@ -363,6 +382,6 @@ function Banner({ children, tone }: { children: React.ReactNode; tone: "error" |
       }
     >
       {children}
-    </p>
+    </div>
   );
 }

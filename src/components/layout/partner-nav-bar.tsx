@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { AuthenticatedPresentation } from "@/auth/authenticated-presentation";
+import { signOutCurrentUser } from "@/app/sign-in/actions";
 import { cn } from "@/lib/cn";
 
 /** The VinUniversity chevron mark: navy left half, red right half. */
@@ -77,12 +78,19 @@ export function PartnerNavBar({ identity }: { identity: AuthenticatedPresentatio
             </Link>
           ))}
           {identity ? (
-            <span
-              className="w-7 h-7 rounded-full bg-brand text-white grid place-items-center text-[10px] font-semibold"
-              title={identity.displayName}
-            >
-              {identity.initials}
-            </span>
+            <>
+              <span
+                className="w-7 h-7 rounded-full bg-brand text-white grid place-items-center text-[10px] font-semibold"
+                title={identity.displayName}
+              >
+                {identity.initials}
+              </span>
+              <form action={signOutCurrentUser}>
+                <button className="text-meta font-semibold text-ink-2 hover:text-brand" type="submit">
+                  Sign out
+                </button>
+              </form>
+            </>
           ) : null}
         </nav>
       </div>

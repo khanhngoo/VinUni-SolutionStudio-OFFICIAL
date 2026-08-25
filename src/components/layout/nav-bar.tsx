@@ -31,6 +31,8 @@ export function NavBar({ identity }: { identity: AuthenticatedPresentation | nul
           <NavLinks
             authenticated={identity !== null}
             isInternalUnitMember={identity?.isInternalUnitMember ?? false}
+            isPartnerRepresentative={identity?.isPartnerRepresentative ?? false}
+            isStudent={identity?.isStudent ?? false}
           />
           {identity ? (
             <>

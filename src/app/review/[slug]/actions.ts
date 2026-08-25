@@ -34,7 +34,7 @@ export async function recordReviewDecisionAction(formData: FormData) {
   const actor = await requireInternalUnitActor();
 
   if (!DECISIONS.has(decisionRaw)) {
-    redirect(`/review/${slug}?error=VALIDATION_ERROR`);
+    redirectWithError(slug, "VALIDATION_ERROR", ["Select a decision (Approve, Request revision, or Reject)."]);
   }
 
   try {
@@ -50,7 +50,7 @@ export async function recordReviewDecisionAction(formData: FormData) {
     redirect(`/review/${slug}?decided=1`);
   } catch (error) {
     if (error instanceof ChallengeWriteError) {
-      redirect(`/review/${slug}?error=${error.code}`);
+      redirectWithError(slug, error.code, error.details);
     }
     throw error;
   }
@@ -65,10 +65,21 @@ export async function publishChallengeAction(formData: FormData) {
     redirect(`/review/${slug}?published=1`);
   } catch (error) {
     if (error instanceof ChallengeWriteError) {
-      redirect(`/review/${slug}?error=${error.code}`);
+      redirectWithError(slug, error.code, error.details);
     }
     throw error;
   }
+}
+
+/**
+ * Redirects back to the review detail page carrying both the error code and
+ * `ChallengeWriteError`'s specific validation detail messages (the same gap
+ * already closed on the partner authoring/edit forms and the apply form).
+ */
+function redirectWithError(slug: string, code: string, details: string[] = []): never {
+  const params = new URLSearchParams({ error: code });
+  if (details.length > 0) params.set("details", details.join("|"));
+  redirect(`/review/${slug}?${params.toString()}`);
 }
 
 function stringValue(formData: FormData, name: string) {

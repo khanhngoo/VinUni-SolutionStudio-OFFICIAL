@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useFormStatus } from "react-dom";
 
 import { INPUT_CLASS, SkillPicker } from "@/components/challenge/skill-picker";
 import type { ReviewOrganizationOption } from "@/db/queries/review";
@@ -126,14 +127,29 @@ export function PartnerPostForm({
         />
       </div>
 
-      <button
-        type="submit"
-        disabled={skillCount === 0}
-        className="self-start inline-flex items-center justify-center h-10 px-5 rounded-card bg-brand text-white font-semibold hover:bg-brand-deep disabled:opacity-50"
-      >
-        Create draft
-      </button>
+      <SubmitButton disabled={skillCount === 0} label="Create draft" pendingLabel="Creating draft…" />
     </form>
+  );
+}
+
+function SubmitButton({
+  disabled,
+  label,
+  pendingLabel,
+}: {
+  disabled: boolean;
+  label: string;
+  pendingLabel: string;
+}) {
+  const { pending } = useFormStatus();
+  return (
+    <button
+      type="submit"
+      disabled={disabled || pending}
+      className="self-start inline-flex items-center justify-center h-10 px-5 rounded-card bg-brand text-white font-semibold hover:bg-brand-deep disabled:opacity-50"
+    >
+      {pending ? pendingLabel : label}
+    </button>
   );
 }
 

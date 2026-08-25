@@ -35,11 +35,24 @@ export async function submitApplication(formData: FormData) {
     redirect(`/challenges/${challengeSlug}/apply?submitted=${application.publicId}`);
   } catch (error) {
     if (error instanceof ApplicationError) {
-      redirect(`/challenges/${challengeSlug}/apply?error=${error.code}`);
+      redirectWithError(challengeSlug, error.code, error.details);
     }
 
     throw error;
   }
+}
+
+/**
+ * Redirects back to the apply form carrying both the error code and
+ * `ApplicationError`'s specific validation detail messages — without these,
+ * a `VALIDATION_ERROR` collapsed every possible cause (missing team name,
+ * team size out of range, missing motivation, ...) into one generic
+ * sentence (the same gap already closed on the partner authoring forms).
+ */
+function redirectWithError(challengeSlug: string, code: string, details: string[] = []): never {
+  const params = new URLSearchParams({ error: code });
+  if (details.length > 0) params.set("details", details.join("|"));
+  redirect(`/challenges/${challengeSlug}/apply?${params.toString()}`);
 }
 
 function stringValue(formData: FormData, name: string) {

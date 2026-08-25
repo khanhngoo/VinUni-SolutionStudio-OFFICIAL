@@ -40,9 +40,10 @@ export default async function ReviewChallengeDetailPage({
   searchParams,
 }: {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<{ decided?: string; error?: string; published?: string }>;
+  searchParams: Promise<{ decided?: string; details?: string; error?: string; published?: string }>;
 }) {
   const [{ slug }, query] = await Promise.all([params, searchParams]);
+  const errorDetails = query.details ? query.details.split("|").filter(Boolean) : [];
   const resolution = await getAuthenticatedActor();
   if (resolution.status !== "RESOLVED") redirect("/sign-in");
   // Independent capability check — never relies solely on `ReviewLayout`.
@@ -75,7 +76,16 @@ export default async function ReviewChallengeDetailPage({
       {query.decided ? <Banner tone="ok">Review decision recorded.</Banner> : null}
       {query.published ? <Banner tone="ok">Published — applications are now open.</Banner> : null}
       {query.error ? (
-        <Banner tone="error">{ERROR_MESSAGES[query.error] ?? "Something went wrong."}</Banner>
+        <Banner tone="error">
+          <p>{ERROR_MESSAGES[query.error] ?? "Something went wrong."}</p>
+          {errorDetails.length > 0 ? (
+            <ul className="mt-2 list-disc pl-5 space-y-0.5">
+              {errorDetails.map((detail) => (
+                <li key={detail}>{detail}</li>
+              ))}
+            </ul>
+          ) : null}
+        </Banner>
       ) : null}
 
       <Section title="What was posted">
@@ -240,7 +250,7 @@ function Row({ label, value }: { label: string; value: string }) {
 
 function Banner({ children, tone }: { children: React.ReactNode; tone: "error" | "ok" }) {
   return (
-    <p
+    <div
       className={
         tone === "ok"
           ? "mt-4 border border-line bg-line-2 text-ink-2 rounded-card px-4 py-3"
@@ -248,6 +258,6 @@ function Banner({ children, tone }: { children: React.ReactNode; tone: "error" |
       }
     >
       {children}
-    </p>
+    </div>
   );
 }

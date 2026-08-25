@@ -30,7 +30,7 @@ export default async function ApplyPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ error?: string; submitted?: string }>;
+  searchParams: Promise<{ details?: string; error?: string; submitted?: string }>;
 }) {
   const [{ id: slug }, query] = await Promise.all([params, searchParams]);
   const resolution = await getAuthenticatedActor();
@@ -68,6 +68,7 @@ export default async function ApplyPage({
         <ApplicationForm
           challengeSlug={challenge.slug}
           error={errorMessage(query.error)}
+          errorDetails={query.details ? query.details.split("|").filter(Boolean) : []}
         />
       )}
     </article>
@@ -92,8 +93,8 @@ function ExistingApplication({
         <p className="text-meta text-ink-3 mt-3">
           A second application cannot be submitted while this application is active.
         </p>
-        <Link className="inline-block font-semibold mt-4" href="/workspace">
-          Go to Your work
+        <Link className="inline-block font-semibold mt-4" href={`/applications/${application.publicId}`}>
+          View application →
         </Link>
       </div>
     </Section>
@@ -103,17 +104,26 @@ function ExistingApplication({
 function ApplicationForm({
   challengeSlug,
   error,
+  errorDetails,
 }: {
   challengeSlug: string;
   error: string | null;
+  errorDetails: string[];
 }) {
   return (
     <form action={submitApplication} className="mt-7 space-y-7">
       <input name="challengeSlug" type="hidden" value={challengeSlug} />
       {error ? (
-        <p className="rounded-card border border-warn/35 bg-warn-soft px-4 py-3 text-ink-2">
-          {error}
-        </p>
+        <div className="rounded-card border border-warn/35 bg-warn-soft px-4 py-3 text-ink-2">
+          <p>{error}</p>
+          {errorDetails.length > 0 ? (
+            <ul className="mt-2 list-disc pl-5 space-y-0.5">
+              {errorDetails.map((detail) => (
+                <li key={detail}>{detail}</li>
+              ))}
+            </ul>
+          ) : null}
+        </div>
       ) : null}
 
       <Section title="Your application">

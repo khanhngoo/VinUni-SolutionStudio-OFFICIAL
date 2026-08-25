@@ -29,9 +29,10 @@ const ERROR_MESSAGES: Record<string, string> = {
 export default async function PartnerPostPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string; details?: string }>;
 }) {
-  const { error } = await searchParams;
+  const { error, details } = await searchParams;
+  const detailMessages = details ? details.split("|").filter(Boolean) : [];
   const resolution = await getAuthenticatedActor();
   if (resolution.status !== "RESOLVED") redirect("/sign-in");
   // Independent capability check — the same defensive pattern
@@ -73,9 +74,16 @@ export default async function PartnerPostPage({
       </p>
 
       {error ? (
-        <p className="mt-4 border border-red/40 bg-red/5 text-red rounded-card px-4 py-3">
-          {ERROR_MESSAGES[error] ?? "Something went wrong. Please try again."}
-        </p>
+        <div className="mt-4 border border-red/40 bg-red/5 text-red rounded-card px-4 py-3">
+          <p>{ERROR_MESSAGES[error] ?? "Something went wrong. Please try again."}</p>
+          {detailMessages.length > 0 ? (
+            <ul className="mt-2 list-disc pl-5 space-y-0.5">
+              {detailMessages.map((detail) => (
+                <li key={detail}>{detail}</li>
+              ))}
+            </ul>
+          ) : null}
+        </div>
       ) : null}
 
       <PartnerPostForm

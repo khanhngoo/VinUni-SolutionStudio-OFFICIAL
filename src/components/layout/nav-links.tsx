@@ -10,9 +10,13 @@ import { usePathname } from "next/navigation";
 export function NavLinks({
   authenticated,
   isInternalUnitMember = false,
+  isPartnerRepresentative = false,
+  isStudent = false,
 }: {
   authenticated: boolean;
   isInternalUnitMember?: boolean;
+  isPartnerRepresentative?: boolean;
+  isStudent?: boolean;
 }) {
   const pathname = usePathname();
 
@@ -38,6 +42,19 @@ export function NavLinks({
       active: pathname.startsWith("/profile"),
     },
     ] : []),
+    // Nav visibility only — `/applications` independently re-checks STUDENT
+    // (list) and `canAccessApplicationDetail` (detail) on every page.
+    // Applications precede any project, so this covers the gap `/workspace`
+    // (projects only) leaves for SUBMITTED/SHORTLISTED/ASSESSMENT/
+    // SELECTION_PENDING/REJECTED state.
+    ...(isStudent
+      ? [{ href: "/applications", label: "Applications", active: pathname.startsWith("/applications") }]
+      : []),
+    // Nav visibility only — `/partner` independently re-checks
+    // PARTNER_REPRESENTATIVE on every page/action regardless of this link.
+    ...(isPartnerRepresentative
+      ? [{ href: "/partner", label: "Partner", active: pathname.startsWith("/partner") }]
+      : []),
     // Nav visibility only — `/review` independently re-checks
     // INTERNAL_UNIT_MEMBER on every page/action regardless of this link.
     ...(isInternalUnitMember

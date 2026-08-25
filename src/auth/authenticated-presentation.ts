@@ -11,6 +11,20 @@ export interface AuthenticatedPresentation {
    * INTERNAL_UNIT_MEMBER capability independently.
    */
   isInternalUnitMember: boolean;
+  /**
+   * Display-only: whether the shared nav should surface a "Partner" link
+   * back to `/partner`. Authorization for `/partner/**` itself never
+   * depends on this flag — the partner layout/pages re-resolve the actor
+   * and re-check PARTNER_REPRESENTATIVE independently.
+   */
+  isPartnerRepresentative: boolean;
+  /**
+   * Display-only: whether the shared nav should surface an "Applications"
+   * link to `/applications`. Authorization for that route/its detail pages
+   * never depends on this flag — they re-resolve the actor and re-check
+   * STUDENT/`canAccessApplicationDetail` independently.
+   */
+  isStudent: boolean;
 }
 
 export function authenticatedPresentation(
@@ -20,6 +34,8 @@ export function authenticatedPresentation(
     displayName: actor.user.fullName,
     initials: initialsForName(actor.user.fullName),
     isInternalUnitMember: hasActorCapability(actor, "INTERNAL_UNIT_MEMBER"),
+    isPartnerRepresentative: hasActorCapability(actor, "PARTNER_REPRESENTATIVE"),
+    isStudent: hasActorCapability(actor, "STUDENT"),
   };
 }
 

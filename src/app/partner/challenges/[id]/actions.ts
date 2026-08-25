@@ -51,7 +51,7 @@ export async function updateChallengeDraftAction(formData: FormData) {
     redirect(`/partner/challenges/${slug}?updated=1`);
   } catch (error) {
     if (error instanceof ChallengeWriteError) {
-      redirect(`/partner/challenges/${slug}?error=${error.code}`);
+      redirectWithError(slug, error.code, error.details);
     }
     throw error;
   }
@@ -66,10 +66,22 @@ export async function submitChallengeForReviewAction(formData: FormData) {
     redirect(`/partner/challenges/${slug}?submitted=1`);
   } catch (error) {
     if (error instanceof ChallengeWriteError) {
-      redirect(`/partner/challenges/${slug}?error=${error.code}`);
+      redirectWithError(slug, error.code, error.details);
     }
     throw error;
   }
+}
+
+/**
+ * Redirects back to the challenge detail page carrying both the error code
+ * and `ChallengeWriteError`'s specific validation detail messages — without
+ * these, a `VALIDATION_ERROR` collapsed every possible cause into one
+ * generic sentence (the same gap already closed on `/partner/post`).
+ */
+function redirectWithError(slug: string, code: string, details: string[] = []): never {
+  const params = new URLSearchParams({ error: code });
+  if (details.length > 0) params.set("details", details.join("|"));
+  redirect(`/partner/challenges/${slug}?${params.toString()}`);
 }
 
 function parseSkills(formData: FormData): ChallengeSkillWriteInput[] | undefined {
