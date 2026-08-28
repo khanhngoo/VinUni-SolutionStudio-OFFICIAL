@@ -3,6 +3,48 @@
 Phase: 2 complete — ERD v1 frozen, Drizzle schema implemented, initial migration verified  
 Date: 2026-08-16
 
+## Documentation Map
+
+This directory accumulates one document per phase/checkpoint. Start here to find the right file instead of guessing from filenames. This README is the only document meant to be read end-to-end as a standing reference; the rest are point-in-time phase records — read the ones relevant to the task at hand.
+
+### ERD / schema authority (read these first for any schema-related task)
+
+These are the documents `AGENTS.md` designates as database authority, in authority order:
+
+| File | What it is |
+| --- | --- |
+| `schema.dbml` | **Canonical production ERD.** The approved architecture — tables, relationships, cardinalities, lifecycle/status models. This is the source of truth; everything else either feeds into it or implements it. |
+| `mvp-data-model-audit.md` | Phase 2.0. Read-only inventory of what the static MVP's frontend code actually assumes (entities, fields, statuses, derived values). Implementation *evidence*, not design authority — records what exists, doesn't decide anything. |
+| `mvp-erd-reconciliation.md` | Phase 2.1/2.2. The analysis that maps MVP audit findings onto `schema.dbml`, using KEEP / RENAME / NORMALIZE / DERIVE / DROP / REVIEW classifications per concept. This is where ERD gaps and open questions were surfaced before freeze. |
+| `README.md` (this file) | Phase 2.3+. The frozen ERD v1's approved architecture decisions (the "why" behind non-obvious schema choices) plus PostgreSQL/Drizzle implementation conventions (timestamps, IDs, JSONB, numeric precision, FK deletion policy, pgvector). Records decisions; does not replace the DBML. |
+
+Reading order for understanding *why the schema looks the way it does*: `mvp-data-model-audit.md` → `mvp-erd-reconciliation.md` → `schema.dbml` → this README's "Approved Architecture Decisions" section.
+
+`src/db/schema/*.ts` (executable Drizzle schema) and `drizzle/*.sql` (migration history) are lower in the authority order — see "Authority" below — and live outside this directory.
+
+### Seed data (Phase 3)
+
+| File | What it is |
+| --- | --- |
+| `seed-transformation-plan.md` | Phase 3 executive plan: how static MVP fixtures were transformed into deterministic, normalized seed data without treating frontend shapes as schema authority. |
+| `reference-skill-seed.md` | Phase 3.1. Detail on the REFERENCE skill taxonomy (categories, canonical skills, aliases) seeded as bootstrap data. |
+| `demo-seed-manifest.md` | Phase 3.2+. Authoritative inventory of the compact DEMO dataset (orgs, users, challenges, applications, assessments, offers, projects, etc.) that `pnpm db:seed` produces. |
+| `phase-3-seed-verification.md` | Phase 3.9. Verification report confirming the seed dataset matches the manifest and frozen schema. |
+
+### Runtime path migrations (Phase 4-5)
+
+Each of these documents one route/domain's migration from static fixtures to the PostgreSQL runtime boundary (query/service/mutation layers). Read the one matching the domain you're touching.
+
+| File | Domain / Phase |
+| --- | --- |
+| `challenge-read-path.md` | Challenge marketplace read path — Phase 4.1-4.3 |
+| `challenge-write-path.md` | Challenge write operations — Phase 4.4 |
+| `application-runtime-path.md` | Applications / team applications — Phase 5.1 |
+| `assessment-runtime-path.md` | Student assessments — Phase 5.2 |
+| `offer-runtime-path.md` | Offers — Phase 5.3 |
+| `workspace-runtime-path.md` | Project workspace — Phase 5.4 |
+| `phase-5.5-transaction-boundaries.md` | Cross-cutting: which layer owns PostgreSQL transactions (services, not mutation helpers or components) — Phase 5.5 |
+
 ## ERD v1 Status
 
 `docs/database/schema.dbml` is the implementation-ready ERD v1 frozen after Phase 2.3 reconciliation and semantic cleanup.
