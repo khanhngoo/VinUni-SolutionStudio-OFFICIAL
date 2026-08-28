@@ -9,11 +9,13 @@ import { usePathname } from "next/navigation";
  */
 export function NavLinks({
   authenticated,
+  isFaculty = false,
   isInternalUnitMember = false,
   isPartnerRepresentative = false,
   isStudent = false,
 }: {
   authenticated: boolean;
+  isFaculty?: boolean;
   isInternalUnitMember?: boolean;
   isPartnerRepresentative?: boolean;
   isStudent?: boolean;
@@ -54,6 +56,11 @@ export function NavLinks({
     // PARTNER_REPRESENTATIVE on every page/action regardless of this link.
     ...(isPartnerRepresentative
       ? [{ href: "/partner", label: "Partner", active: pathname.startsWith("/partner") }]
+      : []),
+    // Nav visibility only — `/faculty` independently re-checks FACULTY on
+    // every page/action regardless of this link.
+    ...(isFaculty
+      ? [{ href: "/faculty", label: "Faculty", active: pathname.startsWith("/faculty") }]
       : []),
     // Nav visibility only — `/review` independently re-checks
     // INTERNAL_UNIT_MEMBER on every page/action regardless of this link.

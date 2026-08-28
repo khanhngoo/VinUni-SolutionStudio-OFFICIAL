@@ -25,6 +25,13 @@ export interface AuthenticatedPresentation {
    * STUDENT/`canAccessApplicationDetail` independently.
    */
   isStudent: boolean;
+  /**
+   * Display-only: whether the shared nav should surface a "Faculty" link
+   * back to `/faculty`. Authorization for `/faculty/**` itself never
+   * depends on this flag — the faculty layout/pages re-resolve the actor
+   * and re-check FACULTY independently.
+   */
+  isFaculty: boolean;
 }
 
 export function authenticatedPresentation(
@@ -36,6 +43,7 @@ export function authenticatedPresentation(
     isInternalUnitMember: hasActorCapability(actor, "INTERNAL_UNIT_MEMBER"),
     isPartnerRepresentative: hasActorCapability(actor, "PARTNER_REPRESENTATIVE"),
     isStudent: hasActorCapability(actor, "STUDENT"),
+    isFaculty: hasActorCapability(actor, "FACULTY"),
   };
 }
 
