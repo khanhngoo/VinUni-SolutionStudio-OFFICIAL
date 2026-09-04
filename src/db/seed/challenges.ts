@@ -8,12 +8,21 @@ import {
 } from "../schema";
 import type { SeedContext } from "./context";
 import { resolveCanonicalSkillSeedLabel } from "./skills";
-import { shiftIso } from "./clock";
+import { shiftDateOnly, shiftIso } from "./clock";
 
 type CompensationType = "PAID" | "UNPAID" | "CREDIT" | "OTHER" | "NOT_SPECIFIED";
 type WorkMode = "ONSITE" | "HYBRID" | "REMOTE";
 type ChallengeVisibility = "PUBLIC_PREVIEW" | "VINUNI_ONLY" | "INVITE_ONLY" | "PRIVATE";
-type ChallengeStatus = "APPLICATIONS_OPEN";
+/**
+ * Only the statuses this seeder actually produces. Kept narrower than the
+ * 19-state challenge lifecycle on purpose, so a typo cannot introduce a state
+ * the demo has no fixture for.
+ */
+type ChallengeStatus =
+  | "APPLICATIONS_OPEN"
+  | "DRAFT"
+  | "SUBMITTED"
+  | "REVISION_REQUESTED";
 type SkillRequirementType = "REQUIRED" | "PREFERRED" | "OPTIONAL";
 type EligibilityRuleType = "MIN_GPA" | "STUDY_YEAR" | "SCHOOL";
 
@@ -444,6 +453,125 @@ export const DEMO_CHALLENGES: DemoChallengeSeed[] = [
     ],
     facultyAssignments: ["user:fac-pham"],
   },
+  /*
+   * The authoring lifecycle.
+   *
+   * Every other seeded challenge is already APPLICATIONS_OPEN, which left the
+   * whole approval loop with no starting fixture: /review had an empty queue,
+   * and the partner edit form had nothing in a state it is allowed to edit.
+   * These three sit at the points that loop passes through -- a draft the
+   * partner is still writing, one waiting on an internal-unit reviewer, and one
+   * sent back with comments. None is discoverable in the marketplace, which is
+   * what their statuses already guarantee.
+   */
+  {
+    fullBrief: null,
+    interviewFormat: "Short call with the operations lead",
+    sourceFixtureId: "warehouse-slotting-draft",
+    slug: "warehouse-slotting-draft",
+    publicId: "33333333-3333-4333-8333-000000000009",
+    title: "Warehouse slotting review",
+    ownerOrganizationKey: "org:demo-bencang",
+    managingOrganizationKey: "org:caid",
+    contactUserKey: "user:contact-org-bencang",
+    summary:
+      "Pick paths in the Hai Phong warehouse have grown by accretion and nobody has re-checked where fast-moving stock actually sits.",
+    description:
+      "Pick paths in the Hai Phong warehouse have grown by accretion and nobody has re-checked where fast-moving stock actually sits. This posting is still being drafted by the partner.",
+    subtype: "Project",
+    domain: "Operations, Logistics",
+    expectedDeliverables: deliverables([
+      "Map current slotting against pick frequency",
+      "Propose a revised layout with the expected travel saving",
+    ]),
+    durationWeeks: 8,
+    weeklyHours: 8,
+    teamSizeMin: 2,
+    teamSizeMax: 3,
+    workMode: "ONSITE",
+    startDate: "2026-10-05",
+    applicationDeadline: deadlineAtVietnamEndOfDay("2026-09-20"),
+    compensationType: "NOT_SPECIFIED",
+    compensationDescription: null,
+    visibility: "PRIVATE",
+    confidentialityLevel: "STANDARD",
+    status: "DRAFT",
+    skills: [requiredSkill("Data analysis"), preferredSkill("Python")],
+    eligibilityRules: [studyYearRule([2, 3, 4])],
+    facultyAssignments: [],
+  },
+  {
+    fullBrief: null,
+    interviewFormat: "30-min call with the sustainability team",
+    sourceFixtureId: "packaging-waste-audit",
+    slug: "packaging-waste-audit",
+    publicId: "33333333-3333-4333-8333-000000000010",
+    title: "Packaging waste audit",
+    ownerOrganizationKey: "org:demo-vhf",
+    managingOrganizationKey: "org:caid",
+    contactUserKey: "user:contact-org-vhf",
+    summary:
+      "Measure what the packaging line actually discards, and where in the process it becomes waste rather than stock.",
+    description:
+      "Measure what the packaging line actually discards, and where in the process it becomes waste rather than stock. Submitted for compliance review.",
+    subtype: "Project",
+    domain: "Sustainability, Operations",
+    expectedDeliverables: deliverables([
+      "Instrument the line to record discards by stage",
+      "Quantify avoidable waste and its cost",
+    ]),
+    durationWeeks: 10,
+    weeklyHours: 6,
+    teamSizeMin: 2,
+    teamSizeMax: 4,
+    workMode: "HYBRID",
+    startDate: "2026-10-12",
+    applicationDeadline: deadlineAtVietnamEndOfDay("2026-09-25"),
+    compensationType: "CREDIT",
+    compensationDescription: null,
+    visibility: "VINUNI_ONLY",
+    confidentialityLevel: "STANDARD",
+    status: "SUBMITTED",
+    skills: [requiredSkill("Data analysis"), preferredSkill("Data visualisation")],
+    eligibilityRules: [studyYearRule([2, 3, 4])],
+    facultyAssignments: [],
+  },
+  {
+    fullBrief: null,
+    interviewFormat: "Call with the clinical informatics lead",
+    sourceFixtureId: "patient-flow-mapping",
+    slug: "patient-flow-mapping",
+    publicId: "33333333-3333-4333-8333-000000000011",
+    title: "Outpatient flow mapping",
+    ownerOrganizationKey: "org:demo-health",
+    managingOrganizationKey: "org:caid",
+    contactUserKey: "user:contact-org-health",
+    summary:
+      "Trace how an outpatient actually moves through the clinic, and where the waiting accumulates.",
+    description:
+      "Trace how an outpatient actually moves through the clinic, and where the waiting accumulates. Sent back to the partner for revision.",
+    subtype: "Project",
+    domain: "Healthcare, Operations",
+    expectedDeliverables: deliverables([
+      "Map the current outpatient pathway end to end",
+      "Identify the three largest sources of waiting",
+    ]),
+    durationWeeks: 8,
+    weeklyHours: 6,
+    teamSizeMin: 2,
+    teamSizeMax: 3,
+    workMode: "ONSITE",
+    startDate: "2026-10-19",
+    applicationDeadline: deadlineAtVietnamEndOfDay("2026-09-28"),
+    compensationType: "CREDIT",
+    compensationDescription: null,
+    visibility: "VINUNI_ONLY",
+    confidentialityLevel: "STANDARD",
+    status: "REVISION_REQUESTED",
+    skills: [requiredSkill("Data analysis")],
+    eligibilityRules: [studyYearRule([3, 4])],
+    facultyAssignments: [],
+  },
 ];
 
 async function ensureDemoChallenge(ctx: SeedContext, seed: DemoChallengeSeed) {
@@ -465,7 +593,7 @@ async function ensureDemoChallenge(ctx: SeedContext, seed: DemoChallengeSeed) {
       ownerOrganizationId: ctx.getId(seed.ownerOrganizationKey),
       publicId: seed.publicId,
       slug: seed.slug,
-      startDate: seed.startDate,
+      startDate: shiftDateOnly(seed.startDate),
       status: seed.status,
       subtype: seed.subtype,
       summary: seed.summary,
@@ -493,7 +621,7 @@ async function ensureDemoChallenge(ctx: SeedContext, seed: DemoChallengeSeed) {
         managingOrganizationId: ctx.getId(seed.managingOrganizationKey),
         ownerOrganizationId: ctx.getId(seed.ownerOrganizationKey),
         publicId: seed.publicId,
-        startDate: seed.startDate,
+        startDate: shiftDateOnly(seed.startDate),
         status: seed.status,
         subtype: seed.subtype,
         summary: seed.summary,
