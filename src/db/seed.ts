@@ -12,6 +12,7 @@ import { seedDemoSelectionsOffersAgreements } from "./seed/offers";
 import { seedDemoMeetings } from "./seed/meetings";
 import { seedDemoProjects } from "./seed/projects";
 import { seedReference } from "./seed/reference";
+import { seedDemoStudentProfileDetails } from "./seed/student-profiles";
 import { formatSeedTarget, validateSeedSafety } from "./seed/safety";
 
 type Database = typeof import("./index")["db"];
@@ -55,6 +56,8 @@ async function readCounts(db: Database, schema: Schema) {
     skillRelationships,
     skills,
     studentProfiles,
+    studentCourses,
+    studentPreferredRoles,
     studentSkills,
     supervisionRequests,
     users,
@@ -75,6 +78,8 @@ async function readCounts(db: Database, schema: Schema) {
     relationshipCount,
     studentProfileCount,
     studentSkillCount,
+    studentCourseCount,
+    studentPreferredRoleCount,
     applicationCount,
     applicationMemberCount,
     applicationProjectCount,
@@ -115,6 +120,8 @@ async function readCounts(db: Database, schema: Schema) {
     db.select({ count: count() }).from(skillRelationships),
     db.select({ count: count() }).from(studentProfiles),
     db.select({ count: count() }).from(studentSkills),
+    db.select({ count: count() }).from(studentCourses),
+    db.select({ count: count() }).from(studentPreferredRoles),
     db.select({ count: count() }).from(applications),
     db.select({ count: count() }).from(applicationMembers),
     db.select({ count: count() }).from(applicationProjects),
@@ -156,6 +163,8 @@ async function readCounts(db: Database, schema: Schema) {
     skills: skillCount[0].count,
     studentProfiles: studentProfileCount[0].count,
     studentSkills: studentSkillCount[0].count,
+    studentCourses: studentCourseCount[0].count,
+    studentPreferredRoles: studentPreferredRoleCount[0].count,
     applications: applicationCount[0].count,
     applicationMembers: applicationMemberCount[0].count,
     applicationProjects: applicationProjectCount[0].count,
@@ -212,6 +221,7 @@ async function main() {
     await seedBootstrap(seedContext);
     await seedReference(seedContext);
     await seedDemo(seedContext);
+    await seedDemoStudentProfileDetails(seedContext);
     await seedDemoChallenges(seedContext);
     await seedDemoApplications(seedContext);
     await seedDemoAssessments(seedContext);
@@ -250,6 +260,8 @@ async function main() {
   );
   console.log(`  student profiles: ${before.studentProfiles} -> ${after.studentProfiles}`);
   console.log(`  student skills: ${before.studentSkills} -> ${after.studentSkills}`);
+  console.log(`  student courses: ${before.studentCourses} -> ${after.studentCourses}`);
+  console.log(`  student preferred roles: ${before.studentPreferredRoles} -> ${after.studentPreferredRoles}`);
   console.log(`  applications: ${before.applications} -> ${after.applications}`);
   console.log(
     `  application members: ${before.applicationMembers} -> ${after.applicationMembers}`
