@@ -320,6 +320,10 @@ export interface ApplicationDraft {
   relevantExperience: string;
   hoursPerWeek: number;
   facultySupervisorId: string;
+  /** The team is named in step one and has to survive to the server. */
+  teamName: string;
+  /** Everyone invited in step one, as user ids. They become INVITED members. */
+  invitedStudentIds: string[];
 }
 
 export interface EligibilityResult {

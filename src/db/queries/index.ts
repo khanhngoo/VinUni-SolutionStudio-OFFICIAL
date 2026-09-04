@@ -7,3 +7,4 @@ export * from "./projects";
 export * from "./partner";
 export * from "./review";
 export * from "./skills";
+export * from "./students";

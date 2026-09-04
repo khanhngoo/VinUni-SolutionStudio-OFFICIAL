@@ -32,8 +32,12 @@ interface ApplyWizardProps {
   facultyOptions: Faculty[];
   defaultHours: number;
   leaderName: string;
-  /** Where a persistence layer would hook in. */
-  onSubmitted?: (draft: ApplicationDraft) => void;
+  /**
+   * Submits the draft. Returns an error message to show in place, or nothing
+   * on success. Server-side validation re-runs `validateAll`, so a rejection
+   * here is a real conflict rather than a missed field.
+   */
+  onSubmitted?: (draft: ApplicationDraft) => Promise<string | null> | void;
 }
 
 /**
@@ -63,6 +67,7 @@ export function ApplyWizard({
   const [errors, setErrors] = useState<ApplyErrors>({});
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const [teamName, setTeamName] = useState(baseTeam.name);
   const [invitedIds, setInvitedIds] = useState<string[]>([]);
@@ -130,15 +135,23 @@ export function ApplyWizard({
       relevantExperience: experience,
       hoursPerWeek: Number(hours),
       facultySupervisorId: facultyId,
+      teamName: teamName.trim() === "" ? baseTeam.name : teamName,
+      invitedStudentIds: invitedIds,
     };
 
     setSubmitting(true);
-    // Fake the round-trip a real submission would take.
-    window.setTimeout(() => {
-      onSubmitted?.(application);
-      setSubmitting(false);
-      setSubmitted(true);
-    }, 600);
+    void Promise.resolve(onSubmitted?.(application))
+      .then((message) => {
+        if (message) {
+          setSubmitError(message);
+          return;
+        }
+        setSubmitted(true);
+      })
+      .catch(() => {
+        setSubmitError("The application could not be submitted. Please try again.");
+      })
+      .finally(() => setSubmitting(false));
   }
 
   if (submitted) {
@@ -230,6 +243,15 @@ export function ApplyWizard({
         <p className="text-meta text-warn mt-4 text-right">{errors.team}</p>
       ) : null}
 
+      {submitError ? (
+        <div
+          role="alert"
+          className="mt-4 rounded-card border border-warn/35 bg-warn-soft px-4 py-3 text-ink-2"
+        >
+          {submitError}
+        </div>
+      ) : null}
+
       <div className="flex flex-wrap items-center justify-end gap-2.5 mt-7">
         {step > 0 ? (
           <button
@@ -268,7 +290,8 @@ export function ApplyWizard({
       <p className="text-meta text-ink-3 mt-6">
         Applying as {leaderName} · you are the team leader and the partner&apos;s
         point of contact. Nothing is saved until you submit, and a reload starts
-        this over.
+        this over. Everyone you invite is asked to confirm before the team is
+        final.
       </p>
     </>
   );

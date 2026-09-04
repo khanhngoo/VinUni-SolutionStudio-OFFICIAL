@@ -6,6 +6,21 @@ import {
   hasActorCapability,
 } from "@/auth/authenticated-actor";
 import { Section } from "@/components/ui/section";
+import { db } from "@/db";
+import {
+  getStudentTeamProfile,
+  listFacultyOptions,
+  listInvitablePeers,
+} from "@/db/queries/students";
+import {
+  soloTeamFor,
+  toApplyChallenge,
+  toCollege,
+  toFaculty,
+  toPeer,
+  toTeamRole,
+  toWeek,
+} from "@/lib/apply-view";
 import { marketplaceContextForActor } from "@/lib/challenge-marketplace";
 import {
   getMyApplicationForChallenge,
@@ -13,26 +28,27 @@ import {
 } from "@/services/application.service";
 import { getMarketplaceChallengeBySlug } from "@/services/challenge.service";
 
-import { submitApplication } from "./actions";
+import { ApplyWizardShell } from "./wizard-shell";
 
 export const dynamic = "force-dynamic";
 
-const ERROR_MESSAGES = {
-  CONFLICT: "You or a proposed teammate already has an active application for this challenge.",
-  FORBIDDEN: "Only authenticated student accounts can submit applications.",
-  INVALID_TRANSITION: "This challenge is not accepting applications right now.",
-  NOT_FOUND: "This challenge is no longer available.",
-  VALIDATION_ERROR: "Please check the application details and try again.",
-} as const;
-
+/**
+ * Applying, in four steps: team, motivation, supervisor, review.
+ *
+ * A server shell over a client wizard — the page resolves the challenge, the
+ * invitable peers and the faculty options, and the wizard owns the draft, since
+ * a form spread over four screens has to keep its answers somewhere.
+ *
+ * The roster starts as a team of one. That is the honest starting point: the
+ * applicant is the leader, and everyone else arrives by invitation and has to
+ * accept before the team is final.
+ */
 export default async function ApplyPage({
   params,
-  searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ details?: string; error?: string; submitted?: string }>;
 }) {
-  const [{ id: slug }, query] = await Promise.all([params, searchParams]);
+  const { id: slug } = await params;
   const resolution = await getAuthenticatedActor();
   if (resolution.status !== "RESOLVED") redirect("/sign-in");
   if (!hasActorCapability(resolution.actor, "STUDENT")) notFound();
@@ -46,6 +62,33 @@ export default async function ApplyPage({
   const actor = toApplicationActorContext(resolution.actor);
   const existing = await getMyApplicationForChallenge(challenge.slug, actor);
 
+  const viewerId = resolution.actor.user.userId;
+  const [peerRows, facultyRows, teamProfile] = await Promise.all([
+    listInvitablePeers(db, viewerId),
+    listFacultyOptions(db),
+    getStudentTeamProfile(db, viewerId),
+  ]);
+
+  const applyChallenge = toApplyChallenge(challenge);
+  const leaderName = resolution.actor.user.fullName;
+
+  // The leader row is the applicant's real profile. Their first stated role is
+  // the team role they arrive with; with none stated, Coordination is the
+  // honest default for whoever is leading.
+  const leaderRole = toTeamRole(teamProfile?.roles[0] ?? "") ?? "Coordination";
+
+  const baseTeam = soloTeamFor({
+    college: toCollege(teamProfile?.school),
+    hoursAvailable: teamProfile?.hoursAvailable ?? 0,
+    major: teamProfile?.major ?? "—",
+    name: leaderName,
+    role: leaderRole,
+    studentId: String(viewerId),
+    teamName: `${leaderName.split(" ")[0]}'s team`,
+    weeklyAvailability: toWeek(teamProfile?.weeklyAvailability),
+    year: teamProfile?.studyYear ?? 0,
+  });
+
   return (
     <article className="max-w-[820px] mx-auto px-6 sm:px-7 py-7 pb-16">
       <nav className="text-meta text-ink-3">
@@ -56,143 +99,44 @@ export default async function ApplyPage({
         Apply
       </nav>
 
-      <h1 className="mt-5">Apply to {challenge.title}</h1>
-      <p className="text-ink-2 mt-2">
-        {challenge.ownerOrganization.displayName} · Team of {challenge.teamSizeMin}–
-        {challenge.teamSizeMax} · {challenge.weeklyHours} hours per week
-      </p>
-
       {existing ? (
-        <ExistingApplication application={existing} />
+        <>
+          <h1 className="mt-5">Apply to {challenge.title}</h1>
+          <Section title="Application already submitted">
+            <div className="bg-card border border-line rounded-card p-5">
+              <p className="font-semibold text-ink">
+                You are already part of this application.
+              </p>
+              <p className="text-ink-2 mt-1.5">
+                Status: {existing.status.replaceAll("_", " ")}
+                {existing.teamName ? ` · Team ${existing.teamName}` : ""}
+              </p>
+              <p className="text-meta text-ink-3 mt-3">
+                A second application cannot be submitted while this one is active.
+              </p>
+              <Link
+                className="inline-block font-semibold mt-4"
+                href={`/applications/${existing.publicId}`}
+              >
+                View application →
+              </Link>
+            </div>
+          </Section>
+        </>
       ) : (
-        <ApplicationForm
+        <ApplyWizardShell
+          baseTeam={baseTeam}
+          challenge={applyChallenge}
           challengeSlug={challenge.slug}
-          error={errorMessage(query.error)}
-          errorDetails={query.details ? query.details.split("|").filter(Boolean) : []}
+          defaultHours={Math.min(
+            teamProfile?.hoursAvailable ?? challenge.weeklyHours ?? 0,
+            challenge.weeklyHours ?? 0
+          )}
+          facultyOptions={facultyRows.map(toFaculty)}
+          leaderName={leaderName}
+          peers={peerRows.map(toPeer)}
         />
       )}
     </article>
   );
 }
-
-function ExistingApplication({
-  application,
-}: {
-  application: NonNullable<Awaited<ReturnType<typeof getMyApplicationForChallenge>>>;
-}) {
-  return (
-    <Section title="Application already submitted">
-      <div className="bg-card border border-line rounded-card p-5">
-        <p className="font-semibold text-ink">
-          You are already part of this application.
-        </p>
-        <p className="text-ink-2 mt-1.5">
-          Status: {application.status.replaceAll("_", " ")}
-          {application.teamName ? ` · Team ${application.teamName}` : ""}
-        </p>
-        <p className="text-meta text-ink-3 mt-3">
-          A second application cannot be submitted while this application is active.
-        </p>
-        <Link className="inline-block font-semibold mt-4" href={`/applications/${application.publicId}`}>
-          View application →
-        </Link>
-      </div>
-    </Section>
-  );
-}
-
-function ApplicationForm({
-  challengeSlug,
-  error,
-  errorDetails,
-}: {
-  challengeSlug: string;
-  error: string | null;
-  errorDetails: string[];
-}) {
-  return (
-    <form action={submitApplication} className="mt-7 space-y-7">
-      <input name="challengeSlug" type="hidden" value={challengeSlug} />
-      {error ? (
-        <div className="rounded-card border border-warn/35 bg-warn-soft px-4 py-3 text-ink-2">
-          <p>{error}</p>
-          {errorDetails.length > 0 ? (
-            <ul className="mt-2 list-disc pl-5 space-y-0.5">
-              {errorDetails.map((detail) => (
-                <li key={detail}>{detail}</li>
-              ))}
-            </ul>
-          ) : null}
-        </div>
-      ) : null}
-
-      <Section title="Your application">
-        <p className="text-ink-2">
-          You will be recorded as the accepted team leader. Your identity is taken
-          from your signed-in account.
-        </p>
-        <Field label="Preferred role">
-          <input className={INPUT_CLASS} name="preferredRole" />
-        </Field>
-        <Field label="Committed hours per week">
-          <input className={INPUT_CLASS} min="1" name="committedHours" type="number" />
-        </Field>
-        <label className="flex items-center gap-2 text-ink-2 mt-4">
-          <input name="availabilityConfirmed" type="checkbox" />
-          I confirm my availability for this challenge.
-        </label>
-      </Section>
-
-      <Section title="Team">
-        <Field label="Team name">
-          <input className={INPUT_CLASS} name="teamName" />
-        </Field>
-        <Field label="Teammate email addresses">
-          <textarea
-            className={`${INPUT_CLASS} min-h-24 py-2`}
-            name="teammateEmails"
-            placeholder="One VinUni student email per line"
-          />
-        </Field>
-        <p className="text-meta text-ink-3 mt-2">
-          Teammates are added as invited members. Invitation responses are not
-          available in this flow yet.
-        </p>
-      </Section>
-
-      <Section title="Motivation">
-        <Field label="Why are you a good fit?">
-          <textarea className={`${INPUT_CLASS} min-h-32 py-2`} name="motivation" required />
-        </Field>
-        <Field label="Relevant experience (optional)">
-          <textarea className={`${INPUT_CLASS} min-h-24 py-2`} name="relevantExperience" />
-        </Field>
-      </Section>
-
-      <button
-        className="inline-flex items-center h-10 px-5 rounded-card bg-brand text-white font-semibold hover:bg-brand-deep"
-        type="submit"
-      >
-        Submit application
-      </button>
-    </form>
-  );
-}
-
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <label className="block mt-4">
-      <span className="text-meta text-ink-3 uppercase tracking-[0.07em]">{label}</span>
-      <span className="block mt-1.5">{children}</span>
-    </label>
-  );
-}
-
-function errorMessage(value: string | undefined) {
-  return value && value in ERROR_MESSAGES
-    ? ERROR_MESSAGES[value as keyof typeof ERROR_MESSAGES]
-    : null;
-}
-
-const INPUT_CLASS =
-  "w-full h-10 px-3 rounded-card border border-line bg-card text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent";
