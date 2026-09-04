@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 
 import { meetingAttendees, meetings, projectMembers } from "../schema";
 import type { SeedContext } from "./context";
+import { fromNow } from "./clock";
 
 type MeetingKind =
   | "KICKOFF"
@@ -16,7 +17,7 @@ interface DemoMeetingSeed {
   kind: MeetingKind;
   /** Milestone this meeting reviews, keyed within its project. */
   milestoneKey: string | null;
-  /** Minutes from SEED_NOW. Negative is past. */
+  /** Minutes from the seed run instant. Negative is past. */
   offsetMinutes: number;
   publicId: string;
   title: string;
@@ -40,16 +41,17 @@ interface DemoProjectMeetingsSeed {
  * `lib/dates.ts` uses. Hard-coding the strings would quietly turn both into
  * history the moment the pin moved.
  *
- * Keep this equal to TODAY in `src/lib/dates.ts`.
  */
-const SEED_NOW = new Date("2026-07-27T00:00:00.000Z");
+// The run clock is shared with every other seeder via ./clock, so the live
+// meeting and the starts-in-20-minutes meeting stay aligned with the shifted
+// challenge deadlines and offer windows rather than drifting against them.
 
 const MINUTE = 60_000;
 const HOUR = 60 * MINUTE;
 const DAY = 24 * HOUR;
 
 function at(offsetMinutes: number) {
-  return new Date(SEED_NOW.getTime() + offsetMinutes * MINUTE);
+  return fromNow(offsetMinutes);
 }
 
 /**

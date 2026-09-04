@@ -1,4 +1,4 @@
-import { TODAY } from "@/lib/dates";
+import { now } from "@/lib/dates";
 import { STAGE_ORDER, type Application, type ApplicationStage } from "@/lib/types";
 
 /**
@@ -94,13 +94,13 @@ const MS_PER_HOUR = 3_600_000;
 const MS_PER_MINUTE = 60_000;
 
 /**
- * Hours between the pinned TODAY and an ISO datetime. Negative once elapsed.
+ * Hours between now and an ISO datetime. Negative once elapsed.
  * Derived from the pin rather than wall-clock so the seeded 72-hour offer
  * window keeps demonstrating the countdown.
  */
 export function hoursUntil(isoDateTime: string): number {
   const target = new Date(isoDateTime);
-  return Math.round((target.getTime() - TODAY.getTime()) / MS_PER_HOUR);
+  return Math.round((target.getTime() - now().getTime()) / MS_PER_HOUR);
 }
 
 /**
@@ -109,7 +109,7 @@ export function hoursUntil(isoDateTime: string): number {
  */
 export function minutesUntil(isoDateTime: string): number {
   const target = new Date(isoDateTime);
-  return Math.round((target.getTime() - TODAY.getTime()) / MS_PER_MINUTE);
+  return Math.round((target.getTime() - now().getTime()) / MS_PER_MINUTE);
 }
 
 /** "2 days 4 hrs" / "18 hrs" / "Expired". */
@@ -184,7 +184,7 @@ export function ctaFor(application: Application): CtaTarget | null {
 /** Days a student has been sitting in the current stage. */
 export function daysInStage(application: Application): number {
   const entered = new Date(`${application.stageEnteredAt}T00:00:00Z`);
-  return Math.round((TODAY.getTime() - entered.getTime()) / 86_400_000);
+  return Math.round((now().getTime() - entered.getTime()) / 86_400_000);
 }
 
 /**

@@ -13,6 +13,7 @@ import {
   selections,
 } from "../schema";
 import type { SeedContext } from "./context";
+import { shiftDateOnly, shiftIso } from "./clock";
 
 type ProjectStatus = "ACTIVE" | "FINAL_REVIEW" | "COMPLETED";
 type MilestoneStatus =
@@ -79,7 +80,7 @@ interface ProjectSeed {
 }
 
 function atUtc(iso: string) {
-  return new Date(iso);
+  return shiftIso(iso);
 }
 
 function submittedByLeader(
@@ -626,20 +627,20 @@ async function ensureProject(ctx: SeedContext, seed: ProjectSeed) {
     .values({
       applicationId,
       createdAt: projectCreatedAt(seed),
-      endDate: seed.endDate,
+      endDate: seed.endDate ? shiftDateOnly(seed.endDate) : null,
       facultySupervisorId,
       publicId: seed.publicId,
-      startDate: seed.startDate,
+      startDate: shiftDateOnly(seed.startDate),
       status: seed.status,
       updatedAt: seed.updatedAt,
     })
     .onConflictDoUpdate({
       target: projects.applicationId,
       set: {
-        endDate: seed.endDate,
+        endDate: seed.endDate ? shiftDateOnly(seed.endDate) : null,
         facultySupervisorId,
         publicId: seed.publicId,
-        startDate: seed.startDate,
+        startDate: shiftDateOnly(seed.startDate),
         status: seed.status,
         updatedAt: seed.updatedAt,
       },
@@ -707,7 +708,7 @@ async function ensureMilestone(
   }
 
   const values = {
-    deadline: seed.deadline,
+    deadline: shiftDateOnly(seed.deadline),
     description: seed.description,
     projectId,
     status: seed.status,
@@ -808,6 +809,9 @@ async function ensureMilestoneReview(
     ? ctx.getId(seed.reviewerOrganizationKey)
     : null;
 
+  // Identity is who reviewed what, in which role -- not when. Matching on
+  // createdAt as well meant a re-seed inserted a duplicate every time the
+  // authored timestamp moved, which the seed clock now does on every run.
   const existing = await ctx.tx
     .select({ id: milestoneReviews.id })
     .from(milestoneReviews)
@@ -815,8 +819,7 @@ async function ensureMilestoneReview(
       and(
         eq(milestoneReviews.milestoneId, milestoneId),
         eq(milestoneReviews.reviewerId, reviewerId),
-        eq(milestoneReviews.reviewerRole, seed.reviewerRole),
-        eq(milestoneReviews.createdAt, seed.createdAt)
+        eq(milestoneReviews.reviewerRole, seed.reviewerRole)
       )
     )
     .limit(2);

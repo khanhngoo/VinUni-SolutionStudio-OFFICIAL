@@ -18,7 +18,7 @@ import {
   type ApplyErrors,
 } from "@/lib/apply-validation";
 import type { Peer } from "@/lib/data/peers";
-import { TODAY } from "@/lib/dates";
+import { now } from "@/lib/dates";
 import { withInvites } from "@/lib/teams";
 import type { ApplicationDraft, Challenge, Faculty, Team } from "@/lib/types";
 
@@ -85,7 +85,7 @@ export function ApplyWizard({
         baseTeam,
         teamName.trim() === "" ? baseTeam.name : teamName,
         peers.filter((p) => invitedIds.includes(p.id)),
-        TODAY.toISOString().slice(0, 10),
+        now().toISOString().slice(0, 10),
       ),
     [baseTeam, teamName, peers, invitedIds],
   );

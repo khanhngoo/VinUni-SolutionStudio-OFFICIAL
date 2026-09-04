@@ -6,6 +6,7 @@ import {
   supervisionRequests,
 } from "../schema";
 import type { SeedContext } from "./context";
+import { shiftIso } from "./clock";
 
 type ApplicationStatus =
   | "SUBMITTED"
@@ -302,7 +303,7 @@ const DEMO_SUPERVISION_REQUESTS: DemoSupervisionRequestSeed[] = [
 ];
 
 function utcDate(date: string) {
-  return new Date(`${date}T00:00:00.000Z`);
+  return shiftIso(date);
 }
 
 function memberRespondedAt(seed: DemoApplicationSeed, member: DemoApplicationMemberSeed) {

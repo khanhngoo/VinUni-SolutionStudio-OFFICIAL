@@ -1,4 +1,4 @@
-import { TODAY, dayKey, dayLabel, daysUntil, formatTime, toDate } from "@/lib/dates";
+import { dayKey, dayLabel, daysUntil, formatTime, now, toDate } from "@/lib/dates";
 import {
   meetingState,
   meetingTimeLabel,
@@ -296,8 +296,9 @@ export function buildAgenda(
     }
   }
 
-  const from = TODAY.getTime() - LOOKBACK_MS;
-  const until = TODAY.getTime() + horizonDays * MS_PER_DAY;
+  const anchor = now().getTime();
+  const from = anchor - LOOKBACK_MS;
+  const until = anchor + horizonDays * MS_PER_DAY;
 
   const visible = events
     .filter((event) => {
@@ -351,8 +352,9 @@ function windowEvents(
   events: AgendaEvent[],
   { horizonDays = 45, maxEvents = 12 }: AgendaOptions
 ): AgendaEvent[] {
-  const from = TODAY.getTime();
-  const until = TODAY.getTime() + horizonDays * MS_PER_DAY;
+  const anchor = now().getTime();
+  const from = anchor;
+  const until = anchor + horizonDays * MS_PER_DAY;
 
   return events
     .filter((event) => {

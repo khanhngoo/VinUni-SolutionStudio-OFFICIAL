@@ -8,6 +8,7 @@ import {
   selections,
 } from "../schema";
 import type { SeedContext } from "./context";
+import { shiftDateOnly, shiftIso } from "./clock";
 
 type OfferStatus = "PENDING" | "ACCEPTED";
 type AgreementType = "NDA";
@@ -43,7 +44,7 @@ interface SelectionOfferSeed {
 }
 
 function atUtc(iso: string) {
-  return new Date(iso);
+  return shiftIso(iso);
 }
 
 const AGREEMENT_VERSION = "demo-v1";
@@ -57,19 +58,18 @@ export const DEMO_SELECTION_OFFERS: SelectionOfferSeed[] = [
     selectedByUserKey: "user:contact-org-bencang",
     selectedAt: atUtc("2026-07-26T08:00:00.000Z"),
     createdAt: atUtc("2026-07-26T09:00:00.000Z"),
-    // Live canonical PENDING scenario: respond_by/start_date are fixed one
-    // year past their original values so the offer stays open (not derived
-    // EXPIRED) for durable E2E coverage. Issuance timestamps (selectedAt,
-    // createdAt) remain historical; negotiated terms (hoursPerWeek,
-    // durationWeeks, compensationNote, ndaRequired) are intentionally
-    // independent of the challenge posting, consistent with every other
-    // seeded offer, and are left unchanged.
-    respondBy: atUtc("2027-07-28T16:00:00.000Z"),
+    // The one live PENDING offer. respond_by sits two days past the anchor,
+    // which the seed clock translates onto the current timeline -- so the
+    // offer is always open with a real countdown on it, and no longer needs
+    // the year-forward shove that kept it from deriving EXPIRED under the old
+    // pinned clock. Negotiated terms stay independent of the challenge
+    // posting, consistent with every other seeded offer.
+    respondBy: atUtc("2026-07-29T16:00:00.000Z"),
     hoursPerWeek: 10,
     durationWeeks: 10,
     compensationNote: "Paid - stipend confirmed by the partner",
     ndaRequired: true,
-    startDate: "2027-08-17",
+    startDate: "2026-08-17",
     status: "PENDING",
     respondedByLeaderUserKey: null,
     respondedAt: null,
@@ -218,7 +218,7 @@ async function ensureOffer(
       respondedBy,
       respondBy: seed.respondBy,
       selectionId,
-      startDate: seed.startDate,
+      startDate: shiftDateOnly(seed.startDate),
       status: seed.status,
       updatedAt: seed.respondedAt ?? seed.createdAt,
     })
@@ -233,7 +233,7 @@ async function ensureOffer(
         respondedAt: seed.respondedAt,
         respondedBy,
         respondBy: seed.respondBy,
-        startDate: seed.startDate,
+        startDate: shiftDateOnly(seed.startDate),
         status: seed.status,
         updatedAt: seed.respondedAt ?? seed.createdAt,
       },

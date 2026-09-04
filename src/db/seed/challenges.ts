@@ -8,6 +8,7 @@ import {
 } from "../schema";
 import type { SeedContext } from "./context";
 import { resolveCanonicalSkillSeedLabel } from "./skills";
+import { shiftIso } from "./clock";
 
 type CompensationType = "PAID" | "UNPAID" | "CREDIT" | "OTHER" | "NOT_SPECIFIED";
 type WorkMode = "ONSITE" | "HYBRID" | "REMOTE";
@@ -64,7 +65,7 @@ function deliverables(lines: string[]) {
 }
 
 function deadlineAtVietnamEndOfDay(date: string) {
-  return new Date(`${date}T16:59:00.000Z`);
+  return shiftIso(`${date}T16:59:00.000Z`);
 }
 
 function requiredSkill(name: string): DemoChallengeSkillSeed {

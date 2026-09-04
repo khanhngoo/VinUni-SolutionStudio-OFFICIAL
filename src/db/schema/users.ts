@@ -3,6 +3,10 @@ import { boolean, check, index, integer, jsonb, pgTable, text, uniqueIndex, varc
 
 import { createdAt, fk, gpaDecimal, id, timestamptz, updatedAt } from "./common";
 import { courseSource, dayAvailability, studentWorkMode, teamRole } from "./enums";
+
+/** The vocabulary of one weekly-availability slot, taken from the pgEnum so
+ * the jsonb payload and the database type cannot drift apart. */
+export type DayAvailability = (typeof dayAvailability.enumValues)[number];
 import { userStatus } from "./enums";
 
 export const users = pgTable(
@@ -46,7 +50,7 @@ export const studentProfiles = pgTable(
      * written as one whole shape — `sharedFreeDays()` in `src/lib/teams.ts`
      * intersects the arrays of every confirmed member at once.
      */
-    weeklyAvailability: jsonb("weekly_availability").$type<string[]>(),
+    weeklyAvailability: jsonb("weekly_availability").$type<DayAvailability[]>(),
     workPreference: studentWorkMode("work_preference"),
     preferredTeamMin: integer("preferred_team_min"),
     preferredTeamMax: integer("preferred_team_max"),
