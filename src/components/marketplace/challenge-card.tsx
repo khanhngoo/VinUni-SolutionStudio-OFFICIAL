@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Chip } from "@/components/ui/chip";
 import { LockIcon } from "@/components/ui/icons";
+import { ScoreDonut } from "@/components/ui/score-donut";
 import { StripedPlaceholder } from "@/components/ui/striped-placeholder";
 import {
   challengeCompensationLabel,
@@ -11,12 +12,20 @@ import {
   type MarketplaceChallengeCardModel,
 } from "@/lib/challenge-marketplace";
 import { deadlineLabel, isUrgent } from "@/lib/dates";
+import type { ScoreBand } from "@/lib/types";
 
 interface ChallengeCardProps {
   challenge: MarketplaceChallengeCardModel;
+  /**
+   * Suitability of the signed-in student against this brief. Optional because
+   * the marketplace is browsable signed-out and by non-students, and because
+   * the score is a per-pairing derivation the server supplies — the card never
+   * computes it, so it cannot invent one when there is no viewer.
+   */
+  fit?: { score: number; band: ScoreBand } | null;
 }
 
-export function ChallengeCard({ challenge }: ChallengeCardProps) {
+export function ChallengeCard({ challenge, fit }: ChallengeCardProps) {
   const deadline = challengeDeadlineKey(challenge);
   const urgent = isUrgent(deadline);
   const schools = challenge.eligibilitySummary.schools ?? [];
@@ -34,6 +43,15 @@ export function ChallengeCard({ challenge }: ChallengeCardProps) {
           </span>
           {challengeIsRedacted(challenge) ? (
             <LockIcon className="w-3.5 h-3.5 shrink-0 text-ink-3" />
+          ) : null}
+          {fit ? (
+            <ScoreDonut
+              score={fit.score}
+              band={fit.band}
+              size="sm"
+              label={`Your suitability: ${fit.score} out of 100 — ${fit.band} fit`}
+              className="ml-auto"
+            />
           ) : null}
         </div>
 

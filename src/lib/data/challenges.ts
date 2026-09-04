@@ -569,4 +569,58 @@ export const challenges: Challenge[] = [
     orgId: "org-heritage",
     status: "Published",
   },
+  /**
+   * The one challenge the current student has not applied to.
+   *
+   * Every other seed has an application attached, which means the marketplace
+   * only ever renders the post-application pipeline. This one deliberately has
+   * no row in `applications`, so `ApplyPanel` and the apply wizard are
+   * reachable — eligibility is set to pass for Jordan (CECS, year 3, no GPA
+   * gate) and the team range is 2-3 so assembling a roster actually gates
+   * submission.
+   */
+  {
+    id: "retail-forecast-pilot",
+    title: "Demand forecasting pilot for a grocery retail chain",
+    subType: "Mini-Internship",
+    orgName: "Mekong Fresh Retail",
+    orgCategory: "Grocery retail, Can Tho",
+    confidential: false,
+    posterKind: "Company",
+    colleges: ["CECS", "CBM"],
+    domainTags: ["Forecasting", "Retail", "Analytics"],
+    durationWeeks: 8,
+    hoursPerWeek: 10,
+    teamSizeMin: 2,
+    teamSizeMax: 3,
+    workMode: "Hybrid",
+    compensation: "Paid",
+    postedAt: "2026-07-24",
+    deadline: "2026-08-30",
+    startDate: "2026-09-14",
+    summary:
+      "Store managers order fresh produce on instinct, and the waste figures show it. The partner wants a first forecasting pilot across twelve stores — good enough to test against a manager's judgement, honest enough to say when it is not.",
+    responsibilities: [
+      "Build a baseline demand forecast from two years of store-level sales",
+      "Quantify how much of the current waste the forecast would have avoided",
+      "Present the pilot to store managers in terms they can argue with",
+    ],
+    skills: [
+      { name: "Python", level: "must" },
+      { name: "Data analysis", level: "must" },
+      { name: "Forecasting", level: "nice" },
+      { name: "SQL", level: "nice" },
+    ],
+    assessmentTrack: "Cognitive + Case",
+    assessmentMinutes: 50,
+    interviewFormat: "30-min call with the supply-chain lead",
+    minGpa: null,
+    eligibleYears: [2, 3, 4],
+    eligibleColleges: ["CECS", "CBM"],
+    lockedBlocks: standardLockedBlocks,
+    suggestedFacultyIds: ["fac-osei", "fac-nguyen-k"],
+    applicantCount: 4,
+    orgId: "org-mekong",
+    status: "Published",
+  },
 ];

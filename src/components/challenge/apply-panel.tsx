@@ -2,35 +2,29 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ApplyModal } from "@/components/apply/apply-modal";
 import { SelectionTimeline } from "@/components/challenge/selection-timeline";
 import { Chip } from "@/components/ui/chip";
 import { CheckIcon } from "@/components/ui/icons";
 import { Section } from "@/components/ui/section";
 import { deadlineLabel, isUrgent } from "@/lib/dates";
 import { sizeLabel } from "@/lib/teams";
-import type { Challenge, EligibilityResult, Faculty } from "@/lib/types";
+import type { Challenge, EligibilityResult } from "@/lib/types";
 
 interface ApplyPanelProps {
   challenge: Challenge;
   eligibility: EligibilityResult;
-  facultyOptions: Faculty[];
-  defaultHours: number;
 }
 
 /**
- * Owns the only mutable state in the app: whether this session has applied. That
- * drives both the CTA and how far the timeline has advanced. State is deliberately
- * session-only — there is no persistence layer yet.
+ * The pre-application state of a challenge: the deadline, whether this student
+ * is eligible, and the way in.
+ *
+ * Applying is four steps and a team, so it lives at `/challenges/[id]/apply`
+ * rather than in a modal here. `applied` stays as session-only state for the
+ * timeline's benefit — there is no persistence layer yet.
  */
-export function ApplyPanel({
-  challenge,
-  eligibility,
-  facultyOptions,
-  defaultHours,
-}: ApplyPanelProps) {
-  const [applied, setApplied] = useState(false);
-  const [modalOpen, setModalOpen] = useState(false);
+export function ApplyPanel({ challenge, eligibility }: ApplyPanelProps) {
+  const [applied] = useState(false);
 
   const urgent = isUrgent(challenge.deadline);
 
@@ -58,8 +52,6 @@ export function ApplyPanel({
             </Chip>
           ) : eligibility.eligible ? (
             <div className="text-right">
-              {/* Applying starts with a team now, so the first step is a page
-                  of its own rather than the modal. */}
               <Link
                 href={`/challenges/${challenge.id}/apply`}
                 className="inline-flex items-center h-10 px-5 rounded-card bg-brand text-white font-semibold hover:bg-brand-deep hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
@@ -96,19 +88,6 @@ export function ApplyPanel({
           <SelectionTimeline currentNodeIndex={applied ? 0 : -1} />
         </div>
       </Section>
-
-      {modalOpen ? (
-        <ApplyModal
-          challenge={challenge}
-          facultyOptions={facultyOptions}
-          defaultHours={defaultHours}
-          onClose={() => setModalOpen(false)}
-          onSubmitted={() => {
-            setApplied(true);
-            setModalOpen(false);
-          }}
-        />
-      ) : null}
     </>
   );
 }

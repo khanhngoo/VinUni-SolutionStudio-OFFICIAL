@@ -14,6 +14,10 @@ interface InvitePickerProps {
   takenIds: string[];
   /** False once the roster is at the challenge's maximum. */
   canInvite: boolean;
+  /** Ids invited so far. Owned by the caller so the roster above can react. */
+  invited: string[];
+  onInvite: (peerId: string) => void;
+  onRemove: (peerId: string) => void;
 }
 
 /**
@@ -21,14 +25,21 @@ interface InvitePickerProps {
  * invite — free hours and the roles someone plays — rather than on academic
  * record, which is not a teammate's business.
  *
- * Session-only, like every other form in the prototype: inviting marks the
- * row locally and nothing is sent.
+ * Controlled: the invited list belongs to whoever renders this, so the roster
+ * and the fit arithmetic above it update as invitations go out. Still
+ * session-only, like every other form in the prototype — nothing is sent.
  */
-export function InvitePicker({ peers, takenIds, canInvite }: InvitePickerProps) {
+export function InvitePicker({
+  peers,
+  takenIds,
+  canInvite,
+  invited,
+  onInvite,
+  onRemove,
+}: InvitePickerProps) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [role, setRole] = useState<TeamRole | null>(null);
-  const [invited, setInvited] = useState<string[]>([]);
 
   const results = useMemo(() => {
     const needle = query.trim().toLowerCase();
@@ -120,12 +131,19 @@ export function InvitePicker({ peers, takenIds, canInvite }: InvitePickerProps) 
                 {unavailable ? (
                   <Chip variant="outline-dashed">Unavailable</Chip>
                 ) : sent ? (
-                  <Chip variant="ok">Invited</Chip>
+                  <button
+                    type="button"
+                    onClick={() => onRemove(peer.id)}
+                    className="h-8 px-3 rounded-card border border-line text-ink-2 font-medium text-[11px] hover:border-warn hover:text-warn"
+                  >
+                    Withdraw invite
+                  </button>
                 ) : (
                   <button
                     type="button"
-                    onClick={() => setInvited((v) => [...v, peer.id])}
-                    className="h-8 px-3 rounded-card bg-brand text-white font-semibold text-[11px] hover:bg-brand-deep"
+                    onClick={() => onInvite(peer.id)}
+                    disabled={!canInvite}
+                    className="h-8 px-3 rounded-card bg-brand text-white font-semibold text-[11px] hover:bg-brand-deep disabled:opacity-40 disabled:cursor-not-allowed"
                   >
                     Invite
                   </button>

@@ -20,6 +20,63 @@ import type {
 
 export type ParseConfidence = "high" | "medium" | "low";
 
+/** One step of the parse, as narrated to the partner while it runs. */
+export interface ParseStage {
+  id: string;
+  label: string;
+  /** Filled in from the brief, so the narration describes the real result. */
+  detail: (brief: ParsedBrief) => string;
+  /** How long this stage holds the screen. */
+  ms: number;
+}
+
+/**
+ * The parse, told as work rather than as a wait.
+ *
+ * A single indeterminate bar says "something is happening" and nothing else,
+ * which is the wrong claim for a step whose whole point is that the partner
+ * should check it. Naming the stages sets up the review screen: by the time it
+ * arrives the partner already knows that values carry evidence and that some
+ * fields came back empty on purpose.
+ */
+export const parseStages: ParseStage[] = [
+  {
+    id: "read",
+    label: "Reading the document",
+    detail: (b) => `${b.fileName} · ${b.pages} pages`,
+    ms: 700,
+  },
+  {
+    id: "sections",
+    label: "Locating sections",
+    detail: () => "Scope, responsibilities, timeline, eligibility",
+    ms: 900,
+  },
+  {
+    id: "extract",
+    label: "Extracting fields",
+    detail: (b) => `${filledCount(b)} of ${FIELD_COUNT} fields have a value`,
+    ms: 1100,
+  },
+  {
+    id: "verify",
+    label: "Checking each value against the text",
+    detail: () => "Attaching the sentence every value came from",
+    ms: 900,
+  },
+  {
+    id: "gaps",
+    label: "Flagging what is missing",
+    detail: (b) => {
+      const gaps = gapsIn(b);
+      return gaps.length === 0
+        ? "Nothing missing"
+        : `${gaps.length} the brief never mentions: ${gaps.join(", ").toLowerCase()}`;
+    },
+    ms: 600,
+  },
+];
+
 /**
  * A parsed field. `value === null` means the document did not contain it —
  * rendered as a gap the partner must fill, never as a guess.
@@ -161,9 +218,8 @@ export function gapsIn(brief: ParsedBrief): string[] {
   return gaps;
 }
 
-/** How many fields came back with a value — the "14 fields filled" counter. */
-export function filledCount(brief: ParsedBrief): number {
-  const fields = [
+function fieldsOf(brief: ParsedBrief): ParsedField<unknown>[] {
+  return [
     brief.title,
     brief.subType,
     brief.summary,
@@ -180,5 +236,12 @@ export function filledCount(brief: ParsedBrief): number {
     brief.deadline,
     brief.startDate,
   ];
-  return fields.filter((f) => f.value !== null).length;
 }
+
+/** How many fields came back with a value — the "14 fields filled" counter. */
+export function filledCount(brief: ParsedBrief): number {
+  return fieldsOf(brief).filter((f) => f.value !== null).length;
+}
+
+/** The denominator for that counter. Derived, so it cannot drift from the list. */
+export const FIELD_COUNT = fieldsOf(sampleBrief).length;

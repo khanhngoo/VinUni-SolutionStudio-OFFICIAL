@@ -150,8 +150,36 @@
   animation: reveal-unblur 620ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
 }
 
+/* The fit ring drawing itself. Short and once — it marks the number as a
+   measurement being taken, not a value ticking up. */
+@keyframes donut-sweep {
+  from {
+    stroke-dashoffset: 100;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@utility donut-sweep {
+  animation: donut-sweep 700ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
+}
+
+/* The stage spinner on the brief parser. */
+@keyframes stage-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@utility stage-spin {
+  animation: stage-spin 900ms linear infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .reveal-block {
+  .reveal-block,
+  .donut-sweep,
+  .stage-spin {
     animation: none;
   }
 }
