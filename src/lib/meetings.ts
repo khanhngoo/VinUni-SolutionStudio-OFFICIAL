@@ -10,16 +10,26 @@ import type { Meeting, ProjectRecord } from "@/lib/types";
 
 export type MeetingState = "live" | "starting" | "upcoming" | "past";
 
+/**
+ * The only two fields the timing helpers below actually need. Widened from the
+ * full Meeting record so database-backed rows can use them without being
+ * reshaped into the static fixture type.
+ */
+export interface MeetingTiming {
+  durationMinutes: number | null;
+  startsAt: string;
+}
+
 /** Within this many minutes of the start, a meeting is worth acting on. */
 const STARTING_WINDOW_MINUTES = 60;
 
-export function meetingEndsAt(meeting: Meeting): Date {
+export function meetingEndsAt(meeting: MeetingTiming): Date {
   return new Date(
-    toDate(meeting.startsAt).getTime() + meeting.durationMinutes * 60_000,
+    toDate(meeting.startsAt).getTime() + (meeting.durationMinutes ?? 0) * 60_000,
   );
 }
 
-export function meetingState(meeting: Meeting): MeetingState {
+export function meetingState(meeting: MeetingTiming): MeetingState {
   const untilStart = minutesUntil(meeting.startsAt);
   if (untilStart > STARTING_WINDOW_MINUTES) return "upcoming";
   if (untilStart > 0) return "starting";
@@ -33,7 +43,7 @@ export function meetingState(meeting: Meeting): MeetingState {
  * Past meetings deliberately avoid the countdown vocabulary — a finished
  * kickoff is not "expired".
  */
-export function meetingTimeLabel(meeting: Meeting): string {
+export function meetingTimeLabel(meeting: MeetingTiming): string {
   const state = meetingState(meeting);
   if (state === "live") return "Live now";
   if (state === "starting") {

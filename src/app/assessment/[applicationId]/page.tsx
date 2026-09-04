@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { PreflightCheck } from "@/components/assessment/preflight-check";
 import { Chip } from "@/components/ui/chip";
 import { LockIcon } from "@/components/ui/icons";
+import { deadlineLabel } from "@/lib/dates";
 import { getAuthenticatedActor } from "@/auth/authenticated-actor";
 import { toApplicationActorContext } from "@/services/application.service";
 import {
@@ -108,6 +109,16 @@ export default async function AssessmentPreflightPage({
         This assessment is timed, monitored and single-attempt. Work through the
         checks below, then read what is recorded during the test.
       </p>
+
+      {preflight.challenge.applicationDeadline ? (
+        <p className="text-meta text-warn font-medium mt-3">
+          This challenge closes{" "}
+          {deadlineLabel(
+            preflight.challenge.applicationDeadline.toISOString()
+          ).toLowerCase()}{" "}
+          — your attempt has to be in before then.
+        </p>
+      ) : null}
 
       <PreflightCheck
         applicationId={preflight.application.publicId}

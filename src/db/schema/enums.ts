@@ -288,3 +288,11 @@ export const resourceSensitivity = pgEnum("resource_sensitivity", [
   "CONFIDENTIAL",
   "RESTRICTED",
 ]);
+
+export const meetingKind = pgEnum("meeting_kind", [
+  "KICKOFF",
+  "WEEKLY_SYNC",
+  "SUPERVISOR_ONE_ON_ONE",
+  "MILESTONE_REVIEW",
+  "FINAL_PRESENTATION",
+]);

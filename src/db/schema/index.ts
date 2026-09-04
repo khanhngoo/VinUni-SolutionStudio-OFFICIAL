@@ -7,5 +7,6 @@ export * from "./challenges";
 export * from "./applications";
 export * from "./assessments";
 export * from "./matching";
+export * from "./meetings";
 export * from "./projects";
 export * from "./governance";

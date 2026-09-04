@@ -12,15 +12,24 @@ import {
 import { alias } from "drizzle-orm/pg-core";
 
 import { db } from "@/db";
+import { assessmentTrackLabel } from "@/services/assessment-track";
 import {
   applications,
+  assessmentQuestions,
+  assessments,
+  assessmentSections,
   challengeEligibilityRules,
   challengeFacultyAssignments,
   challenges,
   challengeSkills,
   facultyProfiles,
+  organizationMemberships,
   organizations,
+  projectMembers,
+  projects,
   skills,
+  studentProfiles,
+  studentSkills,
   users,
 } from "@/db/schema";
 
@@ -163,13 +172,33 @@ export interface ChallengeFacultyAssignmentRead {
   status: FacultyAssignmentStatus;
 }
 
+export interface ChallengeAssessmentSummaryRead {
+  timeLimitMinutes: number | null;
+  trackLabel: string;
+}
+
+export interface StudentEligibilityProfileRead {
+  activeProjectCount: number;
+  availableHoursPerWeek: number | null;
+  gpa: number | null;
+  gpaScale: number | null;
+  major: string | null;
+  school: string | null;
+  studyYear: number | null;
+}
+
 export interface ChallengeDetail extends ChallengeListItem {
+  assessmentSummary: ChallengeAssessmentSummaryRead | null;
   contactPerson: {
     displayName: string;
+    email: string | null;
+    roleLabel: string | null;
   } | null;
   description: string;
   eligibilityRules: ChallengeEligibilityRuleRead[];
   expectedDeliverables: string | null;
+  fullBrief: string | null;
+  interviewFormat: string | null;
   facultyAssignments: ChallengeFacultyAssignmentRead[];
 }
 
@@ -184,6 +213,8 @@ interface BaseChallengeRow {
   domain: string | null;
   durationWeeks: number | null;
   expectedDeliverables: string | null;
+  fullBrief: string | null;
+  interviewFormat: string | null;
   internalId: InternalChallengeId;
   managingOrganization: ChallengeOrganizationSummary;
   ownerOrganization: ChallengeOrganizationSummary;
@@ -407,6 +438,8 @@ async function selectBaseChallengeRows(
       domain: challenges.domain,
       durationWeeks: challenges.durationWeeks,
       expectedDeliverables: challenges.expectedDeliverables,
+      fullBrief: challenges.fullBrief,
+      interviewFormat: challenges.interviewFormat,
       internalId: challenges.id,
       managingOrganizationIndustry: managingOrganization.industry,
       managingOrganizationName: managingOrganization.name,
@@ -463,6 +496,8 @@ async function selectBaseChallengeRows(
         domain: row.domain,
         durationWeeks: row.durationWeeks,
         expectedDeliverables: row.expectedDeliverables,
+        fullBrief: row.fullBrief,
+        interviewFormat: row.interviewFormat,
         internalId: row.internalId,
         managingOrganization: organizationSummary({
           industry: row.managingOrganizationIndustry,
@@ -519,6 +554,8 @@ async function selectBaseChallengeRowBySlug(slug: string) {
       domain: challenges.domain,
       durationWeeks: challenges.durationWeeks,
       expectedDeliverables: challenges.expectedDeliverables,
+      fullBrief: challenges.fullBrief,
+      interviewFormat: challenges.interviewFormat,
       internalId: challenges.id,
       managingOrganizationIndustry: managingOrganization.industry,
       managingOrganizationName: managingOrganization.name,
@@ -574,6 +611,8 @@ async function selectBaseChallengeRowBySlug(slug: string) {
     domain: row.domain,
     durationWeeks: row.durationWeeks,
     expectedDeliverables: row.expectedDeliverables,
+    fullBrief: row.fullBrief,
+    interviewFormat: row.interviewFormat,
     internalId: row.internalId,
     managingOrganization: organizationSummary({
       industry: row.managingOrganizationIndustry,
@@ -715,9 +754,18 @@ async function selectContactPerson(challengeId: InternalChallengeId) {
   const rows = await db
     .select({
       displayName: users.fullName,
+      email: users.email,
+      roleLabel: organizationMemberships.role,
     })
     .from(challenges)
     .innerJoin(users, eq(users.id, challenges.contactPersonId))
+    .leftJoin(
+      organizationMemberships,
+      and(
+        eq(organizationMemberships.userId, users.id),
+        eq(organizationMemberships.organizationId, challenges.ownerOrganizationId)
+      )
+    )
     .where(eq(challenges.id, challengeId))
     .limit(1);
 
@@ -896,17 +944,24 @@ export async function getPublishedChallengeBySlug(
   const row = await selectBaseChallengeRowBySlug(trimmedSlug);
   if (!row) return null;
 
-  const [skillMap, eligibilityMap, facultyAssignments, contactPerson] =
-    await Promise.all([
-      selectSkills([row.internalId]),
-      selectEligibilityRules([row.internalId]),
-      selectFacultyAssignments(row.internalId),
-      selectContactPerson(row.internalId),
-    ]);
+  const [
+    skillMap,
+    eligibilityMap,
+    facultyAssignments,
+    contactPerson,
+    assessmentSummary,
+  ] = await Promise.all([
+    selectSkills([row.internalId]),
+    selectEligibilityRules([row.internalId]),
+    selectFacultyAssignments(row.internalId),
+    selectContactPerson(row.internalId),
+    getChallengeAssessmentSummary(row.internalId),
+  ]);
   const eligibilityRows = eligibilityMap.get(row.internalId) ?? [];
 
   return {
     ...mapListItem(row, skillMap, eligibilityMap),
+    assessmentSummary,
     contactPerson,
     description: row.description,
     eligibilityRules: eligibilityRows.map((rule) => ({
@@ -915,6 +970,152 @@ export async function getPublishedChallengeBySlug(
       ruleType: rule.ruleType,
     })),
     expectedDeliverables: row.expectedDeliverables,
+    fullBrief: row.fullBrief,
+    interviewFormat: row.interviewFormat,
     facultyAssignments,
   };
+}
+
+/**
+ * Canonical names of the skills a student has on file, for matching against a
+ * challenge's requirements. Only normalized rows participate: a `rawSkillName`
+ * with no `skillId` has not been reconciled against the taxonomy yet, and
+ * matching on it would claim a match the platform cannot stand behind.
+ */
+export async function listStudentSkillNames(
+  studentId: bigint
+): Promise<string[]> {
+  const rows = await db
+    .select({ canonicalName: skills.canonicalName })
+    .from(studentSkills)
+    .innerJoin(skills, eq(skills.id, studentSkills.skillId))
+    .where(eq(studentSkills.studentId, studentId))
+    .orderBy(asc(skills.canonicalName));
+
+  return rows.map((row) => row.canonicalName);
+}
+
+/**
+ * The student facts `evaluateChallengeEligibility` needs, in the shape it
+ * expects. `activeProjectCount` counts projects that are still running, which
+ * is what the MAX_ACTIVE_PROJECTS rule caps.
+ */
+export async function getStudentEligibilityProfile(
+  studentUserId: bigint
+): Promise<StudentEligibilityProfileRead | null> {
+  const [profile] = await db
+    .select({
+      availableHoursPerWeek: studentProfiles.availableHoursPerWeek,
+      gpa: studentProfiles.gpa,
+      gpaScale: studentProfiles.gpaScale,
+      major: studentProfiles.major,
+      school: studentProfiles.school,
+      studyYear: studentProfiles.studyYear,
+    })
+    .from(studentProfiles)
+    .where(eq(studentProfiles.userId, studentUserId));
+
+  if (!profile) return null;
+
+  const [activeProjects] = await db
+    .select({ value: sql<number>`count(*)::int` })
+    .from(projectMembers)
+    .innerJoin(projects, eq(projects.id, projectMembers.projectId))
+    .where(
+      and(
+        eq(projectMembers.studentId, studentUserId),
+        inArray(projects.status, ["ACTIVE", "PAUSED", "FINAL_REVIEW"])
+      )
+    );
+
+  return {
+    activeProjectCount: activeProjects?.value ?? 0,
+    availableHoursPerWeek: profile.availableHoursPerWeek,
+    gpa: numericOrNull(profile.gpa),
+    gpaScale: numericOrNull(profile.gpaScale),
+    major: profile.major,
+    school: profile.school,
+    studyYear: profile.studyYear,
+  };
+}
+
+function numericOrNull(value: string | number | null): number | null {
+  if (value === null) return null;
+  const parsed = typeof value === "number" ? value : Number.parseFloat(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+/**
+ * The facts a student needs before applying: what shape the assessment takes
+ * and how long it runs. Derived from the active assessment's questions rather
+ * than stored on the challenge, so it cannot disagree with what they actually
+ * sit. Null when the challenge has no active assessment yet.
+ */
+export async function getChallengeAssessmentSummary(
+  challengeId: InternalChallengeId
+): Promise<ChallengeAssessmentSummaryRead | null> {
+  const rows = await db
+    .select({
+      questionType: assessmentQuestions.questionType,
+      timeLimitMinutes: assessments.timeLimitMinutes,
+    })
+    .from(assessments)
+    .leftJoin(
+      assessmentSections,
+      eq(assessmentSections.assessmentId, assessments.id)
+    )
+    .leftJoin(
+      assessmentQuestions,
+      eq(assessmentQuestions.sectionId, assessmentSections.id)
+    )
+    .where(
+      and(eq(assessments.challengeId, challengeId), eq(assessments.status, "ACTIVE"))
+    );
+
+  if (rows.length === 0) return null;
+
+  const questionTypes = rows
+    .map((row) => row.questionType)
+    .filter((type): type is NonNullable<typeof type> => type !== null);
+
+  return {
+    timeLimitMinutes: rows[0].timeLimitMinutes,
+    trackLabel: assessmentTrackLabel(questionTypes),
+  };
+}
+
+export interface ChallengeWorkspaceExtrasRead {
+  contactPerson: {
+    displayName: string;
+    email: string | null;
+    roleLabel: string | null;
+  } | null;
+  durationWeeks: number | null;
+  fullBrief: string | null;
+  subtype: string | null;
+}
+
+/**
+ * The challenge fields a live workspace shows that the project row does not
+ * carry — including the full brief.
+ *
+ * Unredacted by design: every caller has already cleared `canAccessProject`,
+ * which is a stricter gate than the brief's own. Do not call this from the
+ * marketplace, which must go through `applyChallengeDetailDisclosure`.
+ */
+export async function getChallengeWorkspaceExtras(
+  challengeId: InternalChallengeId
+): Promise<ChallengeWorkspaceExtrasRead | null> {
+  const [row] = await db
+    .select({
+      durationWeeks: challenges.durationWeeks,
+      fullBrief: challenges.fullBrief,
+      subtype: challenges.subtype,
+    })
+    .from(challenges)
+    .where(eq(challenges.id, challengeId));
+
+  if (!row) return null;
+
+  return { ...row, contactPerson: await selectContactPerson(challengeId) };
 }

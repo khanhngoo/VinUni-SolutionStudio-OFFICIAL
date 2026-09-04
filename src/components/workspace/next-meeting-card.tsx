@@ -2,25 +2,35 @@ import { Chip } from "@/components/ui/chip";
 import { CalendarIcon } from "@/components/ui/icons";
 import { JoinButton } from "@/components/workspace/join-button";
 import { formatDate, formatDateTime } from "@/lib/dates";
+import { meetingKindLabel } from "@/lib/labels";
 import {
-  lastMeeting,
   meetingChipVariant,
   meetingState,
   meetingTimeLabel,
-  nextMeeting,
 } from "@/lib/meetings";
-import type { ProjectRecord } from "@/lib/types";
+
+interface WorkspaceMeeting {
+  attendees: Array<{ fullName: string; role: string | null }>;
+  durationMinutes: number | null;
+  kind: string;
+  publicId: string;
+  startsAt: string;
+  title: string;
+}
 
 /**
- * Takes the whole project rather than a meeting so the "nothing scheduled"
+ * Takes the whole schedule rather than one meeting so the "nothing scheduled"
  * branch — a finished engagement whose meetings are all in the past — lives
  * here instead of in every caller.
  */
-export function NextMeetingCard({ project }: { project: ProjectRecord }) {
-  const meeting = nextMeeting(project);
+export function NextMeetingCard({ meetings }: { meetings: WorkspaceMeeting[] }) {
+  const upcoming = meetings.filter(
+    (meeting) => meetingState(meeting) !== "past"
+  );
+  const meeting = upcoming[0];
 
   if (!meeting) {
-    const previous = lastMeeting(project);
+    const previous = meetings.at(-1);
     return (
       <div className="bg-card border border-line rounded-card p-5 flex items-start gap-3.5">
         <span className="w-[26px] h-[26px] shrink-0 rounded-card bg-line-2 border border-line grid place-items-center text-ink-2">
@@ -48,16 +58,19 @@ export function NextMeetingCard({ project }: { project: ProjectRecord }) {
             <Chip variant={meetingChipVariant(state)}>
               {meetingTimeLabel(meeting)}
             </Chip>
-            <Chip>{meeting.kind}</Chip>
+            <Chip>{meetingKindLabel(meeting.kind)}</Chip>
           </div>
           <p className="font-semibold text-ink mt-2">{meeting.title}</p>
           <p className="text-meta text-ink-3 mt-1">
-            {formatDateTime(meeting.startsAt)} · {meeting.durationMinutes} min ·{" "}
-            {meeting.attendees.map((a) => a.name).join(", ")}
+            {formatDateTime(meeting.startsAt)}
+            {meeting.durationMinutes ? ` · ${meeting.durationMinutes} min` : ""}
+            {meeting.attendees.length > 0
+              ? ` · ${meeting.attendees.map((a) => a.fullName).join(", ")}`
+              : ""}
           </p>
         </div>
 
-        <JoinButton meetingId={meeting.id} state={state} />
+        <JoinButton meetingId={meeting.publicId} state={state} />
       </div>
     </div>
   );

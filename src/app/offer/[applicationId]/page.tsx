@@ -6,10 +6,14 @@ import { OfferFlow } from "@/components/offer/offer-flow";
 import { Chip } from "@/components/ui/chip";
 import { Section } from "@/components/ui/section";
 import { formatDate } from "@/lib/dates";
+import { offerStatusLabel } from "@/lib/labels";
 import { getAuthenticatedActor } from "@/auth/authenticated-actor";
 import { toApplicationActorContext } from "@/services/application.service";
-import { getOfferDetail } from "@/services/offer.service";
-import { respondToOfferForAuthenticatedActor } from "./actions";
+import { getOfferDetail, hasAcceptedChallengeNda } from "@/services/offer.service";
+import { getMarketplaceChallengeBySlug } from "@/services/challenge.service";
+import { marketplaceContextForActor } from "@/lib/challenge-marketplace";
+import { listRevealedResourceNames } from "@/services/workspace.service";
+import { acceptNdaForAuthenticatedActor, respondToOfferForAuthenticatedActor } from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -29,6 +33,31 @@ export default async function OfferPage({
     null,
     detail.application.publicId
   );
+  const ndaAction = acceptNdaForAuthenticatedActor.bind(
+    null,
+    detail.application.publicId
+  );
+
+  // The reveal payload is loaded only once this individual has earned it. A
+  // browsing student never reaches this branch, so T3 content is never in the
+  // page payload for anyone who has not signed.
+  const ndaAccepted =
+    detail.offer.status === "ACCEPTED"
+      ? await hasAcceptedChallengeNda(detail.application.publicId, actor)
+      : false;
+  const revealed =
+    detail.offer.status === "ACCEPTED" &&
+    (!detail.offer.terms.ndaRequired || ndaAccepted);
+
+  const revealedChallenge = revealed
+    ? await getMarketplaceChallengeBySlug(detail.challenge.slug, {
+        ...marketplaceContextForActor(resolution.actor),
+        hasSelectedApplication: true,
+      })
+    : null;
+  const resourceNames = revealed
+    ? await listRevealedResourceNames(detail.application.publicId, actor)
+    : [];
   return (
     <article className="max-w-[820px] mx-auto px-6 sm:px-7 py-7 pb-16">
       <nav className="text-meta text-ink-3">
@@ -41,7 +70,7 @@ export default async function OfferPage({
 
       <div className="flex flex-wrap gap-1.5 mt-3.5 mb-2.5">
         <Chip variant="ok">Selected</Chip>
-        <Chip>{detail.offer.status}</Chip>
+        {detail.challenge.subtype ? <Chip>{detail.challenge.subtype}</Chip> : null}
         {detail.offer.terms.ndaRequired ? <Chip variant="warn">NDA required</Chip> : null}
       </div>
 
@@ -60,7 +89,7 @@ export default async function OfferPage({
           </p>
         </div>
         <div className="bg-card rounded-card px-4 py-2.5">
-          {detail.offer.isExpired ? <span className="font-semibold text-warn">Invitation lapsed</span> : detail.offer.status === "PENDING" && detail.offer.remainingHours !== null ? <OfferCountdown initialHours={detail.offer.remainingHours} /> : <span className="font-semibold text-ink">{detail.offer.status}</span>}
+          {detail.offer.isExpired ? <span className="font-semibold text-warn">Invitation lapsed</span> : detail.offer.status === "PENDING" && detail.offer.remainingHours !== null ? <OfferCountdown initialHours={detail.offer.remainingHours} /> : <span className="font-semibold text-ink">{offerStatusLabel(detail.offer.status)}</span>}
         </div>
       </div>
 
@@ -83,8 +112,15 @@ export default async function OfferPage({
         applicationId={detail.application.publicId}
         canRespond={detail.canRespond}
         challengeSlug={detail.challenge.slug}
+        challengeTitle={detail.challenge.title}
         expired={detail.offer.isExpired}
+        fullBrief={revealedChallenge?.fullBrief ?? null}
+        ndaAccepted={ndaAccepted}
+        ndaAction={ndaAction}
         ndaRequired={detail.offer.terms.ndaRequired}
+        orgName={detail.challenge.ownerOrganizationName}
+        posterContact={revealedChallenge?.contactPerson ?? null}
+        resourceNames={resourceNames}
         respondAction={respondAction}
         respondedByName={detail.offer.respondedByName}
         status={detail.offer.status}

@@ -16,6 +16,7 @@ import {
   type AssessmentSectionWithQuestionsRead,
 } from "@/db/queries/assessments";
 import { getApplicationByPublicId } from "@/db/queries/applications";
+import { assessmentTrackLabel } from "./assessment-track";
 import {
   getAssessmentQuestionForWrite,
   insertAssessmentAttempt,
@@ -93,6 +94,7 @@ export interface AssessmentPreflight {
     title: string;
   };
   challenge: {
+    applicationDeadline: Date | null;
     slug: string;
     title: string;
   };
@@ -679,6 +681,7 @@ function toPreflight(context: AssessmentContext): AssessmentPreflight {
       title: assessmentTitle(context.assessment),
     },
     challenge: {
+      applicationDeadline: context.application.challenge.applicationDeadline,
       slug: context.application.challenge.slug,
       title: context.application.challenge.title,
     },
@@ -798,16 +801,11 @@ function assessmentTitle(assessment: AssessmentDefinitionWithQuestionsRead) {
 }
 
 function trackLabel(assessment: AssessmentDefinitionWithQuestionsRead) {
-  const questionTypes = new Set(
+  return assessmentTrackLabel(
     assessment.sections.flatMap((section) =>
       section.questions.map((question) => question.questionType)
     )
   );
-  if (questionTypes.size === 1 && questionTypes.has("CODING")) return "Technical";
-  if (questionTypes.size === 1 && questionTypes.has("MULTIPLE_CHOICE")) {
-    return "Cognitive";
-  }
-  return "Mixed assessment";
 }
 
 function itemCountLabel(assessment: AssessmentDefinitionWithQuestionsRead) {

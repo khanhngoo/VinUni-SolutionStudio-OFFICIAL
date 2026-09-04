@@ -1,0 +1,1 @@
+ALTER TABLE "challenges" ADD COLUMN "interview_format" varchar(255);

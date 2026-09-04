@@ -9,6 +9,7 @@ import { seedDemoChallenges } from "./seed/challenges";
 import { SeedContext } from "./seed/context";
 import { seedDemo } from "./seed/demo";
 import { seedDemoSelectionsOffersAgreements } from "./seed/offers";
+import { seedDemoMeetings } from "./seed/meetings";
 import { seedDemoProjects } from "./seed/projects";
 import { seedReference } from "./seed/reference";
 import { formatSeedTarget, validateSeedSafety } from "./seed/safety";
@@ -44,6 +45,8 @@ async function readCounts(db: Database, schema: Schema) {
     organizationMemberships,
     organizations,
     projectMembers,
+    meetingAttendees,
+    meetings,
     projectResources,
     projects,
     selections,
@@ -91,6 +94,8 @@ async function readCounts(db: Database, schema: Schema) {
     deliverableCount,
     milestoneReviewCount,
     projectResourceCount,
+    meetingCount,
+    meetingAttendeeCount,
     feedbackCount,
     matchResultCount,
     matchSkillDetailCount,
@@ -129,6 +134,8 @@ async function readCounts(db: Database, schema: Schema) {
     db.select({ count: count() }).from(deliverables),
     db.select({ count: count() }).from(milestoneReviews),
     db.select({ count: count() }).from(projectResources),
+    db.select({ count: count() }).from(meetings),
+    db.select({ count: count() }).from(meetingAttendees),
     db.select({ count: count() }).from(feedback),
     db.select({ count: count() }).from(matchResults),
     db.select({ count: count() }).from(matchSkillDetails),
@@ -168,6 +175,8 @@ async function readCounts(db: Database, schema: Schema) {
     deliverables: deliverableCount[0].count,
     milestoneReviews: milestoneReviewCount[0].count,
     projectResources: projectResourceCount[0].count,
+    meetings: meetingCount[0].count,
+    meetingAttendees: meetingAttendeeCount[0].count,
     feedback: feedbackCount[0].count,
     matchResults: matchResultCount[0].count,
     matchSkillDetails: matchSkillDetailCount[0].count,
@@ -208,6 +217,7 @@ async function main() {
     await seedDemoAssessments(seedContext);
     await seedDemoSelectionsOffersAgreements(seedContext);
     await seedDemoProjects(seedContext);
+    await seedDemoMeetings(seedContext);
 
     return seedContext;
   });
@@ -278,6 +288,10 @@ async function main() {
   );
   console.log(
     `  project resources: ${before.projectResources} -> ${after.projectResources}`
+  );
+  console.log(`  meetings: ${before.meetings} -> ${after.meetings}`);
+  console.log(
+    `  meeting attendees: ${before.meetingAttendees} -> ${after.meetingAttendees}`
   );
   console.log(`  feedback: ${before.feedback} -> ${after.feedback}`);
   console.log(`  match results: ${before.matchResults} -> ${after.matchResults}`);
