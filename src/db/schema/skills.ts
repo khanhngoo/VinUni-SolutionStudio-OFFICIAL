@@ -11,15 +11,7 @@ import {
 import type { AnyPgColumn } from "drizzle-orm/pg-core";
 
 import { createdAt, fk, id, normalizedDecimal, timestamptz, updatedAt } from "./common";
-import {
-  evidenceType,
-  normalizationStatus,
-  proficiencyLevel,
-  skillRelationshipType,
-  skillSource,
-  skillStatus,
-  verificationStatus,
-} from "./enums";
+import { evidenceType, experienceKind, normalizationStatus, proficiencyLevel, skillRelationshipType, skillSource, skillStatus, verificationStatus } from "./enums";
 import { users, studentProfiles } from "./users";
 
 export const skillCategories = pgTable(
@@ -120,6 +112,14 @@ export const studentProjects = pgTable(
     title: varchar("title", { length: 255 }).notNull(),
     description: text("description"),
     roleDescription: text("role_description"),
+    /**
+     * What kind of work this was, and who it was for. Both nullable because
+     * the table predates them: rows seeded as portfolio evidence for an
+     * application carry neither, while rows a student writes on their profile
+     * carry both and are what `ExperienceList` renders.
+     */
+    kind: experienceKind("kind"),
+    organisation: varchar("organisation", { length: 255 }),
     startDate: date("start_date", { mode: "string" }),
     endDate: date("end_date", { mode: "string" }),
     createdAt: createdAt(),
