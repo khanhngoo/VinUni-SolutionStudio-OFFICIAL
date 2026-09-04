@@ -16,7 +16,6 @@ import {
   getAllChallengeIds,
   getApplicationByChallengeId,
   getChallengeById,
-  getFacultyOptions,
 } from "@/lib/queries";
 
 export function generateStaticParams() {
@@ -53,12 +52,7 @@ export default async function ChallengeDetailPage({
             </Section>
           </>
         ) : (
-          <ApplyPanel
-            challenge={challenge}
-            eligibility={eligibility}
-            facultyOptions={getFacultyOptions(challenge)}
-            defaultHours={currentStudent.hoursAvailable}
-          />
+          <ApplyPanel challenge={challenge} eligibility={eligibility} />
         )}
       </div>
 

@@ -29,6 +29,11 @@ export function ResultsHeader({ shown, total, filters }: ResultsHeaderProps) {
           ? `${shown} of ${total} challenges`
           : `${total} open challenges`}
       </p>
+      <p className="text-meta text-ink-3 mt-1.5">
+        The ring on each card is your suitability for that brief — your skills,
+        hours and showcased coursework against what it asks for. It is yours
+        alone; partners never see it.
+      </p>
 
       {active.length > 0 ? (
         <div className="flex flex-wrap items-center gap-2 mt-4">

@@ -1,8 +1,10 @@
 import Link from "next/link";
 import { Chip } from "@/components/ui/chip";
 import { LockIcon } from "@/components/ui/icons";
+import { ScoreDonut } from "@/components/ui/score-donut";
 import { StripedPlaceholder } from "@/components/ui/striped-placeholder";
 import { deadlineLabel, isUrgent } from "@/lib/dates";
+import { suitabilityFor } from "@/lib/suitability";
 import type { Challenge } from "@/lib/types";
 
 interface ChallengeCardProps {
@@ -11,6 +13,8 @@ interface ChallengeCardProps {
 
 export function ChallengeCard({ challenge }: ChallengeCardProps) {
   const urgent = isUrgent(challenge.deadline);
+  // Cheap and pure, so the card derives it rather than the grid threading it in.
+  const fit = suitabilityFor(challenge);
 
   return (
     <Link
@@ -26,6 +30,13 @@ export function ChallengeCard({ challenge }: ChallengeCardProps) {
           {challenge.confidential ? (
             <LockIcon className="w-3.5 h-3.5 shrink-0 text-ink-3" />
           ) : null}
+          <ScoreDonut
+            score={fit.score}
+            band={fit.band}
+            size="sm"
+            label={`Your suitability: ${fit.score} out of 100 — ${fit.band} fit`}
+            className="ml-auto"
+          />
         </div>
 
         <div>

@@ -49,7 +49,7 @@ export default async function PartnerStudentsPage({
   const deck = recommendationsFor(challenge);
 
   return (
-    <div className="max-w-[760px] mx-auto px-6 sm:px-7 py-7 pb-16">
+    <div className="max-w-[1160px] mx-auto px-6 sm:px-7 py-7 pb-16">
       <nav className="text-meta text-ink-3">
         <Link href="/partner">Your challenges</Link>
         <span className="mx-1.5">›</span>
@@ -87,10 +87,11 @@ export default async function PartnerStudentsPage({
       </div>
 
       <p className="text-meta text-ink-3 mt-6 pt-4 border-t border-line leading-relaxed">
-        Students are shown as bands and reasons, never as a score or a ranking
-        number — the same rule that governs what a student sees of their own
-        assessment. Nothing here reveals GPA or transcript; the courses on a
-        card are ones the student chose to showcase.
+        The fit score is this student against this brief, and the reasons under
+        it are what it is made of — it is not a rank across challenges or
+        against their peers. What stays withheld is unchanged: no GPA, no
+        transcript, and the courses on a card are ones the student chose to
+        showcase.
       </p>
     </div>
   );

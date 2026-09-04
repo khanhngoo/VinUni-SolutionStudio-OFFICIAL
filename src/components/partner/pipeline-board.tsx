@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { cn } from "@/lib/cn";
 import { countdownLabel } from "@/lib/pipeline";
 import { PIPELINE_LABELS, type PipelineBucket } from "@/lib/provider";
@@ -49,13 +50,14 @@ function TeamCard({ application }: { application: Application }) {
   const detail = detailFor(application);
 
   return (
-    <div
+    <Link
+      href={`/partner/challenges/${application.challengeId}/teams/${application.id}`}
       className={cn(
-        "bg-card border rounded-card px-2.5 py-2",
+        "group block bg-card border rounded-card px-2.5 py-2 transition-colors hover:border-brand focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent",
         detail?.urgent ? "border-warn" : "border-line",
       )}
     >
-      <p className="font-medium text-ink text-[12px] truncate">
+      <p className="font-medium text-ink text-[12px] truncate group-hover:text-brand transition-colors">
         {application.team.name}
       </p>
       <p className="text-meta text-ink-3 mt-0.5">
@@ -79,7 +81,7 @@ function TeamCard({ application }: { application: Application }) {
           {detail.label}
         </p>
       ) : null}
-    </div>
+    </Link>
   );
 }
 

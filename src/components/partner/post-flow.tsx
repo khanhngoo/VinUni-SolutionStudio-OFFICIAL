@@ -2,11 +2,13 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { ParsingScreen } from "@/components/partner/parsing-screen";
 import { Chip } from "@/components/ui/chip";
 import { cn } from "@/lib/cn";
 import {
   filledCount,
   gapsIn,
+  parseStages,
   type ParseConfidence,
   type ParsedBrief,
   type ParsedField,
@@ -30,21 +32,27 @@ export function PostFlow({ brief }: { brief: ParsedBrief }) {
 
   if (step === "published") return <Published />;
 
-  if (step === "review" || step === "parsing") {
+  if (step === "parsing") {
+    return (
+      <ParsingScreen
+        brief={brief}
+        stages={parseStages}
+        onDone={() => setStep("review")}
+      />
+    );
+  }
+
+  if (step === "review") {
     return (
       <ReviewStep
         brief={brief}
-        parsing={step === "parsing"}
         onBack={() => setStep("upload")}
         onPublish={() => setStep("published")}
       />
     );
   }
 
-  return <UploadStep onParse={() => {
-    setStep("parsing");
-    window.setTimeout(() => setStep("review"), 1100);
-  }} />;
+  return <UploadStep onParse={() => setStep("parsing")} />;
 }
 
 function StepBar({ active }: { active: 1 | 2 | 3 }) {
@@ -144,35 +152,15 @@ function UploadStep({ onParse }: { onParse: () => void }) {
 
 function ReviewStep({
   brief,
-  parsing,
   onBack,
   onPublish,
 }: {
   brief: ParsedBrief;
-  parsing: boolean;
   onBack: () => void;
   onPublish: () => void;
 }) {
   const gaps = gapsIn(brief);
   const filled = filledCount(brief);
-
-  if (parsing) {
-    return (
-      <div className="mt-3.5">
-        <h1>Reading your brief…</h1>
-        <StepBar active={2} />
-        <div className="mt-6 bg-card border border-line rounded-card p-8 text-center">
-          <p className="text-ink-2">{brief.fileName}</p>
-          <div className="mt-4 h-[5px] w-[220px] mx-auto rounded-full bg-line overflow-hidden">
-            <span className="block h-full w-1/2 bg-brand animate-pulse rounded-full" />
-          </div>
-          <p className="text-meta text-ink-3 mt-4">
-            {brief.pages} pages · nothing is saved until you confirm
-          </p>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div>
