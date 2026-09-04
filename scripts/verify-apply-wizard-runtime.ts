@@ -65,7 +65,7 @@ async function main() {
     failures.push("server could not resolve every invitable peer to an email");
   }
 
-  const bogus = await resolveStudentEmailsByUserId(db, [9_999_999n]);
+  const bogus = await resolveStudentEmailsByUserId(db, [BigInt(9999999)]);
   if (bogus.size !== 0) {
     failures.push("a non-existent user id resolved to an email");
   }

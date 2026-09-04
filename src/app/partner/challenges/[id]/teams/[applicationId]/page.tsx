@@ -1,29 +1,29 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
+
+import { getAuthenticatedActor } from "@/auth/authenticated-actor";
 import { PartnerTeamRoster } from "@/components/partner/partner-team-roster";
 import { TeamFit } from "@/components/team/team-fit";
 import { Chip } from "@/components/ui/chip";
 import { Section } from "@/components/ui/section";
+import { db } from "@/db";
+import { getApplicationByPublicId } from "@/db/queries/applications";
+import { listDirectoryStudents, listStudentTeamProfiles } from "@/db/queries/students";
+import { toApplyChallenge, toDirectoryStudent, toTeam } from "@/lib/apply-view";
+import { marketplaceContextForActor } from "@/lib/challenge-marketplace";
 import { formatDate } from "@/lib/dates";
 import { countdownLabel } from "@/lib/pipeline";
-import {
-  applicationsForChallenge,
-  getOrgApplicationById,
-  getOrgChallengeById,
-  orgChallenges,
-} from "@/lib/provider";
 import { bandChipVariant } from "@/lib/score";
 import { confirmedMembers, pendingMembers } from "@/lib/teams";
+import type { ScoreBand } from "@/lib/types";
+import { getPartnerChallengePage } from "@/services/partner.service";
+import { getMarketplaceChallengeBySlug } from "@/services/challenge.service";
+import { deriveApplicationStage } from "@/services/application-stage";
 import { STAGE_LABELS } from "@/lib/types";
 
-export function generateStaticParams() {
-  return orgChallenges().flatMap((challenge) =>
-    applicationsForChallenge(challenge.id).map((application) => ({
-      id: challenge.id,
-      applicationId: application.id,
-    })),
-  );
-}
+export const dynamic = "force-dynamic";
+
+const BANDS: ScoreBand[] = ["Strong", "Proficient", "Developing", "Below threshold"];
 
 /**
  * One team, as the partner deciding about them sees it.
@@ -39,45 +39,86 @@ export default async function PartnerTeamPage({
 }: {
   params: Promise<{ id: string; applicationId: string }>;
 }) {
-  const { id, applicationId } = await params;
+  const { id: slug, applicationId } = await params;
 
-  const challenge = getOrgChallengeById(id);
-  const application = getOrgApplicationById(applicationId);
+  const resolution = await getAuthenticatedActor();
+  if (resolution.status !== "RESOLVED") redirect("/sign-in");
+
+  // Ownership is established by resolving the challenge through the partner
+  // service, which scopes to the actor's organization. A challenge belonging
+  // to another partner is indistinguishable from one that does not exist.
+  const page = await getPartnerChallengePage(resolution.actor, { slug });
+  if (!page || !page.canReadApplications) notFound();
+
+  const application = await getApplicationByPublicId(db, applicationId);
   // Guard the pairing, not just the ids — a valid team under the wrong
   // challenge would otherwise render fit numbers against the wrong brief.
-  if (!challenge || !application || application.challengeId !== id) notFound();
+  if (!application || application.challenge.slug !== slug) notFound();
 
-  const confirmed = confirmedMembers(application.team);
-  const pending = pendingMembers(application.team);
-  const offerLeft = application.offer
-    ? countdownLabel(application.offer.respondBy)
-    : null;
+  const detail = await getMarketplaceChallengeBySlug(
+    slug,
+    marketplaceContextForActor(resolution.actor)
+  );
+  if (!detail) notFound();
+
+  const memberIds = application.members.map((member) => member.student.userId);
+  const [profiles, directoryRows] = await Promise.all([
+    listStudentTeamProfiles(db, memberIds),
+    listDirectoryStudents(db),
+  ]);
+
+  // Scored through the partner-facing view, which is the same one the sourcing
+  // deck uses — so a team that applied and a candidate who was recommended are
+  // read as one number rather than two incompatible ones.
+  const directory = new Map(
+    directoryRows.map((row) => [String(row.userId), toDirectoryStudent(row)])
+  );
+
+  const challenge = toApplyChallenge(detail);
+  const team = toTeam(application.teamName, application.members, profiles);
+  const confirmed = confirmedMembers(team);
+  const pending = pendingMembers(team);
+
+  const stage = deriveApplicationStage({
+    assessmentSummaries: application.assessmentSummaries,
+    offerSummary: application.offerSummary,
+    projectSummary: application.projectSummary,
+    status: application.status,
+  });
+
+  const offer = application.offerSummary;
+  const offerLeft =
+    offer && offer.offerStatus === "PENDING" && offer.respondBy
+      ? countdownLabel(offer.respondBy.toISOString())
+      : null;
+
+  const assessment = application.assessmentSummaries.find(
+    (summary) => summary.overallBand !== null
+  );
 
   return (
     <div className="max-w-[900px] mx-auto px-6 sm:px-7 py-7 pb-16">
       <nav className="text-meta text-ink-3">
         <Link href="/partner">Your challenges</Link>
         <span className="mx-1.5">›</span>
-        <Link href={`/partner/challenges/${challenge.id}`}>
-          {challenge.title}
-        </Link>
+        <Link href={`/partner/challenges/${slug}`}>{application.challenge.title}</Link>
         <span className="mx-1.5">›</span>
-        {application.team.name}
+        {team.name}
       </nav>
 
       <div className="flex flex-wrap items-start justify-between gap-4 mt-3.5">
         <div className="min-w-0">
-          <h1>{application.team.name}</h1>
+          <h1>{team.name}</h1>
           <p className="text-ink-2 mt-2">
             {confirmed.length} confirmed member
             {confirmed.length === 1 ? "" : "s"}
             {pending.length > 0
               ? ` · ${pending.length} invitation${pending.length === 1 ? "" : "s"} outstanding`
-              : ""}{" "}
-            · applied {formatDate(application.appliedAt)}
+              : ""}
+            {application.submittedAt ? ` · applied ${formatDate(application.submittedAt.toISOString())}` : ""}
           </p>
         </div>
-        <Chip variant="solid">{STAGE_LABELS[application.stage]}</Chip>
+        <Chip variant="solid">{STAGE_LABELS[stage]}</Chip>
       </div>
 
       {offerLeft ? (
@@ -94,49 +135,31 @@ export default async function PartnerTeamPage({
         </p>
       ) : null}
 
-      <Section title="Members" aside={`${application.team.members.length} listed`}>
-        <PartnerTeamRoster team={application.team} challenge={challenge} />
+      <Section title="Members" aside={`${team.members.length} listed`}>
+        <PartnerTeamRoster challenge={challenge} directory={directory} team={team} />
       </Section>
 
       <Section title="Fit">
-        <TeamFit team={application.team} challenge={challenge} />
+        <TeamFit team={team} challenge={challenge} />
       </Section>
 
-      {application.testResult ? (
-        <Section
-          title="Assessment"
-          aside={`${application.testResult.minutesTaken} min`}
-        >
+      {assessment?.overallBand ? (
+        <Section title="Assessment">
           <div className="bg-card border border-line rounded-card p-5">
             <div className="flex flex-wrap items-center gap-2">
-              <Chip variant={bandChipVariant(application.testResult.overallBand)}>
-                {application.testResult.overallBand} overall
+              <Chip variant={bandChipVariant(toBand(assessment.overallBand))}>
+                {assessment.overallBand} overall
               </Chip>
-              <Chip
-                variant={application.testResult.passed ? "ok" : "outline-dashed"}
-              >
-                {application.testResult.passed ? "Passed" : "Did not pass"}
-              </Chip>
-              <span className="text-meta text-ink-3">
-                Submitted {formatDate(application.testResult.submittedAt)}
-              </span>
+              {assessment.submittedAt ? (
+                <span className="text-meta text-ink-3">
+                  Submitted {formatDate(assessment.submittedAt.toISOString())}
+                </span>
+              ) : null}
             </div>
-
-            <ul className="mt-4 pt-4 border-t border-line-2 flex flex-col gap-2">
-              {application.testResult.sections.map((section) => (
-                <li
-                  key={section.name}
-                  className="flex items-baseline justify-between gap-3"
-                >
-                  <span className="text-ink-2 min-w-0 truncate">
-                    {section.name}
-                  </span>
-                  <Chip variant={bandChipVariant(section.band)}>
-                    {section.band}
-                  </Chip>
-                </li>
-              ))}
-            </ul>
+            <p className="text-meta text-ink-3 mt-3 leading-relaxed">
+              Bands only. The platform does not show a partner a numeric score
+              or a rank against other applicants.
+            </p>
           </div>
         </Section>
       ) : null}
@@ -148,4 +171,9 @@ export default async function PartnerTeamPage({
       </p>
     </div>
   );
+}
+
+/** Bands come back from jsonb as free text; anything unrecognised is not a band. */
+function toBand(value: string): ScoreBand {
+  return BANDS.find((band) => band === value) ?? "Developing";
 }

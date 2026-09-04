@@ -360,3 +360,55 @@ export async function getStudentTeamProfile(
       : null,
   };
 }
+
+/**
+ * Team-facing details for several students at once, keyed by user id as a
+ * string. Used where a roster is already in hand and only the availability and
+ * default roles are missing — an application's members, for instance, which
+ * carry their per-application role but not their weekly shape.
+ */
+export async function listStudentTeamProfiles(
+  database: StudentQueryDatabase,
+  userIds: bigint[]
+): Promise<Map<string, StudentTeamProfileRead>> {
+  if (userIds.length === 0) return new Map();
+
+  const profiles = await database
+    .select({
+      hoursAvailable: studentProfiles.availableHoursPerWeek,
+      major: studentProfiles.major,
+      school: studentProfiles.school,
+      studyYear: studentProfiles.studyYear,
+      userId: studentProfiles.userId,
+      weeklyAvailability: studentProfiles.weeklyAvailability,
+    })
+    .from(studentProfiles)
+    .where(inArray(studentProfiles.userId, userIds));
+
+  const roleRows = await database
+    .select({ role: studentPreferredRoles.role, studentId: studentPreferredRoles.studentId })
+    .from(studentPreferredRoles)
+    .where(inArray(studentPreferredRoles.studentId, userIds));
+
+  const rolesByStudent = new Map<string, string[]>();
+  for (const row of roleRows) {
+    const key = String(row.studentId);
+    rolesByStudent.set(key, [...(rolesByStudent.get(key) ?? []), row.role]);
+  }
+
+  return new Map(
+    profiles.map((profile) => [
+      String(profile.userId),
+      {
+        hoursAvailable: profile.hoursAvailable,
+        major: profile.major,
+        roles: rolesByStudent.get(String(profile.userId)) ?? [],
+        school: profile.school,
+        studyYear: profile.studyYear,
+        weeklyAvailability: Array.isArray(profile.weeklyAvailability)
+          ? (profile.weeklyAvailability as string[])
+          : null,
+      },
+    ])
+  );
+}

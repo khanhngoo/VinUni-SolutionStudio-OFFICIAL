@@ -2,10 +2,9 @@ import { Chip } from "@/components/ui/chip";
 import { ScoreDonut } from "@/components/ui/score-donut";
 import { StripedPlaceholder } from "@/components/ui/striped-placeholder";
 import { cn } from "@/lib/cn";
-import { getDirectoryStudentById } from "@/lib/data/directory";
 import { scoreStudent } from "@/lib/recommendations";
 import { bandChipVariant, clampScore } from "@/lib/score";
-import type { Challenge, Team } from "@/lib/types";
+import type { Challenge, DirectoryStudent, Team } from "@/lib/types";
 
 /**
  * The team as people, scored the same way the sourcing deck scores anyone else
@@ -15,18 +14,25 @@ import type { Challenge, Team } from "@/lib/types";
  * Members outside the directory still render; a pending invitation is a name
  * and a role until it is answered, and pretending otherwise would overstate
  * what the partner actually has.
+ *
+ * The directory arrives as a prop rather than being read here, so the privacy
+ * scope stays a decision of the query that built it — a partner sees pinned
+ * courses and no transcript, and no component can widen that by importing
+ * something broader.
  */
 export function PartnerTeamRoster({
   team,
   challenge,
+  directory,
 }: {
   team: Team;
   challenge: Challenge;
+  directory: Map<string, DirectoryStudent>;
 }) {
   return (
     <ul className="flex flex-col gap-2">
       {team.members.map((member) => {
-        const student = getDirectoryStudentById(member.studentId);
+        const student = directory.get(member.studentId) ?? null;
         const rec = student ? scoreStudent(student, challenge) : null;
         const pending = member.status === "invited";
         const declined = member.status === "declined";

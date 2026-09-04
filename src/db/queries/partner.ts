@@ -5,11 +5,15 @@ import { db } from "@/db";
 import {
   applicationMembers,
   applications,
+  assessmentAttempts,
+  assessmentScores,
   challengeEligibilityRules,
   challengeReviews,
   challengeSkills,
   challenges,
+  offers,
   organizations,
+  selections,
   skills,
 } from "@/db/schema";
 
@@ -251,9 +255,17 @@ function summarizeEligibility(
 }
 
 export interface PartnerApplicationRead {
+  /**
+   * The band a reviewed assessment produced, if one has been reviewed. Bands
+   * only — the platform never shows a partner a numeric score or a percentile.
+   */
+  assessmentBand: string | null;
   challengeSlug: string | null;
   challengeTitle: string;
   memberSummary: { accepted: number; invited: number; leaderName: string | null; total: number };
+  /** Set only while an offer is outstanding, which is what makes it a clock. */
+  offerRespondBy: Date | null;
+  offerStatus: string | null;
   publicId: string;
   status: string;
   submittedAt: Date | null;
@@ -306,6 +318,41 @@ export async function listApplicationsForOwnerOrganization(
 
   const leaderNames = await leaderNamesFor(database, applicationIds);
 
+  // The two facts a pipeline card shows beyond the roster: an outstanding
+  // offer is a countdown, and a reviewed assessment is a band.
+  const [offerRows, bandRows] = await Promise.all([
+    database
+      .select({
+        applicationId: selections.applicationId,
+        respondBy: offers.respondBy,
+        status: offers.status,
+      })
+      .from(offers)
+      .innerJoin(selections, eq(selections.id, offers.selectionId))
+      .where(inArray(selections.applicationId, applicationIds)),
+    database
+      .select({
+        applicationId: assessmentAttempts.applicationId,
+        rubricScores: assessmentScores.rubricScores,
+      })
+      .from(assessmentScores)
+      .innerJoin(assessmentAttempts, eq(assessmentAttempts.id, assessmentScores.attemptId))
+      .where(inArray(assessmentAttempts.applicationId, applicationIds)),
+  ]);
+
+  const offersByApplication = new Map<string, { respondBy: Date | null; status: string | null }>();
+  for (const row of offerRows) {
+    offersByApplication.set(row.applicationId.toString(), {
+      respondBy: row.respondBy,
+      status: row.status ?? null,
+    });
+  }
+
+  const bandsByApplication = new Map<string, string | null>();
+  for (const row of bandRows) {
+    bandsByApplication.set(row.applicationId.toString(), overallBandOf(row.rubricScores));
+  }
+
   const summaries = new Map<
     string,
     { accepted: number; invited: number; total: number }
@@ -322,7 +369,9 @@ export async function listApplicationsForOwnerOrganization(
   return rows.map((row) => {
     const key = row.id.toString();
     const summary = summaries.get(key) ?? { accepted: 0, invited: 0, total: 0 };
+    const offer = offersByApplication.get(key) ?? null;
     return {
+      assessmentBand: bandsByApplication.get(key) ?? null,
       challengeSlug: row.challengeSlug,
       challengeTitle: row.challengeTitle,
       memberSummary: {
@@ -331,12 +380,25 @@ export async function listApplicationsForOwnerOrganization(
         leaderName: leaderNames.get(key) ?? null,
         total: summary.total,
       },
+      offerRespondBy: offer?.respondBy ?? null,
+      offerStatus: offer?.status ?? null,
       publicId: row.publicId,
       status: row.status,
       submittedAt: row.submittedAt,
       teamName: row.teamName,
     };
   });
+}
+
+/**
+ * Assessment scores are stored band-only: `overall_score` is null and the
+ * qualitative band lives in `rubric_scores`, which is how the platform avoids
+ * ever handing a partner a number.
+ */
+function overallBandOf(rubricScores: unknown): string | null {
+  if (!rubricScores || typeof rubricScores !== "object") return null;
+  const band = (rubricScores as Record<string, unknown>).sourceOverallBand;
+  return typeof band === "string" && band.trim() !== "" ? band : null;
 }
 
 async function leaderNamesFor(database: PartnerQueryDatabase, applicationIds: bigint[]) {

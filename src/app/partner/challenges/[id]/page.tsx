@@ -3,6 +3,9 @@ import { notFound, redirect } from "next/navigation";
 
 import { getAuthenticatedActor, hasActorCapability } from "@/auth/authenticated-actor";
 import { Chip } from "@/components/ui/chip";
+import { PipelineBoard } from "@/components/partner/pipeline-board";
+import { countdownLabel } from "@/lib/pipeline";
+import { groupIntoPipeline } from "@/lib/pipeline-columns";
 import { Section } from "@/components/ui/section";
 import { listActiveCanonicalSkills } from "@/db/queries/skills";
 import { formatDate as formatDateOnlyString } from "@/lib/dates";
@@ -61,6 +64,18 @@ export default async function PartnerChallengePage({
   if (!page) notFound();
 
   const { applications, canReadApplications, challenge } = page;
+
+  const cards = applications.map((application) => ({
+    applicationPublicId: application.publicId,
+    assessmentBand: application.assessmentBand,
+    challengeSlug: challenge.slug ?? "",
+    confirmedCount: application.memberSummary.accepted,
+    detail: offerDetail(application.offerStatus, application.offerRespondBy),
+    pendingCount: application.memberSummary.invited,
+    status: application.status,
+    teamName:
+      application.teamName ?? application.memberSummary.leaderName ?? "Unnamed team",
+  }));
   const isEditable = EDITABLE_STATUSES.has(challenge.status);
   const canonicalSkills = isEditable ? await listActiveCanonicalSkills() : [];
 
@@ -178,52 +193,25 @@ export default async function PartnerChallengePage({
       )}
 
       <Section
-        title="Applications"
-        aside={canReadApplications ? `${applications.length} total` : "requires ADMIN/CONTACT_PERSON role"}
+        title="Selection pipeline"
+        aside={canReadApplications ? `${cards.length} team${cards.length === 1 ? "" : "s"}` : undefined}
       >
         {!canReadApplications ? (
           <EmptyRow>
-            Your organization membership role does not include application
-            read access (requires ADMIN or CONTACT_PERSON).
+            Applications are visible to organization admins and the named
+            contact. Ask an admin to add you.
           </EmptyRow>
-        ) : applications.length === 0 ? (
+        ) : cards.length === 0 ? (
           <EmptyRow>No applications yet.</EmptyRow>
         ) : (
-          <table className="w-full border-collapse">
-            <tbody>
-              {applications.map((application) => (
-                <tr
-                  key={application.publicId}
-                  className="border-b border-line-2 last:border-b-0"
-                >
-                  <td className="py-2.5 pr-3 align-middle">
-                    <Link
-                      href={`/applications/${application.publicId}`}
-                      className="font-medium text-ink hover:text-brand"
-                    >
-                      {application.teamName ?? application.memberSummary.leaderName ?? "Unnamed team"}
-                    </Link>
-                    <p className="text-meta text-ink-3 mt-0.5">
-                      {application.memberSummary.total} member{application.memberSummary.total === 1 ? "" : "s"}
-                    </p>
-                  </td>
-                  <td className="py-2.5 pr-3 align-middle w-[140px]">
-                    <Chip>{application.status.replaceAll("_", " ")}</Chip>
-                  </td>
-                  <td className="py-2.5 align-middle w-[110px] text-right">
-                    <span className="text-meta text-ink-3 whitespace-nowrap">
-                      {application.submittedAt ? formatDate(application.submittedAt) : "—"}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <>
+            <PipelineBoard buckets={groupIntoPipeline(cards)} />
+            <p className="text-meta text-ink-3 mt-3 leading-relaxed">
+              Gating never hides your posting — students who do not qualify
+              still see it, and simply cannot apply.
+            </p>
+          </>
         )}
-        <p className="text-meta text-ink-3 mt-2.5 leading-relaxed">
-          Read-only: no production workflow exists yet for a partner to move
-          an application between statuses.
-        </p>
       </Section>
 
       <Section title="What you posted">
@@ -384,4 +372,20 @@ function Banner({ children, tone }: { children: React.ReactNode; tone: "error" |
       {children}
     </div>
   );
+}
+
+/**
+ * An outstanding offer is the one thing on a pipeline card that is a clock
+ * rather than a fact, so it is the only status that earns a line of its own.
+ */
+function offerDetail(
+  status: string | null,
+  respondBy: Date | null
+): { label: string; urgent: boolean } | null {
+  if (status !== "PENDING" || !respondBy) return null;
+
+  const left = countdownLabel(respondBy.toISOString());
+  return left === "Expired"
+    ? { label: "Offer expired", urgent: true }
+    : { label: `${left} to respond`, urgent: false };
 }

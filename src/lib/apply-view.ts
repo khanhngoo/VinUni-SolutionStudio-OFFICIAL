@@ -14,6 +14,7 @@ import type {
   DayAvailability,
   DirectoryStudent,
   Faculty,
+  InviteStatus,
   ScoreBand,
   Team,
   TeamRole,
@@ -259,4 +260,66 @@ export function toApplyChallenge(detail: MarketplaceChallengeDetailModel): Chall
     title: detail.title,
     workMode: WORK_MODE_LABELS[detail.workMode ?? ""] ?? "Hybrid",
   };
+}
+
+/**
+ * An application's roster as the team components render it.
+ *
+ * `preferredRole` on the membership is the authority for what someone does on
+ * *this* team; their profile default is only the fallback. Availability comes
+ * from the profile, since it is a property of the person rather than of the
+ * application.
+ */
+export function toTeam(
+  teamName: string | null,
+  members: {
+    fullName: string;
+    invitedAt: Date | null;
+    memberRole: string;
+    preferredRole: string | null;
+    status: string;
+    student: {
+      availableHoursPerWeek: number | null;
+      major: string | null;
+      school: string | null;
+      studyYear: number | null;
+      userId: bigint;
+    };
+  }[],
+  profiles: Map<string, { roles: string[]; weeklyAvailability: string[] | null }>
+): Team {
+  return {
+    name: teamName ?? "Unnamed team",
+    members: members.map((member) => {
+      const profile = profiles.get(String(member.student.userId));
+      const fallbackRole = toTeamRole(profile?.roles[0] ?? "");
+      return {
+        college: toCollege(member.student.school),
+        hoursAvailable: member.student.availableHoursPerWeek ?? 0,
+        invitedAt: member.invitedAt ? member.invitedAt.toISOString().slice(0, 10) : null,
+        major: member.student.major ?? "—",
+        name: member.fullName,
+        role: asTeamRole(member.preferredRole) ?? fallbackRole ?? "Coordination",
+        status: toInviteStatus(member.memberRole, member.status),
+        studentId: String(member.student.userId),
+        weeklyAvailability: toWeek(profile?.weeklyAvailability),
+        year: member.student.studyYear ?? 0,
+      };
+    }),
+  };
+}
+
+/** `preferred_role` is free text; only a value that is actually a team role counts. */
+function asTeamRole(value: string | null): TeamRole | null {
+  if (!value) return null;
+  return (Object.values(TEAM_ROLE_LABELS) as string[]).includes(value)
+    ? (value as TeamRole)
+    : null;
+}
+
+function toInviteStatus(memberRole: string, status: string): InviteStatus {
+  if (memberRole === "LEADER") return "leader";
+  if (status === "ACCEPTED") return "accepted";
+  if (status === "DECLINED") return "declined";
+  return "invited";
 }
