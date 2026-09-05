@@ -3,7 +3,9 @@ import { notFound, redirect } from "next/navigation";
 
 import { getAuthenticatedActor, hasActorCapability } from "@/auth/authenticated-actor";
 import { Chip } from "@/components/ui/chip";
+import { AttentionList, type AttentionItem } from "@/components/partner/attention-list";
 import { Section } from "@/components/ui/section";
+import { deadlineLabel, isUrgent } from "@/lib/dates";
 import { ProgressBar } from "@/components/workspace/progress-bar";
 import { getPartnerDashboard, PartnerError } from "@/services/partner.service";
 
@@ -44,10 +46,9 @@ export default async function PartnerHomePage() {
         <div className="max-w-[720px] mx-auto px-6 sm:px-7 py-7 pb-16">
           <h1>Multiple partner organizations</h1>
           <p className="text-ink-2 mt-2">
-            Your account holds more than one active external-partner
-            organization membership. Switching between organizations is not
-            yet supported, so no dashboard can be shown safely — this is a
-            known gap, not a bug.
+            Your account is a partner representative for more than one
+            organization. Ask an administrator to leave you on the one whose
+            challenges you need.
           </p>
         </div>
       );
@@ -62,6 +63,47 @@ export default async function PartnerHomePage() {
     (project) => project.projectStatus === "ACTIVE" || project.projectStatus === "PAUSED"
   );
 
+  // What the partner personally owes someone, ahead of everything they might
+  // merely want to look at. Applications waiting on a decision, deliverables
+  // waiting on a signature, finished projects waiting on a closing note.
+  const attention: AttentionItem[] = [
+    ...applications
+      .filter((application) => application.status === "SUBMITTED")
+      .map((application) => ({
+        challengeTitle: application.challengeTitle,
+        detail: `${application.teamName ?? "A team"} applied and is waiting on a decision`,
+        due: application.submittedAt ? formatDate(application.submittedAt) : null,
+        href: application.challengeSlug
+          ? `/partner/challenges/${application.challengeSlug}`
+          : "/partner",
+        kind: "shortlist",
+        label: "Shortlist",
+        urgent: false,
+      })),
+    ...live
+      .filter((project) => project.progress.completed < project.progress.total)
+      .map((project) => ({
+        challengeTitle: project.challengeTitle,
+        detail: `${project.progress.total - project.progress.completed} milestone(s) still open`,
+        due: project.nextDeadline ? deadlineLabel(project.nextDeadline) : null,
+        href: `/partner/projects/${project.applicationPublicId}`,
+        kind: "approve",
+        label: "Sign off",
+        urgent: project.nextDeadline ? isUrgent(project.nextDeadline) : false,
+      })),
+    ...projects
+      .filter((project) => project.projectStatus === "COMPLETED")
+      .map((project) => ({
+        challengeTitle: project.challengeTitle,
+        detail: "Finished and waiting on your close-out",
+        due: null,
+        href: `/partner/projects/${project.applicationPublicId}/close`,
+        kind: "feedback",
+        label: "Close out",
+        urgent: false,
+      })),
+  ];
+
   return (
     <div className="max-w-[1080px] mx-auto px-6 sm:px-7 py-7 pb-16">
       <div className="grid gap-8 lg:grid-cols-[1fr_268px]">
@@ -69,13 +111,17 @@ export default async function PartnerHomePage() {
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
               <h1>Your challenges</h1>
-              <p className="text-ink-2 mt-2">{organization.name}</p>
+              <p className="text-ink-2 mt-2">
+                {attention.length === 0
+                  ? organization.name
+                  : `${attention.length} thing${attention.length === 1 ? "" : "s"} need${attention.length === 1 ? "s" : ""} your attention.`}
+              </p>
             </div>
             <Link
               href="/partner/post"
-              className="inline-flex items-center justify-center h-9 px-4 rounded-card border border-line text-ink-2 font-medium hover:border-brand hover:text-brand"
+              className="inline-flex items-center justify-center h-9 px-4 rounded-card bg-brand text-white font-semibold hover:bg-brand-deep hover:text-white"
             >
-              Post a challenge
+              + Post a challenge
             </Link>
           </div>
 
@@ -125,14 +171,20 @@ export default async function PartnerHomePage() {
             )}
           </Section>
 
+          {attention.length > 0 ? (
+            <Section title="Needs you" aside={`${attention.length}`}>
+              <AttentionList items={attention} />
+            </Section>
+          ) : null}
+
           <Section
             title="Applications"
-            aside={canReadApplications ? `${applications.length} total` : "requires ADMIN/CONTACT_PERSON role"}
+            aside={canReadApplications ? `${applications.length} total` : undefined}
           >
             {!canReadApplications ? (
               <EmptyRow>
-                Your organization membership role does not include application
-                read access (requires ADMIN or CONTACT_PERSON).
+                Applications are visible to organization admins and the named
+                contact. Ask an admin to add you.
               </EmptyRow>
             ) : applications.length === 0 ? (
               <EmptyRow>No applications yet against your challenges.</EmptyRow>

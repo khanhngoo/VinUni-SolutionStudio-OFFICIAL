@@ -4,9 +4,13 @@ import { notFound, redirect } from "next/navigation";
 import { getAuthenticatedActor, hasActorCapability } from "@/auth/authenticated-actor";
 import { SwipeDeck } from "@/components/partner/swipe-deck";
 import { Chip } from "@/components/ui/chip";
-import { orgChallenges } from "@/lib/provider";
+import { db } from "@/db";
+import { listDirectoryStudents } from "@/db/queries/students";
+import { toApplyChallenge, toDirectoryStudent } from "@/lib/apply-view";
+import { marketplaceContextForActor } from "@/lib/challenge-marketplace";
 import { recommendationsFor } from "@/lib/recommendations";
-import type { RawSearchParams } from "@/lib/filters";
+import { getMarketplaceChallengeBySlug } from "@/services/challenge.service";
+import { getPartnerDashboard } from "@/services/partner.service";
 
 export const dynamic = "force-dynamic";
 
@@ -21,19 +25,24 @@ export const dynamic = "force-dynamic";
 export default async function PartnerStudentsPage({
   searchParams,
 }: {
-  searchParams: Promise<RawSearchParams>;
+  searchParams: Promise<{ challenge?: string }>;
 }) {
   const resolution = await getAuthenticatedActor();
   if (resolution.status !== "RESOLVED") redirect("/sign-in");
   if (!hasActorCapability(resolution.actor, "PARTNER_REPRESENTATIVE")) notFound();
 
   const params = await searchParams;
-  const open = orgChallenges().filter((c) => c.status === "Published");
+  const dashboard = await getPartnerDashboard(resolution.actor);
+  if (!dashboard) notFound();
+
+  const open = dashboard.challenges.filter(
+    (challenge) => challenge.status === "APPLICATIONS_OPEN"
+  );
 
   const requested = typeof params.challenge === "string" ? params.challenge : null;
-  const challenge = open.find((c) => c.id === requested) ?? open[0];
+  const selected = open.find((c) => c.slug === requested) ?? open[0];
 
-  if (!challenge) {
+  if (!selected) {
     return (
       <div className="max-w-[720px] mx-auto px-6 sm:px-7 py-7 pb-16">
         <h1>Find students</h1>
@@ -55,7 +64,21 @@ export default async function PartnerStudentsPage({
     );
   }
 
-  const deck = recommendationsFor(challenge);
+  const [detail, directoryRows] = await Promise.all([
+    getMarketplaceChallengeBySlug(
+      selected.slug ?? "",
+      marketplaceContextForActor(resolution.actor)
+    ),
+    listDirectoryStudents(db),
+  ]);
+  if (!detail) notFound();
+
+  // Scored through the partner-facing view of a student: pinned courses only,
+  // no transcript, no GPA. The scope is the query's decision, not the deck's.
+  const deck = recommendationsFor(
+    directoryRows.map((row) => toDirectoryStudent(row)),
+    toApplyChallenge(detail)
+  );
 
   return (
     <div className="max-w-[1160px] mx-auto px-6 sm:px-7 py-7 pb-16">
@@ -70,8 +93,8 @@ export default async function PartnerStudentsPage({
           <h1>Recommended students</h1>
           <p className="text-ink-2 mt-2">
             Matched against{" "}
-            <Link href={`/partner/challenges/${challenge.id}`}>
-              {challenge.title}
+            <Link href={`/partner/challenges/${selected.slug}`}>
+              {selected.title}
             </Link>
             .
           </p>
@@ -81,10 +104,17 @@ export default async function PartnerStudentsPage({
 
       {open.length > 1 ? (
         <div className="flex flex-wrap gap-1.5 mt-4">
-          {open.map((c) => (
-            <Link key={c.id} href={`/partner/students?challenge=${c.id}`}>
-              <Chip variant={c.id === challenge.id ? "solid" : "outline-dashed"}>
-                {c.title}
+          {open.map((challenge) => (
+            <Link
+              key={challenge.slug}
+              href={`/partner/students?challenge=${challenge.slug}`}
+            >
+              <Chip
+                variant={
+                  challenge.slug === selected.slug ? "solid" : "outline-dashed"
+                }
+              >
+                {challenge.title}
               </Chip>
             </Link>
           ))}
@@ -92,7 +122,7 @@ export default async function PartnerStudentsPage({
       ) : null}
 
       <div className="mt-6">
-        <SwipeDeck deck={deck} challengeTitle={challenge.title} />
+        <SwipeDeck deck={deck} challengeTitle={selected.title} />
       </div>
 
       <p className="text-meta text-ink-3 mt-6 pt-4 border-t border-line leading-relaxed">

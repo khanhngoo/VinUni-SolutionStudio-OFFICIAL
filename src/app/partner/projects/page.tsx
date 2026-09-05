@@ -31,9 +31,9 @@ export default async function PartnerProjectsPage() {
         <div className="max-w-[720px] mx-auto px-6 sm:px-7 py-7 pb-16">
           <h1>Multiple partner organizations</h1>
           <p className="text-ink-2 mt-2">
-            Your account holds more than one active external-partner
-            organization membership. Switching between organizations is not
-            yet supported.
+            Your account is a partner representative for more than one
+            organization. Ask an administrator to leave you on the one whose
+            projects you need.
           </p>
         </div>
       );
@@ -48,10 +48,21 @@ export default async function PartnerProjectsPage() {
     (project) => project.projectStatus === "COMPLETED" || project.projectStatus === "ARCHIVED"
   );
 
+  // A project whose milestones are not all complete has something outstanding;
+  // it is the closest the dashboard read gets to "waiting on you" without a
+  // second query per project.
+  const awaitingSignoff = live.filter(
+    (project) => project.progress.completed < project.progress.total
+  ).length;
+
   return (
     <div className="max-w-[1080px] mx-auto px-6 sm:px-7 py-7 pb-16">
       <h1>Projects</h1>
-      <p className="text-ink-2 mt-2">{projects.length} engagement{projects.length === 1 ? "" : "s"} total.</p>
+      <p className="text-ink-2 mt-2">
+        {awaitingSignoff === 0
+          ? `${projects.length} engagement${projects.length === 1 ? "" : "s"} total.`
+          : `${awaitingSignoff} deliverable${awaitingSignoff === 1 ? "" : "s"} waiting on your sign-off.`}
+      </p>
 
       {live.length > 0 ? (
         <Section title="Live" aside={`${live.length}`}>
@@ -59,10 +70,16 @@ export default async function PartnerProjectsPage() {
             {live.map((project) => (
               <Link
                 key={project.applicationPublicId}
-                href={`/workspace/${project.applicationPublicId}`}
+                href={`/partner/projects/${project.applicationPublicId}`}
                 className="group bg-card border border-line rounded-card p-4 hover:border-brand transition-colors"
               >
-                <Chip variant="ok">{project.projectStatus.replaceAll("_", " ")}</Chip>
+                {project.progress.completed < project.progress.total ? (
+                  <Chip variant="warn">Needs your sign-off</Chip>
+                ) : (
+                  <Chip variant="ok">
+                    {project.projectStatus.replaceAll("_", " ")}
+                  </Chip>
+                )}
                 <h2 className="text-ink group-hover:text-brand transition-colors mt-2">
                   {project.challengeTitle}
                 </h2>
@@ -93,7 +110,7 @@ export default async function PartnerProjectsPage() {
                 >
                   <td className="py-2.5 pr-3 align-middle">
                     <Link
-                      href={`/workspace/${project.applicationPublicId}`}
+                      href={`/partner/projects/${project.applicationPublicId}`}
                       className="font-medium text-ink hover:text-brand"
                     >
                       {project.challengeTitle}
@@ -102,12 +119,12 @@ export default async function PartnerProjectsPage() {
                   <td className="py-2.5 pr-3 align-middle w-[140px]">
                     <Chip>{project.projectStatus.replaceAll("_", " ")}</Chip>
                   </td>
-                  <td className="py-2.5 align-middle w-[104px] text-right">
+                  <td className="py-2.5 align-middle w-[150px] text-right">
                     <Link
-                      href={`/workspace/${project.applicationPublicId}`}
+                      href={`/partner/projects/${project.applicationPublicId}/close`}
                       className="text-meta font-semibold text-brand hover:text-brand-deep whitespace-nowrap"
                     >
-                      Open →
+                      Close out →
                     </Link>
                   </td>
                 </tr>

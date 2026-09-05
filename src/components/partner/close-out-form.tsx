@@ -40,7 +40,7 @@ export function CloseOutForm({
   const [reliability, setReliability] = useState<ScoreBand | null>(null);
   const [hostAgain, setHostAgain] = useState<WouldHostAgain | null>(null);
   const [note, setNote] = useState("");
-  const [submitted, setSubmitted] = useState(false);
+  const [submitted] = useState(false);
 
   const ready =
     quality !== null &&
@@ -170,12 +170,18 @@ export function CloseOutForm({
         <p className="text-meta text-ink-3 max-w-[42ch] leading-relaxed">
           Bands, not scores — the same vocabulary students see of their own
           assessments.
+          {ready ? " Send this to your Studio contact for now." : ""}
         </p>
+        {/*
+          Close-out feedback has no mutation behind it yet. The form stays --
+          filling it in is how a partner works out what they think -- but the
+          submit is disabled rather than accepting an assessment it would drop.
+        */}
         <button
           type="button"
-          disabled={!ready}
-          onClick={() => setSubmitted(true)}
-          className="inline-flex items-center justify-center h-9 px-4 rounded-card bg-brand text-white font-semibold hover:bg-brand-deep disabled:opacity-40 disabled:cursor-not-allowed"
+          disabled
+          title="Close-out feedback isn't stored yet"
+          className="inline-flex items-center justify-center h-9 px-4 rounded-card border border-line text-ink-3 font-semibold disabled:opacity-60"
         >
           Submit &amp; close
         </button>

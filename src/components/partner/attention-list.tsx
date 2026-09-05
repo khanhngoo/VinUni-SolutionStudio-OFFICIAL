@@ -1,7 +1,18 @@
 import Link from "next/link";
 import { Chip } from "@/components/ui/chip";
 import { cn } from "@/lib/cn";
-import type { AttentionItem } from "@/lib/provider";
+
+/** One thing the partner personally owes someone. */
+export interface AttentionItem {
+  challengeTitle: string;
+  detail: string;
+  /** Rendered as-is; null means there is no clock on this one. */
+  due: string | null;
+  href: string;
+  kind: string;
+  label: string;
+  urgent: boolean;
+}
 
 /**
  * The partner's obligations, one row each.
@@ -17,7 +28,7 @@ export function AttentionList({ items }: { items: AttentionItem[] }) {
       <tbody>
         {items.map((item, index) => (
           <tr
-            key={`${item.kind}-${item.challenge.id}-${index}`}
+            key={`${item.kind}-${item.href}-${index}`}
             className="border-b border-line-2 last:border-b-0"
           >
             <td className="py-2.5 pr-3 align-middle">
@@ -25,7 +36,7 @@ export function AttentionList({ items }: { items: AttentionItem[] }) {
                 href={item.href}
                 className="font-medium text-ink hover:text-brand"
               >
-                {item.challenge.title}
+                {item.challengeTitle}
               </Link>
               <p className="text-meta text-ink-3 mt-0.5">{item.detail}</p>
             </td>

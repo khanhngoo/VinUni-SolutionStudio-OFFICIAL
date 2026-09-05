@@ -1,4 +1,3 @@
-import { directoryStudents } from "@/lib/data/directory";
 import type { Challenge, DirectoryStudent, ScoreBand } from "@/lib/types";
 
 /**
@@ -213,11 +212,20 @@ export function scoreStudent(
  * still renders the "at capacity" state and disables the invite, which is what
  * a partner needs on the rare deck where someone unavailable does place.
  */
+/**
+ * Ranks a directory against one brief.
+ *
+ * The directory arrives as an argument rather than being read here, so the
+ * privacy scope stays a decision of the query that built it — a partner sees
+ * pinned courses and no transcript — and the ranking itself stays pure and
+ * testable.
+ */
 export function recommendationsFor(
+  students: DirectoryStudent[],
   challenge: Challenge,
   limit: number = DECK_SIZE,
 ): Recommendation[] {
-  return directoryStudents
+  return students
     .map((student) => scoreStudent(student, challenge))
     .sort((a, b) => b.score - a.score)
     .slice(0, limit);
