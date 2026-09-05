@@ -5,9 +5,7 @@ import { useState } from "react";
 import { ConfirmDeclineDialog } from "@/components/faculty/confirm-decline-dialog";
 import { CheckIcon } from "@/components/ui/icons";
 import { Section } from "@/components/ui/section";
-import { formatDate } from "@/lib/dates";
-import type { InviteQueueItem } from "@/lib/supervision";
-import type { Faculty } from "@/lib/types";
+import type { FacultyLoad, InviteQueueItem } from "@/lib/faculty-queue";
 
 /**
  * The accept/decline view. Deliberately renders no project record: supervision
@@ -19,25 +17,38 @@ export function InviteDecision({
   item,
   faculty,
   atCapacity,
+  onAccept,
+  onDecline,
+  summary,
 }: {
   item: InviteQueueItem;
-  faculty: Faculty;
+  faculty: FacultyLoad;
   atCapacity: boolean;
+  onAccept: (requestId: string) => Promise<string | null>;
+  onDecline: (requestId: string) => Promise<string | null>;
+  summary: string;
 }) {
   const router = useRouter();
-  const { invite, challenge, application, daysLeft } = item;
+  const { challengeTitle, daysLeft, teamName } = item;
   const [declineOpen, setDeclineOpen] = useState(false);
   const [decision, setDecision] = useState<"accepted" | "declined" | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [pending, setPending] = useState(false);
 
-  // What this faculty member is being asked to bring, matched against what
-  // they actually work on — the question behind accepting or not.
-  const overlap = challenge.domainTags.filter((tag) =>
-    faculty.researchAreas.some(
-      (area) =>
-        area.toLowerCase().includes(tag.toLowerCase()) ||
-        tag.toLowerCase().includes(area.toLowerCase()),
-    ),
-  );
+  async function respond(answer: "accepted" | "declined") {
+    setError(null);
+    setPending(true);
+    const message =
+      answer === "accepted"
+        ? await onAccept(item.requestId)
+        : await onDecline(item.requestId);
+    setPending(false);
+    if (message) {
+      setError(message);
+      return;
+    }
+    setDecision(answer);
+  }
 
   if (decision !== null) {
     return (
@@ -54,8 +65,8 @@ export function InviteDecision({
         </p>
         <p className="text-ink-2 mt-1.5 max-w-[46ch] mx-auto">
           {decision === "accepted"
-            ? `${application.team.name} and CAID have been notified. The project record opens to you once the team is selected and the engagement starts.`
-            : `${application.team.name} has been told, and will nominate another supervisor.`}
+            ? `${teamName} and CAID have been notified. The project record opens to you once the team is selected and the engagement starts.`
+            : `${teamName} has been told, and will nominate another supervisor.`}
         </p>
         <button
           type="button"
@@ -72,27 +83,38 @@ export function InviteDecision({
     <>
       <Section title="What they're asking of you">
         <div className="bg-card border border-line rounded-card p-5 flex flex-col gap-3 text-ink-2">
-          <p>{challenge.summary}</p>
+          <p>{summary}</p>
           <dl className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 mt-1">
-            <Stat label="Commitment" value={`${challenge.durationWeeks} weeks`} />
+            <Stat label="Team" value={`${item.teamSize} student${item.teamSize === 1 ? "" : "s"}`} />
             <Stat
               label="Your slots"
               value={`${faculty.slotsUsed} / ${faculty.slotsTotal} used`}
             />
-            <Stat label="Requested" value={formatDate(invite.requestedAt)} />
+            <Stat
+              label="Commitment"
+              value={item.hoursPerWeek ? `${item.hoursPerWeek} h/wk` : "—"}
+            />
             <Stat
               label="Respond by"
-              value={formatDate(invite.respondBy)}
+              value={
+                daysLeft <= 0
+                  ? "today"
+                  : `${daysLeft} day${daysLeft === 1 ? "" : "s"}`
+              }
               urgent={daysLeft <= 2}
             />
           </dl>
-          <p className="text-meta text-ink-3">
-            {overlap.length > 0
-              ? `Overlaps your work on ${overlap.join(", ")}.`
-              : `Outside your listed areas (${faculty.researchAreas.join(", ")}) — the team nominated you anyway.`}
-          </p>
         </div>
       </Section>
+
+      {error ? (
+        <div
+          role="alert"
+          className="mt-4 rounded-card border border-warn/35 bg-warn-soft px-4 py-3 text-ink-2"
+        >
+          {error}
+        </div>
+      ) : null}
 
       <Section title="Your decision">
         <div className="bg-card border border-line rounded-card p-5 flex flex-wrap items-center justify-between gap-4">
@@ -109,18 +131,19 @@ export function InviteDecision({
           <div className="flex items-center gap-2.5">
             <button
               type="button"
+              disabled={pending}
               onClick={() => setDeclineOpen(true)}
-              className="h-10 px-4 rounded-card border border-red text-red font-semibold hover:bg-red-soft"
+              className="h-10 px-4 rounded-card border border-red text-red font-semibold hover:bg-red-soft disabled:opacity-60"
             >
               Decline
             </button>
             <button
               type="button"
-              disabled={atCapacity}
-              onClick={() => setDecision("accepted")}
+              disabled={atCapacity || pending}
+              onClick={() => void respond("accepted")}
               className="h-10 px-5 rounded-card bg-brand text-white font-semibold hover:bg-brand-deep disabled:opacity-40 disabled:hover:bg-brand"
             >
-              Accept supervision
+              {pending ? "Saving…" : "Accept supervision"}
             </button>
           </div>
         </div>
@@ -128,12 +151,12 @@ export function InviteDecision({
 
       <ConfirmDeclineDialog
         open={declineOpen}
-        challengeTitle={challenge.title}
-        teamName={application.team.name}
+        challengeTitle={challengeTitle}
+        teamName={teamName}
         onCancel={() => setDeclineOpen(false)}
         onConfirm={() => {
           setDeclineOpen(false);
-          setDecision("declined");
+          void respond("declined");
         }}
       />
     </>

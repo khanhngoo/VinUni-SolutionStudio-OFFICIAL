@@ -4,7 +4,12 @@ import { notFound, redirect } from "next/navigation";
 import { getAuthenticatedActor } from "@/auth/authenticated-actor";
 import { Chip } from "@/components/ui/chip";
 import { Section } from "@/components/ui/section";
-import { getFacultyApplicationDetail } from "@/services/faculty.service";
+
+import { DecisionPanel } from "./decision-panel";
+import {
+  getFacultyApplicationDetail,
+  getFacultyQueue,
+} from "@/services/faculty.service";
 import { getApplicationByPublicId } from "@/db/queries/applications";
 import { db } from "@/db";
 
@@ -37,8 +42,19 @@ export default async function FacultyApplicationPage({
   if (detail.kind === "SUPERVISED_PROJECT") redirect(`/workspace/${detail.applicationPublicId}`);
 
   const { request } = detail;
-  const application = await getApplicationByPublicId(db, applicationId);
+  const [application, queue] = await Promise.all([
+    getApplicationByPublicId(db, applicationId),
+    getFacultyQueue(facultyUserId),
+  ]);
   if (!application) notFound();
+
+  // The queue is the authority on both the load and the shape of an invite,
+  // so this screen and the dashboard cannot disagree about either.
+  const invite = queue.invites.find(
+    (item) => item.applicationPublicId === applicationId
+  );
+  const atCapacity =
+    queue.load.slotsTotal > 0 && queue.load.slotsUsed >= queue.load.slotsTotal;
 
   return (
     <div className="max-w-[980px] mx-auto px-6 sm:px-7 py-7 pb-16">
@@ -81,9 +97,18 @@ export default async function FacultyApplicationPage({
         </Section>
       ) : null}
 
-      <p className="text-meta text-ink-3 mt-7">
-        This request is read-only. No supervision-response action is available in this build.
-      </p>
+      {invite ? (
+        <DecisionPanel
+          atCapacity={atCapacity}
+          item={invite}
+          load={{ ...queue.load, name: resolution.actor.user.fullName }}
+          summary={application.challenge.summary}
+        />
+      ) : (
+        <p className="text-meta text-ink-3 mt-7">
+          You have already answered this request.
+        </p>
+      )}
     </div>
   );
 }
