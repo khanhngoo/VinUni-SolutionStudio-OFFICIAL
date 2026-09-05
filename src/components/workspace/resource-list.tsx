@@ -21,8 +21,13 @@ interface ResourceListProps {
    * bypass with view-source.
    */
   resources: SafeResource[];
-  /** Server action returning the credential for one resource, on request. */
-  revealCredential: (resourceName: string) => Promise<string | null>;
+  /**
+   * Server action returning the credential for one resource, on request.
+   * Optional: where the platform does not release credentials itself, the
+   * masked state stands on its own and no request button is offered — better
+   * than a button that cannot produce anything.
+   */
+  revealCredential?: (resourceName: string) => Promise<string | null>;
 }
 
 /**
@@ -37,6 +42,7 @@ export function ResourceList({
   const [pending, setPending] = useState<string | null>(null);
 
   async function request(name: string) {
+    if (!revealCredential) return;
     setPending(name);
     const value = await revealCredential(name);
     setPending(null);
@@ -87,16 +93,22 @@ export function ResourceList({
                         <p className="font-mono text-[11.5px] text-ink-3 bg-paper border border-line-2 rounded-card px-3 py-2 select-none">
                           ●●●●●●●●●●●●●●●●●●
                         </p>
-                        <button
-                          type="button"
-                          disabled={pending === resource.name}
-                          onClick={() => void request(resource.name)}
-                          className="h-8 px-3 rounded-card border border-line bg-card text-ink-2 font-medium hover:border-ink-3 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent shrink-0 disabled:opacity-60"
-                        >
-                          {pending === resource.name
-                            ? "Requesting…"
-                            : "Request access"}
-                        </button>
+                        {revealCredential ? (
+                          <button
+                            type="button"
+                            disabled={pending === resource.name}
+                            onClick={() => void request(resource.name)}
+                            className="h-8 px-3 rounded-card border border-line bg-card text-ink-2 font-medium hover:border-ink-3 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent shrink-0 disabled:opacity-60"
+                          >
+                            {pending === resource.name
+                              ? "Requesting…"
+                              : "Request access"}
+                          </button>
+                        ) : (
+                          <span className="text-meta text-ink-3">
+                            Credentials come from the partner directly.
+                          </span>
+                        )}
                       </div>
                     )}
                   </div>

@@ -4,17 +4,18 @@ import { notFound, redirect } from "next/navigation";
 import { Chip } from "@/components/ui/chip";
 import { LockIcon } from "@/components/ui/icons";
 import { Section } from "@/components/ui/section";
+import { MilestoneList } from "@/components/workspace/milestone-list";
+import { ResourceList, type SafeResource } from "@/components/workspace/resource-list";
+import { SubmitDeliverable } from "@/components/workspace/submit-deliverable";
+import { toMeeting, toMilestone } from "@/lib/apply-view";
 import { NextMeetingCard } from "@/components/workspace/next-meeting-card";
 import { ProgressBar } from "@/components/workspace/progress-bar";
 import { parseTab, WorkspaceTabs } from "@/components/workspace/workspace-tabs";
 import { daysUntil, formatDate } from "@/lib/dates";
 import type { RawSearchParams } from "@/lib/filters";
 import {
-  milestoneReviewDecisionLabel,
-  milestoneStatusLabel,
   organizationRoleLabel,
   projectStatusLabel,
-  resourceSensitivityLabel,
 } from "@/lib/labels";
 import { STAGE_LABELS } from "@/lib/types";
 import { getAuthenticatedActor } from "@/auth/authenticated-actor";
@@ -63,6 +64,19 @@ export default async function WorkspacePage({
     detail.projectStatus === "COMPLETED" || detail.projectStatus === "ARCHIVED";
   const next = detail.milestones.find((milestone) => milestone.status !== "COMPLETED");
   const overdue = next?.deadline ? daysUntil(next.deadline) < 0 : false;
+
+  const milestones = detail.milestones.map(toMilestone);
+  const meetings = detail.meetings.map(toMeeting);
+
+  // Credential values never reach the browser. The platform does not release
+  // them itself yet, so the list renders the masked state and points at the
+  // partner rather than offering a request it cannot fulfil.
+  const resources: SafeResource[] = detail.resources.map((resource) => ({
+    hasCredential: resource.access === "AGREEMENT_REQUIRED",
+    kind: resource.resourceType ?? "Resource",
+    name: resource.title,
+    ndaTier: resource.access === "AGREEMENT_REQUIRED",
+  }));
 
   return (
     <div className="max-w-[980px] mx-auto px-6 sm:px-7 py-7 pb-16">
@@ -197,50 +211,28 @@ export default async function WorkspacePage({
 
       {tab === "milestones" ? (
         <Section title="Milestones">
-          <MilestoneTimeline milestones={detail.milestones} />
+          <MilestoneList meetings={meetings} milestones={milestones} />
         </Section>
       ) : null}
 
       {tab === "deliverables" ? (
         <Section title="Deliverables" aside="Faculty and partner both sign off">
-          <MilestoneTimeline milestones={detail.milestones} showReviews />
+          <MilestoneList milestones={milestones} showSignoff />
           {readOnly ? (
             <p className="text-meta text-ink-3 mt-5">
-              This challenge is closed. Submissions are archived and read-only.
+              This challenge is closed. Submissions are archived.
             </p>
           ) : (
-            <p className="text-meta text-ink-3 mt-5">
-              Submit deliverables from the milestone they belong to.
-            </p>
+            <div className="mt-5">
+              <SubmitDeliverable milestones={milestones} />
+            </div>
           )}
         </Section>
       ) : null}
 
       {tab === "resources" ? (
         <Section title="Resources" aside="Released to you at selection">
-          <div className="flex flex-col gap-2.5">
-            {detail.resources.map((resource) => (
-              <div
-                key={resource.title}
-                className="bg-card border border-line rounded-card p-4"
-              >
-                <div className="flex flex-wrap items-center gap-2">
-                  <p className="font-semibold text-ink">{resource.title}</p>
-                  <Chip variant={resource.access === "AVAILABLE" ? "ok" : "warn"}>
-                    {resource.access === "AVAILABLE"
-                      ? resourceSensitivityLabel(resource.sensitivityLevel)
-                      : "Agreement required"}
-                  </Chip>
-                </div>
-                <p className="text-meta text-ink-3 mt-1">
-                  {resource.resourceType ?? "Resource"}
-                </p>
-                {resource.description ? (
-                  <p className="text-ink-2 mt-2">{resource.description}</p>
-                ) : null}
-              </div>
-            ))}
-          </div>
+          <ResourceList resources={resources} />
         </Section>
       ) : null}
     </div>
@@ -314,101 +306,6 @@ async function LockedWorkspace({
         </Link>
       </div>
     </article>
-  );
-}
-
-function MilestoneTimeline({
-  milestones,
-  showReviews = false,
-}: {
-  milestones: WorkspaceDetail["milestones"];
-  showReviews?: boolean;
-}) {
-  return (
-    <ol className="bg-card border border-line rounded-card p-5 flex flex-col gap-5">
-      {milestones.map((milestone) => {
-        const overdue =
-          milestone.deadline &&
-          daysUntil(milestone.deadline) < 0 &&
-          milestone.status !== "COMPLETED";
-
-        return (
-          <li key={milestone.id}>
-            <div className="flex flex-wrap gap-2 items-center">
-              <h3 className="font-semibold text-ink">{milestone.title}</h3>
-              <Chip
-                variant={
-                  milestone.status === "COMPLETED"
-                    ? "ok"
-                    : milestone.status === "REVISION_REQUESTED"
-                      ? "warn"
-                      : "default"
-                }
-              >
-                {milestoneStatusLabel(milestone.status)}
-              </Chip>
-            </div>
-            {milestone.description ? (
-              <p className="text-ink-2 mt-1">{milestone.description}</p>
-            ) : null}
-            <p
-              className={`text-meta mt-1.5 ${
-                overdue ? "text-warn font-medium" : "text-ink-3"
-              }`}
-            >
-              {milestone.deadline
-                ? `Due ${formatDate(milestone.deadline)}${overdue ? " · overdue" : ""}`
-                : "No deadline"}
-            </p>
-            {milestone.deliverables.map((deliverable, index) => (
-              <p
-                key={`${deliverable.title}-${index}`}
-                className="text-meta text-ink-3 mt-2"
-              >
-                Deliverable: {deliverable.title ?? deliverable.description ?? "Submitted"} ·{" "}
-                {deliverable.submittedByName}
-              </p>
-            ))}
-            {showReviews ? (
-              <div className="flex flex-wrap gap-3 mt-2">
-                <span
-                  className={
-                    milestone.facultyApproved
-                      ? "text-meta text-ok"
-                      : "text-meta text-ink-3"
-                  }
-                >
-                  Faculty:{" "}
-                  {milestone.facultyApproved
-                    ? "Approved"
-                    : milestoneReviewDecisionLabel(
-                        milestone.latestReviews.find(
-                          (review) => review.reviewerRole === "FACULTY"
-                        )?.decision
-                      )}
-                </span>
-                <span
-                  className={
-                    milestone.partnerApproved
-                      ? "text-meta text-ok"
-                      : "text-meta text-ink-3"
-                  }
-                >
-                  Partner:{" "}
-                  {milestone.partnerApproved
-                    ? "Approved"
-                    : milestoneReviewDecisionLabel(
-                        milestone.latestReviews.find(
-                          (review) => review.reviewerRole === "PARTNER"
-                        )?.decision
-                      )}
-                </span>
-              </div>
-            ) : null}
-          </li>
-        );
-      })}
-    </ol>
   );
 }
 

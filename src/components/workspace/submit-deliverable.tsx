@@ -20,21 +20,34 @@ interface SubmitDeliverableProps {
 
 type Errors = Partial<Record<"milestone" | "type" | "file" | "notes", string>>;
 
-/** Diagram 5.3 — the student's one write action in the workspace. */
+/**
+ * Diagram 5.3 — the student's one write action in the workspace.
+ *
+ * There is no deliverable-insert mutation yet, so the control is disabled
+ * rather than opening a dialog that would collect a file and drop it. The
+ * affordance stays visible because the obligation is real; what is missing is
+ * somewhere to put the answer.
+ */
 export function SubmitDeliverable({ milestones }: SubmitDeliverableProps) {
   const [open, setOpen] = useState(false);
 
   const openMilestones = milestones.filter((m) => m.status !== "Approved");
+  const enabled = false;
 
   return (
     <>
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="h-9 px-4 rounded-card bg-brand text-white font-semibold hover:bg-brand-deep focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+        disabled={!enabled}
+        title="Deliverable submission isn't available yet"
+        className="h-9 px-4 rounded-card border border-line text-ink-3 font-semibold disabled:opacity-60"
       >
         Submit a deliverable
       </button>
+      <p className="text-meta text-ink-3 mt-2">
+        Deliverables are shared with your partner contact directly for now.
+      </p>
       {open ? (
         <SubmitDialog
           milestones={openMilestones}
