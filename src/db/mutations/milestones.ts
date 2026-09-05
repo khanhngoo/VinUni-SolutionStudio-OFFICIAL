@@ -1,7 +1,13 @@
 import { and, desc, eq } from "drizzle-orm";
 
 import { db } from "@/db";
-import { milestoneReviews, milestones, projects } from "@/db/schema";
+import {
+  applications,
+  challenges,
+  milestoneReviews,
+  milestones,
+  projects,
+} from "@/db/schema";
 
 export type MilestoneMutationDatabase =
   | typeof db
@@ -26,15 +32,17 @@ export async function getMilestoneReviewContext(
     .select({
       facultySupervisorId: projects.facultySupervisorId,
       milestoneStatus: milestones.status,
+      ownerOrganizationId: challenges.ownerOrganizationId,
       projectId: projects.id,
     })
     .from(milestones)
     .innerJoin(projects, eq(projects.id, milestones.projectId))
+    .innerJoin(applications, eq(applications.id, projects.applicationId))
+    .innerJoin(challenges, eq(challenges.id, applications.challengeId))
     .where(eq(milestones.id, milestoneId))
     .limit(1);
 
-  if (!row) return null;
-  return { ...row, ownerOrganizationId: null };
+  return row ?? null;
 }
 
 /**

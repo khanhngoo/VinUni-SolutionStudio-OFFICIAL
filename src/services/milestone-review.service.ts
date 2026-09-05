@@ -6,7 +6,13 @@ import {
   updateMilestoneStatus,
   type MilestoneMutationDatabase,
 } from "@/db/mutations/milestones";
-import type { AuthenticatedActor } from "@/auth/authenticated-actor";
+import {
+  hasOneOfActiveOrganizationRoles,
+  type AuthenticatedActor,
+} from "@/auth/authenticated-actor";
+
+/** Who on the partner side may sign a milestone off on the org's behalf. */
+const PARTNER_SIGNOFF_ROLES = ["ADMIN", "CONTACT_PERSON", "PROJECT_MANAGER"] as const;
 
 export type MilestoneReviewErrorCode = "FORBIDDEN" | "INVALID_TRANSITION" | "NOT_FOUND";
 
@@ -51,6 +57,35 @@ export async function recordFacultyMilestoneReview(
     );
   }
 
+  return record(milestoneId, decision, comments, actor, "FACULTY", options);
+}
+
+/**
+ * Records the partner's sign-off on a milestone.
+ *
+ * Authority comes from an active role in the organization that owns the
+ * challenge, taken from the milestone's own row rather than from anything the
+ * caller supplies — the same reason the faculty path reads the supervisor off
+ * the project instead of trusting the route.
+ */
+export async function recordPartnerMilestoneReview(
+  milestoneId: bigint,
+  decision: "APPROVED" | "REVISION_REQUESTED",
+  comments: string | null,
+  actor: AuthenticatedActor,
+  options: MilestoneReviewOptions = {}
+): Promise<void> {
+  return record(milestoneId, decision, comments, actor, "PARTNER", options);
+}
+
+async function record(
+  milestoneId: bigint,
+  decision: "APPROVED" | "REVISION_REQUESTED",
+  comments: string | null,
+  actor: AuthenticatedActor,
+  reviewerRole: "FACULTY" | "PARTNER",
+  options: MilestoneReviewOptions
+): Promise<void> {
   const now = options.now ?? new Date();
 
   const run = async (tx: MilestoneMutationDatabase) => {
@@ -59,9 +94,17 @@ export async function recordFacultyMilestoneReview(
       throw new MilestoneReviewError("NOT_FOUND", "Milestone was not found.");
     }
 
-    // Not their project reads the same as not existing, so no supervision
-    // relationship leaks through the difference.
-    if (context.facultySupervisorId !== actor.user.userId) {
+    // Not yours reads the same as not existing, so no relationship to a
+    // project leaks through the difference between the two.
+    const authorized =
+      reviewerRole === "FACULTY"
+        ? context.facultySupervisorId === actor.user.userId
+        : context.ownerOrganizationId !== null &&
+          hasOneOfActiveOrganizationRoles(actor, context.ownerOrganizationId, [
+            ...PARTNER_SIGNOFF_ROLES,
+          ]);
+
+    if (!authorized) {
       throw new MilestoneReviewError("NOT_FOUND", "Milestone was not found.");
     }
 
@@ -78,8 +121,9 @@ export async function recordFacultyMilestoneReview(
       milestoneId,
       now,
       reviewerId: actor.user.userId,
-      reviewerOrganizationId: null,
-      reviewerRole: "FACULTY",
+      reviewerOrganizationId:
+        reviewerRole === "PARTNER" ? context.ownerOrganizationId : null,
+      reviewerRole,
     });
 
     if (decision === "REVISION_REQUESTED") {
@@ -87,17 +131,19 @@ export async function recordFacultyMilestoneReview(
       return;
     }
 
+    // Approving alone does not complete anything; it removes one of the two
+    // things the milestone is waiting on. The other side has to have said yes
+    // too, which is the whole point of a dual sign-off.
     const decisions = await listMilestoneReviewDecisions(tx, milestoneId);
-    const partnerApproved = decisions.some(
-      (row) =>
-        (row.reviewerRole === "PARTNER" ||
-          row.reviewerRole === "MANAGING_ORGANIZATION") &&
-        row.decision === "APPROVED"
+    const otherSideApproved = decisions.some((row) =>
+      reviewerRole === "FACULTY"
+        ? (row.reviewerRole === "PARTNER" ||
+            row.reviewerRole === "MANAGING_ORGANIZATION") &&
+          row.decision === "APPROVED"
+        : row.reviewerRole === "FACULTY" && row.decision === "APPROVED"
     );
 
-    // Approving alone does not complete anything; it removes one of the two
-    // things the milestone is waiting on.
-    if (partnerApproved) {
+    if (otherSideApproved) {
       await updateMilestoneStatus(tx, { milestoneId, now, status: "COMPLETED" });
     }
   };
