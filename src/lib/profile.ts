@@ -1,27 +1,29 @@
-import { courses, experience } from "@/lib/data/transcript";
 import type { Course, Student } from "@/lib/types";
 
 /**
- * Derivations over the student's own record. The split that matters here is
- * registrar vs self-reported: the university stands behind the first and
- * nothing else, so it is computed in one place rather than judged per screen.
+ * Derivations over the student's own record.
+ *
+ * The split that matters here is registrar vs self-reported: the university
+ * stands behind the first and nothing else, so it is computed in one place
+ * rather than judged per screen. A self-added course carries no grade and is
+ * excluded from any average — a database CHECK enforces the same rule.
+ *
+ * Everything is a function of its arguments. These used to read the transcript
+ * fixture at module scope, which is what kept them from surviving the move to
+ * real data.
  */
 
-export function registrarCourses(): Course[] {
-  return courses.filter((c) => c.source === "registrar");
+export function registrarCourses(courses: Course[]): Course[] {
+  return courses.filter((course) => course.source === "registrar");
 }
 
-export function selfAddedCourses(): Course[] {
-  return courses.filter((c) => c.source === "self");
+export function selfAddedCourses(courses: Course[]): Course[] {
+  return courses.filter((course) => course.source === "self");
 }
 
 /** Registrar rows only, newest term first — what the profile previews. */
-export function recentCourses(limit: number): Course[] {
-  return registrarCourses().slice(0, limit);
-}
-
-export function totalCourseCount(): number {
-  return courses.length;
+export function recentCourses(courses: Course[], limit: number): Course[] {
+  return registrarCourses(courses).slice(0, limit);
 }
 
 export interface ChecklistItem {
@@ -35,12 +37,20 @@ export interface ChecklistItem {
   href: string;
 }
 
+export interface ProfileCompleteness {
+  courseCount: number;
+  experienceCount: number;
+}
+
 /**
  * What the student still owes their own profile. Roles and availability carry
  * a hint because an empty team block blocks applying to anything, which is
  * not obvious from the label alone.
  */
-export function profileChecklist(student: Student): ChecklistItem[] {
+export function profileChecklist(
+  student: Student,
+  counts: ProfileCompleteness
+): ChecklistItem[] {
   return [
     {
       id: "enrolment",
@@ -51,8 +61,8 @@ export function profileChecklist(student: Student): ChecklistItem[] {
     },
     {
       id: "transcript",
-      label: `Subjects and grades · ${registrarCourses().length} courses`,
-      done: true,
+      label: `Subjects and grades · ${counts.courseCount} courses`,
+      done: counts.courseCount > 0,
       automatic: true,
       href: "/profile",
     },
@@ -73,7 +83,7 @@ export function profileChecklist(student: Student): ChecklistItem[] {
     {
       id: "experience",
       label: "Add experience",
-      done: experience.length > 0,
+      done: counts.experienceCount > 0,
       automatic: false,
       href: "/profile/edit",
     },
@@ -104,24 +114,16 @@ export interface ProfileStrength {
   next: ChecklistItem | null;
 }
 
-export function profileStrength(student: Student): ProfileStrength {
-  const items = profileChecklist(student);
-  const done = items.filter((i) => i.done).length;
+export function profileStrength(
+  student: Student,
+  counts: ProfileCompleteness
+): ProfileStrength {
+  const items = profileChecklist(student, counts);
+  const done = items.filter((item) => item.done).length;
   return {
     done,
     total: items.length,
     percent: Math.round((done / items.length) * 100),
-    next: items.find((i) => !i.done) ?? null,
+    next: items.find((item) => !item.done) ?? null,
   };
 }
-
-/** Full day names for the weekly grid's accessible labels. */
-export const DAY_NAMES = [
-  "Monday",
-  "Tuesday",
-  "Wednesday",
-  "Thursday",
-  "Friday",
-  "Saturday",
-  "Sunday",
-];

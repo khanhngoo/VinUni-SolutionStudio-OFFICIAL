@@ -1,4 +1,4 @@
-import { DAY_NAMES } from "@/lib/profile";
+import { DAY_NAMES } from "@/lib/text";
 import type { Challenge, Team, TeamMember, TeamRole } from "@/lib/types";
 
 /**

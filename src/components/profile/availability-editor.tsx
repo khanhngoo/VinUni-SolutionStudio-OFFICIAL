@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { AvailabilityLegend } from "@/components/profile/availability-grid";
 import { cn } from "@/lib/cn";
-import { DAY_NAMES } from "@/lib/profile";
+import { DAY_NAMES } from "@/lib/text";
 import { WEEKDAY_LABELS, type DayAvailability } from "@/lib/types";
 
 const CYCLE: DayAvailability[] = ["free", "partly", "busy"];

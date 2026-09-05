@@ -15,7 +15,12 @@ import type {
   DirectoryStudent,
   Faculty,
   InviteStatus,
+  Meeting,
+  MeetingKind,
+  Milestone,
+  MilestoneStatus,
   ScoreBand,
+  Student,
   Team,
   TeamRole,
   WorkMode,
@@ -322,4 +327,130 @@ function toInviteStatus(memberRole: string, status: string): InviteStatus {
   if (status === "ACCEPTED") return "accepted";
   if (status === "DECLINED") return "declined";
   return "invited";
+}
+
+const MILESTONE_STATUS_LABELS: Record<string, MilestoneStatus> = {
+  COMPLETED: "Approved",
+  IN_PROGRESS: "In progress",
+  PENDING: "Not started",
+  REVISION_REQUESTED: "Revision requested",
+  SUBMITTED: "Submitted",
+};
+
+const MEETING_KIND_LABELS: Record<string, MeetingKind> = {
+  FINAL_PRESENTATION: "Final presentation",
+  KICKOFF: "Kickoff",
+  MILESTONE_REVIEW: "Milestone review",
+  SUPERVISOR_ONE_ON_ONE: "Supervisor 1:1",
+  WEEKLY_SYNC: "Weekly sync",
+};
+
+/**
+ * A milestone as the timeline and the sign-off lists render it.
+ *
+ * The two approvals are already derived for us: `workspace.service` reads the
+ * standing decisions per reviewer role, which is what makes the dual sign-off
+ * legible without the component having to reason about review rows.
+ */
+export function toMilestone(row: {
+  deadline: string | null;
+  deliverables: Array<{ title: string | null }>;
+  description: string | null;
+  facultyApproved: boolean;
+  id: string;
+  partnerApproved: boolean;
+  status: string;
+  title: string;
+}): Milestone {
+  return {
+    deliverable: row.deliverables[0]?.title ?? row.description ?? "Deliverable",
+    dueDate: row.deadline ?? "",
+    facultyApproved: row.facultyApproved,
+    id: row.id,
+    posterApproved: row.partnerApproved,
+    status: MILESTONE_STATUS_LABELS[row.status] ?? "Not started",
+    title: row.title,
+  };
+}
+
+export function toMeeting(row: {
+  attendees: Array<{ fullName: string; role: string | null }>;
+  durationMinutes: number | null;
+  joinUrl: string | null;
+  kind: string;
+  milestoneId: string | null;
+  publicId: string;
+  startsAt: string;
+  title: string;
+}): Meeting {
+  return {
+    attendees: row.attendees.map((attendee) => ({
+      name: attendee.fullName,
+      role: attendee.role ?? "Attendee",
+    })),
+    durationMinutes: row.durationMinutes ?? 0,
+    id: row.publicId,
+    joinUrl: row.joinUrl ?? "",
+    kind: MEETING_KIND_LABELS[row.kind] ?? "Weekly sync",
+    startsAt: row.startsAt,
+    title: row.title,
+    ...(row.milestoneId ? { milestoneId: row.milestoneId } : {}),
+  };
+}
+
+/**
+ * The student's own record, which is the widest of the three views of a
+ * person — it is the only one that may carry a GPA or a transcript link,
+ * because it is the only one the student themselves is looking at.
+ */
+export function toStudent(input: {
+  about: string | null;
+  courses: { pinned: boolean; source: string }[];
+  creditsEarned: number | null;
+  email: string;
+  fullName: string;
+  gpa: number | null;
+  gpaScale: number | null;
+  hoursAvailable: number | null;
+  major: string | null;
+  portfolioUrl: string | null;
+  preferredTeamMax: number | null;
+  preferredTeamMin: number | null;
+  recordSyncedAt: Date | null;
+  roles: string[];
+  school: string | null;
+  skills: string[];
+  studyYear: number | null;
+  transcriptUrl: string | null;
+  userId: bigint;
+  weeklyAvailability: string[] | null;
+  workPreference: string | null;
+}): Student {
+  return {
+    about: input.about,
+    college: toCollege(input.school),
+    creditsEarned: input.creditsEarned ?? 0,
+    email: input.email,
+    gpa: input.gpa ?? 0,
+    gpaScale: input.gpaScale ?? 4,
+    hoursAvailable: input.hoursAvailable ?? 0,
+    id: String(input.userId),
+    major: input.major ?? "—",
+    name: input.fullName,
+    // Pinned courses are the student's own disclosure choice, and the only
+    // part of the transcript that ever leaves this view.
+    pinnedCourseIds: [],
+    portfolioUrl: input.portfolioUrl,
+    preferredTeamMax: input.preferredTeamMax ?? 0,
+    preferredTeamMin: input.preferredTeamMin ?? 0,
+    recordSyncedAt: input.recordSyncedAt
+      ? input.recordSyncedAt.toISOString().slice(0, 10)
+      : "",
+    skills: input.skills,
+    transcriptUrl: input.transcriptUrl ?? "",
+    usualRoles: toRoles(input.roles),
+    weeklyAvailability: toWeek(input.weeklyAvailability),
+    workPreference: WORK_MODE_LABELS[input.workPreference ?? ""] ?? "Hybrid",
+    year: input.studyYear ?? 0,
+  };
 }

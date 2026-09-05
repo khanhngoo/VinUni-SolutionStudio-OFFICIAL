@@ -3,7 +3,11 @@ import { VerifiedMark } from "@/components/profile/verified-mark";
 import { CheckIcon } from "@/components/ui/icons";
 import { ProgressBar } from "@/components/workspace/progress-bar";
 import { cn } from "@/lib/cn";
-import { profileChecklist, profileStrength } from "@/lib/profile";
+import {
+  profileChecklist,
+  profileStrength,
+  type ProfileCompleteness,
+} from "@/lib/profile";
 import type { Student } from "@/lib/types";
 
 /**
@@ -13,11 +17,17 @@ import type { Student } from "@/lib/types";
  * The two registrar rows are ticked on arrival on purpose: it makes the whole
  * verification rule legible in one glance on a student's first visit.
  */
-export function CompletenessPanel({ student }: { student: Student }) {
-  const strength = profileStrength(student);
+export function CompletenessPanel({
+  student,
+  counts,
+}: {
+  student: Student;
+  counts: ProfileCompleteness;
+}) {
+  const strength = profileStrength(student, counts);
   if (strength.next === null) return null;
 
-  const items = profileChecklist(student);
+  const items = profileChecklist(student, counts);
 
   return (
     <div className="bg-card border border-line rounded-card p-5">

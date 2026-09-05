@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { Chip } from "@/components/ui/chip";
 import { CloseIcon } from "@/components/ui/icons";
 import { cn } from "@/lib/cn";
-import { initials } from "@/lib/data/student";
+import { initials } from "@/lib/text";
 import type { Peer } from "@/lib/data/peers";
 import { TEAM_ROLES, type TeamRole } from "@/lib/types";
 
