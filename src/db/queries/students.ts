@@ -1,4 +1,4 @@
-import { and, eq, inArray, ne, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, ne, sql } from "drizzle-orm";
 
 import { db } from "@/db";
 import {
@@ -8,6 +8,7 @@ import {
   studentCourses,
   studentPreferredRoles,
   studentProfiles,
+  studentProjects,
   studentSkills,
   skills,
   users,
@@ -411,4 +412,143 @@ export async function listStudentTeamProfiles(
       },
     ])
   );
+}
+
+export interface StudentRecordRead {
+  about: string | null;
+  courses: {
+    code: string;
+    credits: number | null;
+    grade: string | null;
+    id: string;
+    pinned: boolean;
+    source: string;
+    term: string | null;
+    title: string;
+  }[];
+  creditsEarned: number | null;
+  email: string;
+  experiences: {
+    description: string | null;
+    endDate: string | null;
+    id: string;
+    kind: string | null;
+    organisation: string | null;
+    roleDescription: string | null;
+    startDate: string | null;
+    title: string;
+  }[];
+  fullName: string;
+  gpa: number | null;
+  gpaScale: number | null;
+  hoursAvailable: number | null;
+  major: string | null;
+  portfolioUrl: string | null;
+  preferredTeamMax: number | null;
+  preferredTeamMin: number | null;
+  recordSyncedAt: Date | null;
+  roles: string[];
+  school: string | null;
+  skills: string[];
+  studyYear: number | null;
+  transcriptUrl: string | null;
+  userId: bigint;
+  weeklyAvailability: string[] | null;
+  workPreference: string | null;
+}
+
+/**
+ * The student's own record, in full.
+ *
+ * This is the widest of the three views of a person and the only one that may
+ * carry a GPA or a transcript link, because it is the only one the student
+ * themselves is looking at. `listInvitablePeers` and `listDirectoryStudents`
+ * are the narrower two, and none of them is derived from this one — each
+ * query decides its own scope.
+ */
+export async function getStudentRecord(
+  database: StudentQueryDatabase,
+  userId: bigint
+): Promise<StudentRecordRead | null> {
+  const [base] = await database
+    .select({
+      about: studentProfiles.about,
+      creditsEarned: studentProfiles.creditsEarned,
+      email: users.email,
+      fullName: users.fullName,
+      gpa: studentProfiles.gpa,
+      gpaScale: studentProfiles.gpaScale,
+      hoursAvailable: studentProfiles.availableHoursPerWeek,
+      major: studentProfiles.major,
+      portfolioUrl: studentProfiles.portfolioUrl,
+      preferredTeamMax: studentProfiles.preferredTeamMax,
+      preferredTeamMin: studentProfiles.preferredTeamMin,
+      recordSyncedAt: studentProfiles.academicDataVerifiedAt,
+      school: studentProfiles.school,
+      studyYear: studentProfiles.studyYear,
+      transcriptUrl: studentProfiles.transcriptUrl,
+      userId: studentProfiles.userId,
+      weeklyAvailability: studentProfiles.weeklyAvailability,
+      workPreference: studentProfiles.workPreference,
+    })
+    .from(studentProfiles)
+    .innerJoin(users, eq(users.id, studentProfiles.userId))
+    .where(eq(studentProfiles.userId, userId))
+    .limit(1);
+
+  if (!base) return null;
+
+  const [courseRows, experienceRows, roleRows, skillRows] = await Promise.all([
+    database
+      .select({
+        code: studentCourses.code,
+        credits: studentCourses.credits,
+        grade: studentCourses.grade,
+        id: studentCourses.id,
+        pinned: studentCourses.pinned,
+        source: studentCourses.source,
+        term: studentCourses.term,
+        title: studentCourses.title,
+      })
+      .from(studentCourses)
+      .where(eq(studentCourses.studentId, userId))
+      .orderBy(desc(studentCourses.term), studentCourses.code),
+    database
+      .select({
+        description: studentProjects.description,
+        endDate: studentProjects.endDate,
+        id: studentProjects.id,
+        kind: studentProjects.kind,
+        organisation: studentProjects.organisation,
+        roleDescription: studentProjects.roleDescription,
+        startDate: studentProjects.startDate,
+        title: studentProjects.title,
+      })
+      .from(studentProjects)
+      .where(eq(studentProjects.studentId, userId))
+      .orderBy(desc(studentProjects.startDate)),
+    database
+      .select({ role: studentPreferredRoles.role })
+      .from(studentPreferredRoles)
+      .where(eq(studentPreferredRoles.studentId, userId)),
+    database
+      .select({ canonical: skills.canonicalName, raw: studentSkills.rawSkillName })
+      .from(studentSkills)
+      .leftJoin(skills, eq(skills.id, studentSkills.skillId))
+      .where(eq(studentSkills.studentId, userId)),
+  ]);
+
+  return {
+    ...base,
+    courses: courseRows.map((row) => ({ ...row, id: String(row.id) })),
+    experiences: experienceRows.map((row) => ({ ...row, id: String(row.id) })),
+    roles: roleRows.map((row) => row.role),
+    skills: skillRows
+      .map((row) => row.canonical ?? row.raw)
+      .filter((name): name is string => Boolean(name))
+      .sort((a, b) => a.localeCompare(b)),
+    weeklyAvailability: Array.isArray(base.weeklyAvailability)
+      ? (base.weeklyAvailability as string[])
+      : null,
+  };
 }
