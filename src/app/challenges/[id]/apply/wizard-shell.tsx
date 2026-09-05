@@ -3,8 +3,7 @@
 import { useRouter } from "next/navigation";
 
 import { ApplyWizard } from "@/components/apply/apply-wizard";
-import type { Peer } from "@/lib/data/peers";
-import type { ApplicationDraft, Challenge, Faculty, Team } from "@/lib/types";
+import type { ApplicationDraft, Challenge, Faculty, Peer, Team } from "@/lib/types";
 
 import { submitApplicationDraft } from "./actions";
 

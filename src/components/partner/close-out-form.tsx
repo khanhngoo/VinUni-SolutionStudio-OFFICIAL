@@ -61,7 +61,7 @@ export function CloseOutForm({
           {memberNames.length === 1
             ? `${memberNames[0]} and their supervisor can see it now.`
             : `All ${memberNames.length} members and their supervisor can see it now.`}{" "}
-          The engagement is archived and read-only from here.
+          The engagement is archived from here.
         </p>
         <div className="flex flex-wrap gap-2 justify-center mt-5">
           <Link

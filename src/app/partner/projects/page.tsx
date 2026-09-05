@@ -13,9 +13,9 @@ export const dynamic = "force-dynamic";
  * Every engagement this partner organization is running, reached through the
  * project → application → challenge → owner chain via
  * `listWorkspaceProjects` — the same read `/workspace` uses, unmodified.
- * Milestone approval/close-out actions are not shown: no production mutation
- * exists yet for a partner to approve a deliverable or write close-out
- * feedback, so this is a read list, not an action queue.
+ * The list is a rollup. Sign-off happens on the project screen, next to the
+ * deliverable being signed for, so this stays a way in rather than a second
+ * place to act.
  */
 export default async function PartnerProjectsPage() {
   const resolution = await getAuthenticatedActor();

@@ -17,10 +17,9 @@ import {
   type ApplyDraftState,
   type ApplyErrors,
 } from "@/lib/apply-validation";
-import type { Peer } from "@/lib/data/peers";
 import { now } from "@/lib/dates";
 import { withInvites } from "@/lib/teams";
-import type { ApplicationDraft, Challenge, Faculty, Team } from "@/lib/types";
+import type { ApplicationDraft, Challenge, Faculty, Peer, Team } from "@/lib/types";
 
 const STEPS = ["Your team", "Motivation", "Supervisor", "Review"];
 

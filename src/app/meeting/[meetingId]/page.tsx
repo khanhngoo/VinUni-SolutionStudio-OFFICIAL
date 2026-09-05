@@ -70,11 +70,11 @@ export default async function MeetingPage({
           <VideoIcon className="w-3.5 h-3.5" />
         </span>
         <p className="font-semibold text-ink mt-3">
-          Video calls aren&apos;t wired up yet
+          This call happens in your provider&apos;s app
         </p>
         <p className="text-ink-2 mt-1.5 max-w-[46ch] mx-auto">
-          Joining from inside the platform is coming soon. Until then this
-          meeting runs on the link your partner shared.
+          The Studio keeps the schedule; the call itself runs on the link your
+          partner shared.
         </p>
         {meeting.joinUrl ? (
           <p className="text-meta text-ink-3 mt-3 break-all">{meeting.joinUrl}</p>

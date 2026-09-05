@@ -326,6 +326,35 @@ export interface ApplicationDraft {
   invitedStudentIds: string[];
 }
 
+/**
+ * Another student, as a teammate sees them while building a team.
+ *
+ * Deliberately not a full `Student` record — a teammate never sees another
+ * student's GPA or transcript, only what bears on working together.
+ *
+ * `liveChallenges` is what makes someone a bad invite: two at once is against
+ * the Studio's own guidance, so those render unavailable rather than hidden.
+ */
+/** A supervisor with no slots left cannot take another team. */
+export function isAtCapacity(faculty: {
+  slotsTotal: number;
+  slotsUsed: number;
+}): boolean {
+  return faculty.slotsTotal > 0 && faculty.slotsUsed >= faculty.slotsTotal;
+}
+
+export interface Peer {
+  id: string;
+  name: string;
+  major: string;
+  year: number;
+  college: College;
+  roles: TeamRole[];
+  hoursAvailable: number;
+  weeklyAvailability: DayAvailability[];
+  liveChallenges: number;
+}
+
 export interface EligibilityResult {
   eligible: boolean;
   /** Human-readable reasons, quoting the student's actual numbers. */

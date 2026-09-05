@@ -6,7 +6,7 @@ import { listInternalUnitOrganizations } from "@/db/queries/review";
 import { listActiveCanonicalSkills } from "@/db/queries/skills";
 import { resolvePartnerOrganization } from "@/services/partner.service";
 
-import { PartnerPostForm } from "./post-form";
+import { PostFlowShell } from "./post-flow-shell";
 
 export const dynamic = "force-dynamic";
 
@@ -47,7 +47,7 @@ export default async function PartnerPostPage({
         <h1>Cannot post a challenge</h1>
         <p className="text-ink-2 mt-2">
           {ownerResolution.kind === "AMBIGUOUS"
-            ? "Your account holds more than one active external-partner organization membership; switching between organizations is not yet supported."
+            ? "Your account is a partner representative for more than one organization. Ask an administrator to leave you on the one you are posting for."
             : "Your account has no active external-partner organization membership."}
         </p>
       </div>
@@ -69,8 +69,8 @@ export default async function PartnerPostPage({
 
       <h1 className="mt-3.5">Post a challenge</h1>
       <p className="text-ink-2 mt-2">
-        Creates a DRAFT challenge. Nothing is submitted for review or
-        published until you take those actions explicitly.
+        This saves a draft. A CAID officer reviews every posting for compliance
+        before it reaches students, and publishing is their decision.
       </p>
 
       {error ? (
@@ -86,7 +86,7 @@ export default async function PartnerPostPage({
         </div>
       ) : null}
 
-      <PartnerPostForm
+      <PostFlowShell
         canonicalSkills={canonicalSkills}
         managingOrganizations={managingOrganizations}
       />

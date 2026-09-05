@@ -1,30 +1,10 @@
 import type { DirectoryStudentRead, FacultyOptionRead, PeerRead } from "@/db/queries/students";
-import type { Peer } from "@/lib/data/peers";
 import {
   challengeDeliverables,
   challengeDomainTags,
   type MarketplaceChallengeDetailModel,
 } from "@/lib/challenge-marketplace";
-import type {
-  AssessmentTrack,
-  Challenge,
-  ChallengeSubType,
-  College,
-  Compensation,
-  DayAvailability,
-  DirectoryStudent,
-  Faculty,
-  InviteStatus,
-  Meeting,
-  MeetingKind,
-  Milestone,
-  MilestoneStatus,
-  ScoreBand,
-  Student,
-  Team,
-  TeamRole,
-  WorkMode,
-} from "@/lib/types";
+import type { AssessmentTrack, Challenge, ChallengeSubType, College, Compensation, DayAvailability, DirectoryStudent, Faculty, InviteStatus, Meeting, MeetingKind, Milestone, MilestoneStatus, Peer, ScoreBand, Student, Team, TeamRole, WorkMode } from "@/lib/types";
 
 /**
  * The seam between the database and the prototype's view models.

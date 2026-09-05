@@ -3,9 +3,8 @@
 import { Field, inputClass } from "@/components/apply/field";
 import { Chip } from "@/components/ui/chip";
 import { Section } from "@/components/ui/section";
-import { isAtCapacity } from "@/lib/data/faculty";
 import type { ApplyErrors } from "@/lib/apply-validation";
-import type { Challenge, Faculty } from "@/lib/types";
+import { isAtCapacity, type Challenge, type Faculty } from "@/lib/types";
 
 interface StepSupervisorProps {
   challenge: Challenge;

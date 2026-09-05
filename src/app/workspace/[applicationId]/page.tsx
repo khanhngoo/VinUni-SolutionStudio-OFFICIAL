@@ -12,7 +12,6 @@ import { NextMeetingCard } from "@/components/workspace/next-meeting-card";
 import { ProgressBar } from "@/components/workspace/progress-bar";
 import { parseTab, WorkspaceTabs } from "@/components/workspace/workspace-tabs";
 import { daysUntil, formatDate } from "@/lib/dates";
-import type { RawSearchParams } from "@/lib/filters";
 import {
   organizationRoleLabel,
   projectStatusLabel,
@@ -38,7 +37,7 @@ export default async function WorkspacePage({
   searchParams,
 }: {
   params: Promise<{ applicationId: string }>;
-  searchParams: Promise<RawSearchParams>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const { applicationId } = await params;
   const resolution = await getAuthenticatedActor();

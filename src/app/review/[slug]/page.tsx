@@ -174,7 +174,7 @@ export default async function ReviewChallengeDetailPage({
           ) : (
             <p className="text-ink-2">
               Your role in the managing organization does not permit review
-              decisions (requires ADMIN, PROJECT_MANAGER, or REVIEWER).
+              decisions. Ask an administrator for reviewer access.
             </p>
           )}
         </Section>
@@ -194,7 +194,7 @@ export default async function ReviewChallengeDetailPage({
             </form>
           ) : (
             <p className="text-ink-2">
-              Your role does not permit publishing (requires ADMIN, PROJECT_MANAGER, or REVIEWER).
+              Publishing is done by a reviewer on your team.
             </p>
           )}
         </Section>

@@ -6,10 +6,9 @@ import { MemberRow } from "@/components/team/member-row";
 import { TeamFit } from "@/components/team/team-fit";
 import { Chip } from "@/components/ui/chip";
 import { Section } from "@/components/ui/section";
-import type { Peer } from "@/lib/data/peers";
 import { canAddMore, sizeLabel, teamSize } from "@/lib/teams";
 import type { ApplyErrors } from "@/lib/apply-validation";
-import type { Challenge, Team } from "@/lib/types";
+import type { Challenge, Peer, Team } from "@/lib/types";
 
 interface StepTeamProps {
   challenge: Challenge;

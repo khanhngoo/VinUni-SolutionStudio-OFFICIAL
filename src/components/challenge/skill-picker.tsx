@@ -130,7 +130,7 @@ export function SkillPicker({
                           onChange={(event) =>
                             setRequirement(skill.canonicalName, event.target.value as RequirementType)
                           }
-                          className="text-meta border border-line rounded-md px-1.5 py-0.5"
+                          className="text-meta border border-line rounded-card px-1.5 py-0.5"
                         >
                           <option value="REQUIRED">Required</option>
                           <option value="PREFERRED">Preferred</option>
