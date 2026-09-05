@@ -1,4 +1,4 @@
-import { and, count, eq, inArray, sql } from "drizzle-orm";
+import { and, count, desc, eq, inArray, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 
 import { db } from "@/db";
@@ -660,4 +660,56 @@ function overallBandFromRubric(value: unknown) {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   const band = (value as { sourceOverallBand?: unknown }).sourceOverallBand;
   return typeof band === "string" ? band : null;
+}
+
+export interface PendingInvitationRead {
+  applicationPublicId: string;
+  challengeTitle: string;
+  invitedAt: Date | null;
+  leaderName: string | null;
+  ownerOrganizationName: string;
+  teamName: string | null;
+}
+
+/**
+ * Team invitations this student has not answered.
+ *
+ * Their own seat only, matched on the student id rather than anything in a
+ * URL, so this is the list of things they personally owe an answer to.
+ */
+export async function listPendingTeamInvitations(
+  database: ApplicationQueryDatabase,
+  studentId: bigint
+): Promise<PendingInvitationRead[]> {
+  const leader = alias(users, "invitation_leader");
+  const leaderMember = alias(applicationMembers, "invitation_leader_member");
+
+  return database
+    .select({
+      applicationPublicId: applications.publicId,
+      challengeTitle: challenges.title,
+      invitedAt: applicationMembers.invitedAt,
+      leaderName: leader.fullName,
+      ownerOrganizationName: organizations.name,
+      teamName: applications.teamName,
+    })
+    .from(applicationMembers)
+    .innerJoin(applications, eq(applications.id, applicationMembers.applicationId))
+    .innerJoin(challenges, eq(challenges.id, applications.challengeId))
+    .innerJoin(organizations, eq(organizations.id, challenges.ownerOrganizationId))
+    .leftJoin(
+      leaderMember,
+      and(
+        eq(leaderMember.applicationId, applications.id),
+        eq(leaderMember.memberRole, "LEADER")
+      )
+    )
+    .leftJoin(leader, eq(leader.id, leaderMember.studentId))
+    .where(
+      and(
+        eq(applicationMembers.studentId, studentId),
+        eq(applicationMembers.status, "INVITED")
+      )
+    )
+    .orderBy(desc(applicationMembers.invitedAt));
 }

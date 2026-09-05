@@ -8,6 +8,9 @@ import { HubApplicationTable } from "@/components/workspace/hub-application-tabl
 import { HUB_GROUP_LABELS } from "@/lib/workspace";
 import { STAGE_LABELS } from "@/lib/types";
 import { getAuthenticatedActor } from "@/auth/authenticated-actor";
+import { db } from "@/db";
+import { listPendingTeamInvitations } from "@/db/queries/applications";
+import { formatDate } from "@/lib/dates";
 import { toApplicationActorContext } from "@/services/application.service";
 import {
   buildHubAgenda,
@@ -31,11 +34,12 @@ export default async function WorkspaceHubPage() {
   const resolution = await getAuthenticatedActor();
   if (resolution.status !== "RESOLVED") redirect("/sign-in");
 
-  const rows = await listWorkspaceHubRows(
-    toApplicationActorContext(resolution.actor)
-  );
+  const [rows, invitations] = await Promise.all([
+    listWorkspaceHubRows(toApplicationActorContext(resolution.actor)),
+    listPendingTeamInvitations(db, resolution.actor.user.userId),
+  ]);
 
-  if (rows.length === 0) {
+  if (rows.length === 0 && invitations.length === 0) {
     return (
       <div className="max-w-[1080px] mx-auto px-6 sm:px-7 py-7 pb-16">
         <h1>Your work</h1>
@@ -81,6 +85,43 @@ export default async function WorkspaceHubPage() {
                   urgent === 1 ? "s" : ""
                 } your attention.`}
           </p>
+
+          {invitations.length > 0 ? (
+            <section className="mt-7">
+              <GroupHeading
+                title="Invitations waiting on you"
+                count={invitations.length}
+              />
+              <ul className="flex flex-col gap-2.5">
+                {invitations.map((invitation) => (
+                  <li
+                    key={invitation.applicationPublicId}
+                    className="bg-card border border-line rounded-card p-4 flex flex-wrap items-center justify-between gap-3"
+                  >
+                    <div className="min-w-0">
+                      <p className="font-semibold text-ink">
+                        {invitation.leaderName ?? "A student"} invited you to{" "}
+                        {invitation.teamName ?? "their team"}
+                      </p>
+                      <p className="text-meta text-ink-3 mt-0.5">
+                        {invitation.challengeTitle} ·{" "}
+                        {invitation.ownerOrganizationName}
+                        {invitation.invitedAt
+                          ? ` · invited ${formatDate(invitation.invitedAt.toISOString())}`
+                          : ""}
+                      </p>
+                    </div>
+                    <Link
+                      href={`/invitations/${invitation.applicationPublicId}`}
+                      className="inline-flex items-center h-9 px-4 rounded-card bg-brand text-white font-semibold hover:bg-brand-deep hover:text-white shrink-0"
+                    >
+                      Answer
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ) : null}
 
           {open.map((bucket) => (
             <section key={bucket.group} className="mt-7">
