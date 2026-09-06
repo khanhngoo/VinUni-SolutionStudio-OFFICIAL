@@ -21,6 +21,18 @@ pnpm db:check
 pnpm app:logs
 ```
 
+To expose database-backed email/password signup and sign-in in a private demo,
+set this explicitly in `.env` before starting or restarting the app:
+
+```dotenv
+AUTH_SELF_SERVICE_ENABLED=true
+```
+
+Accounts created this way are basic authenticated users. Signup does not grant
+student, faculty, partner, or internal-unit access. This internal-demo path has
+no email verification or password recovery and must not be enabled for an
+unrestricted public deployment.
+
 `pnpm app:up` builds and starts both the `app` service and its `db` dependency,
 so a separate `pnpm db:up` is not required. `pnpm app:logs` follows the server
 logs; press `Ctrl-C` to stop following the logs without stopping the containers.

@@ -1509,6 +1509,15 @@ Replace assumed/static user roles with real identity and authorization.
 - [x] Add server-side session → existing `users` identity resolution
 - [x] Deny unmapped/inactive identities without auto-provisioning or token-based roles
 
+Post-Phase-6 internal-demo extension (2026-09-06): an explicitly gated
+email/password provider now supports self-service creation of an ACTIVE base
+`users` identity. This is deliberate signup, not provider-login
+auto-provisioning. It creates no student/faculty profile, organization,
+membership, or role, so the established authorization model is unchanged.
+Credentials are stored separately in `user_credentials` by migration 0005 and
+the feature defaults off unless `AUTH_SELF_SERVICE_ENABLED=true`. This is not
+Phase 7 work or a production-ready public authentication rollout.
+
 ## 6.2 Roles
 
 Expected roles to validate against ERD/business requirements:
@@ -1873,6 +1882,15 @@ project files
 
 ### Latest completed work
 
+- 2026-09-06 Post-Phase-6 internal-demo authentication extension: added an
+  opt-in self-service email/password signup and sign-in path alongside the
+  existing Entra and development identity providers. Signup creates only an
+  ACTIVE base user; no profile, organization membership, or authorization role
+  is inferred. Migration 0005 adds one-to-one `user_credentials` storage and a
+  case-insensitive unique email index. Passwords use versioned Node.js scrypt
+  hashes. The feature is disabled by default and intentionally lacks the email
+  verification, recovery, MFA, and distributed rate limiting required before
+  public production use. Phase 7 remains unstarted.
 - 2026-09-06 Phase 6.5 — Local containerized development is COMPLETE / READY
   FOR HUMAN REVIEW: added a dev-mode `Dockerfile` (Node 20 + pnpm via
   corepack, `pnpm install` then `next dev`, no multi-stage/production

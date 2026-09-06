@@ -1,6 +1,7 @@
 export * from "./enums";
 export * from "./common";
 export * from "./users";
+export * from "./authentication";
 export * from "./organizations";
 export * from "./skills";
 export * from "./challenges";

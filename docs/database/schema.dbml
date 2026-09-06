@@ -314,10 +314,34 @@ Enum resource_sensitivity {
 Table users {
   id bigint [pk, increment]
 
-  email varchar [not null, unique]
+  email varchar [not null]
   full_name varchar [not null]
 
   status user_status [default: 'ACTIVE']
+
+  created_at timestamptz
+  updated_at timestamptz
+
+  indexes {
+    (`lower(email)`) [unique, name: 'users_email_lower_unique']
+  }
+}
+
+
+//////////////////////////////////////////////////////////////
+// SELF-SERVICE AUTHENTICATION CREDENTIALS
+//
+// Optional one-to-one password credential for internal-demo
+// accounts. Password hashes are server-only authentication
+// material and never establish a profile, role, organization
+// membership, or authorization capability.
+//////////////////////////////////////////////////////////////
+
+Table user_credentials {
+  user_id bigint [pk]
+
+  password_hash text [not null]
+  password_algorithm varchar [not null, default: 'scrypt-v1']
 
   created_at timestamptz
   updated_at timestamptz
@@ -1594,6 +1618,8 @@ Table audit_logs {
 Ref: users.id - student_profiles.user_id
 
 Ref: users.id - faculty_profiles.user_id
+
+Ref: users.id - user_credentials.user_id
 
 
 //////////////////////////////////////////////////////////////

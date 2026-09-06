@@ -6,6 +6,12 @@
   JWT sessions and resolves each session to an active existing `users` row;
   roles and organization authority are then read from PostgreSQL into an
   `AuthenticatedActor`. JWT claims never establish application roles.
+- An explicitly gated internal-demo self-service provider stores only salted
+  `scrypt-v1` password hashes in the one-to-one `user_credentials` table.
+  Signup creates no profile, membership, organization, or role. The provider
+  defaults off through `AUTH_SELF_SERVICE_ENABLED=false`; email verification,
+  password recovery, MFA, distributed rate limiting, and public registration
+  remain required before this path can be exposed beyond a private demo.
 - Existing Auth.js HTTPS defaults are intentionally retained: session and CSRF
   cookies are `HttpOnly`, `Secure`, `SameSite=Lax`, and `Path=/`; secure cookie
   names use the `__Secure-`/`__Host-` prefixes. The default JWT session max age

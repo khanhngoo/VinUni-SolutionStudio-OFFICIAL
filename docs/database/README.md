@@ -53,6 +53,16 @@ This document records the approved architecture decisions and PostgreSQL impleme
 
 Any later structural database change must be treated as a new reviewed schema change, not as a continuation of the Phase 2.3 reconciliation.
 
+### Post-freeze reviewed authentication extension
+
+The 2026-09-06 internal-demo self-service authentication change is recorded as
+a post-freeze schema extension. It adds the one-to-one `user_credentials` table
+for versioned password hashes and replaces the case-sensitive user email
+constraint with the `users_email_lower_unique` expression index. The canonical
+DBML, modular Drizzle schema, and migration `0005_self_service_credentials.sql`
+carry the change together. A credential does not grant a profile, organization
+membership, or authorization capability.
+
 ## Authority
 
 Authority order for database work:
