@@ -44,13 +44,19 @@ export function NavBar({ identity }: { identity: AuthenticatedPresentation | nul
                 {identity.initials}
               </span>
               <form action={signOutCurrentUser}>
-                <button className="text-meta font-semibold text-ink-2 hover:text-brand" type="submit">
+                <button
+                  className="cursor-pointer text-meta font-semibold text-ink-2 transition-colors hover:text-brand hover:underline underline-offset-2"
+                  type="submit"
+                >
                   Sign out
                 </button>
               </form>
             </>
           ) : (
-            <Link className="font-semibold text-brand hover:text-brand-deep" href="/sign-in">
+            <Link
+              className="cursor-pointer font-semibold text-brand transition-colors hover:text-brand-deep hover:underline underline-offset-2"
+              href="/sign-in"
+            >
               Sign in
             </Link>
           )}

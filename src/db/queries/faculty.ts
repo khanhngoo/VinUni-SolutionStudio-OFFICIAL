@@ -112,3 +112,30 @@ export async function getFacultyCapacity(
     .limit(1);
   return row ?? null;
 }
+
+export interface FacultyProfileRecordRead {
+  academicTitle: string | null;
+  department: string | null;
+  maxActiveSupervisions: number | null;
+  school: string | null;
+}
+
+/** The self-profile record — school/department/title are institutional facts;
+ * only `maxActiveSupervisions` has an edit path (see `faculty-profile.service.ts`). */
+export async function getFacultyProfileRecord(
+  database: FacultyQueryDatabase,
+  facultyUserId: bigint
+): Promise<FacultyProfileRecordRead | null> {
+  const { facultyProfiles } = await import("@/db/schema");
+  const [row] = await database
+    .select({
+      academicTitle: facultyProfiles.academicTitle,
+      department: facultyProfiles.department,
+      maxActiveSupervisions: facultyProfiles.maxActiveSupervisions,
+      school: facultyProfiles.school,
+    })
+    .from(facultyProfiles)
+    .where(eq(facultyProfiles.userId, facultyUserId))
+    .limit(1);
+  return row ?? null;
+}

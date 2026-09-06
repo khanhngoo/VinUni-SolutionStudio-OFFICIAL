@@ -2,8 +2,8 @@
 
 **Repository:** `VinUni-SolutionStudio-OFFICIAL`
 **Project:** VinUniversity Solution Studio / AI-in-Action Platform
-**Last updated:** 2026-08-23
-**Current phase:** Phase 6 complete / ready for final human review — next checkpoint: Phase 6.5 — Local containerized development
+**Last updated:** 2026-09-06
+**Current phase:** Phase 6.5 complete / ready for human review — next checkpoint: Phase 7.1 — Structured skill matching
 
 ---
 
@@ -98,8 +98,8 @@ VinUni-SolutionStudio-OFFICIAL/
 │       ├── demo-seed-manifest.md          # compact DEMO scenario/fixture authority
 │       └── phase-3-seed-verification.md   # final Phase 3 verification artifact
 │
-├── Dockerfile                             # Phase 6.5 local development container (planned)
-├── docker-compose.yml
+├── Dockerfile                             # Phase 6.5 local development container
+├── docker-compose.yml                     # `db` + optional-profile `app` service
 ├── drizzle.config.ts
 ├── .env
 ├── .env.example
@@ -146,7 +146,7 @@ VinUni-SolutionStudio-OFFICIAL/
 | Phase 4 | Challenge marketplace → real DB | ✅ Complete / human review complete |
 | Phase 5 | Applications, assessments, offers, workspace → real DB | ✅ Complete / human review complete |
 | Phase 6 | Authentication + RBAC | ✅ Complete / ready for final human review |
-| Phase 6.5 | Local containerized development | ⬜ Not started |
+| Phase 6.5 | Local containerized development | ✅ Complete / ready for human review |
 | Phase 7 | Skill + semantic matching | ⬜ Not started |
 | Phase 8 | Production deployment | ⬜ Not started |
 
@@ -1599,40 +1599,40 @@ The `app` service lives behind an optional Compose profile so that bare `docker 
 
 ## 6.5.1 Application development Dockerfile
 
-- [ ] Read the relevant guides under `node_modules/next/dist/docs/` before writing dev-server/container configuration; do not assume older Next.js conventions
-- [ ] Create a `Dockerfile` for the Next.js application's local development mode only
-- [ ] Base the image on Node 20 with pnpm provided through corepack, consistent with repository tooling
-- [ ] Install dependencies with pnpm inside the image/container
-- [ ] Run the Next.js development server bound so it is reachable from the host on port 3000
-- [ ] Do not add production hardening, multi-stage production builds, or standalone output in this phase
-- [ ] Do not copy `.env*` files or any secrets into image layers
+- [x] Read the relevant guides under `node_modules/next/dist/docs/` before writing dev-server/container configuration; do not assume older Next.js conventions
+- [x] Create a `Dockerfile` for the Next.js application's local development mode only
+- [x] Base the image on Node 20 with pnpm provided through corepack, consistent with repository tooling
+- [x] Install dependencies with pnpm inside the image/container
+- [x] Run the Next.js development server bound so it is reachable from the host on port 3000
+- [x] Do not add production hardening, multi-stage production builds, or standalone output in this phase
+- [x] Do not copy `.env*` files or any secrets into image layers
 
 ## 6.5.2 Compose `app` service
 
-- [ ] Update the existing `docker-compose.yml` (filename kept; see 6.5.6) to add an `app` service alongside the existing `db` service
-- [ ] Keep the Next.js application one service; do not split frontend/backend containers
-- [ ] Publish the application on host port 3000
-- [ ] Add `depends_on` with `condition: service_healthy` against the existing `pg_isready` db health check
-- [ ] Put `app` behind an optional Compose profile so bare `docker compose up -d` still starts only `db`
-- [ ] Verify `pnpm db:up`, `pnpm db:down`, `pnpm db:logs`, and `pnpm db:reset` behavior is unchanged
+- [x] Update the existing `docker-compose.yml` (filename kept; see 6.5.6) to add an `app` service alongside the existing `db` service
+- [x] Keep the Next.js application one service; do not split frontend/backend containers
+- [x] Publish the application on host port 3000
+- [x] Add `depends_on` with `condition: service_healthy` against the existing `pg_isready` db health check
+- [x] Put `app` behind an optional Compose profile so bare `docker compose up -d` still starts only `db`
+- [x] Verify `pnpm db:up`, `pnpm db:down`, `pnpm db:logs`, and `pnpm db:reset` behavior is unchanged
 
 ## 6.5.3 Source bind mount and node_modules volume
 
-- [ ] Bind-mount the repository source into the `app` container
-- [ ] Use a separate named container volume for `node_modules` so host and container installs do not collide
-- [ ] Verify hot reload works through the bind mount under OrbStack
-- [ ] Document that `docker compose down -v` (run by `pnpm db:reset`) also removes the container `node_modules` volume; the cost is a dependency reinstall on next build/start, not data loss
+- [x] Bind-mount the repository source into the `app` container
+- [x] Use a separate named container volume for `node_modules` so host and container installs do not collide
+- [x] Verify hot reload works through the bind mount under OrbStack
+- [x] Document that `docker compose down -v` (run by `pnpm db:reset`) also removes the container `node_modules` volume; the cost is a dependency reinstall on next build/start, not data loss
 
 ## 6.5.4 Environment wiring
 
-- [ ] Provide environment values to the `app` container at runtime (`env_file`/`environment`), never by baking secrets into the image
-- [ ] Point the in-container `DATABASE_URL` at the `db` service hostname (`db:5432`), not `localhost`, without breaking the host-workflow `localhost:5432` value
-- [ ] Update `.env.example` guidance to document the host form and the container form
-- [ ] Keep `.env*` gitignored; only `.env.example` remains committed
+- [x] Provide environment values to the `app` container at runtime (`env_file`/`environment`), never by baking secrets into the image
+- [x] Point the in-container `DATABASE_URL` at the `db` service hostname (`db:5432`), not `localhost`, without breaking the host-workflow `localhost:5432` value
+- [x] Update `.env.example` guidance to document the host form and the container form
+- [x] Keep `.env*` gitignored; only `.env.example` remains committed
 
 ## 6.5.5 Documented commands
 
-- [ ] Document containerized build, start, logs, stop, in-container migrations, and guarded seeding; expected shape to verify at implementation:
+- [x] Document containerized build, start, logs, stop, in-container migrations, and guarded seeding; expected shape to verify at implementation:
 
 ```bash
 docker compose --profile app build
@@ -1643,14 +1643,14 @@ docker compose exec app pnpm db:migrate
 docker compose exec -e ALLOW_DB_SEED=true app pnpm db:seed
 ```
 
-- [ ] Optionally add a `pnpm dev:docker` wrapper script for the containerized workflow
-- [ ] Update Section 16 (Development Command Reference) and `README.md` with the verified commands
+- [x] Optionally add a `pnpm dev:docker` wrapper script for the containerized workflow
+- [x] Update Section 16 (Development Command Reference) and `README.md` with the verified commands
 
 ## 6.5.6 Existing guard/script compatibility
 
-- [ ] Keep the Compose filename `docker-compose.yml`; `scripts/db-reset.ts` validates that exact filename and must remain untouched and passing
-- [ ] Verify `pnpm db:reset` still resets, migrates, and seeds from zero with the `app` service defined
-- [ ] Verify host `pnpm dev` remains fully functional and unaffected
+- [x] Keep the Compose filename `docker-compose.yml`; `scripts/db-reset.ts` validates that exact filename and must remain untouched and passing
+- [x] Verify `pnpm db:reset` still resets, migrates, and seeds from zero with the `app` service defined
+- [x] Verify host `pnpm dev` remains fully functional and unaffected
 
 ## Phase 6.5 not in scope
 
@@ -1660,12 +1660,12 @@ docker compose exec -e ALLOW_DB_SEED=true app pnpm db:seed
 
 ## Phase 6.5 exit criteria
 
-- [ ] `docker compose --profile app up --build` serves the app on `localhost:3000` against the containerized database
-- [ ] Hot reload works through the source bind mount
-- [ ] Migrations and guarded seeding run from inside the container
-- [ ] Host `pnpm dev` and every existing `db:*` script behave exactly as before
-- [ ] No secrets are baked into image layers
-- [ ] Containerized commands are documented in Section 16 and `README.md`
+- [x] `docker compose --profile app up --build` serves the app on `localhost:3000` against the containerized database
+- [x] Hot reload works through the source bind mount
+- [x] Migrations and guarded seeding run from inside the container
+- [x] Host `pnpm dev` and every existing `db:*` script behave exactly as before
+- [x] No secrets are baked into image layers
+- [x] Containerized commands are documented in Section 16 and `README.md`
 - [ ] Human review is completed before Phase 7.1 — Structured skill matching begins
 
 ---
@@ -1867,12 +1867,43 @@ project files
 
 ## Current status
 
-**Current phase:** Phase 6 — COMPLETE / READY FOR FINAL HUMAN REVIEW
-**Phase 5:** COMPLETE / HUMAN REVIEW COMPLETE
-**Active next checkpoint:** Phase 6.5 — Local containerized development (after final Phase 6 human review)
+**Current phase:** Phase 6.5 — COMPLETE / READY FOR HUMAN REVIEW
+**Phase 6:** COMPLETE / READY FOR FINAL HUMAN REVIEW
+**Active next checkpoint:** Phase 7.1 — Structured skill matching (after Phase 6.5 human review)
 
 ### Latest completed work
 
+- 2026-09-06 Phase 6.5 — Local containerized development is COMPLETE / READY
+  FOR HUMAN REVIEW: added a dev-mode `Dockerfile` (Node 20 + pnpm via
+  corepack, `pnpm install` then `next dev`, no multi-stage/production
+  hardening, no `.env*`/secrets copied into image layers) and a `.dockerignore`.
+  Added an `app` service to `docker-compose.yml` alongside the existing `db`,
+  behind an optional `app` Compose profile, published on host port 3000, with
+  `depends_on: db: condition: service_healthy`, a repository bind mount, and a
+  separate named `app_node_modules` volume. The in-container `DATABASE_URL` is
+  overridden to `db:5432` while the host-form `.env` value is untouched.
+  `.env.example` documents both forms. Added the optional `pnpm dev:docker`
+  wrapper script and documented the containerized commands in Section 16 and
+  `README.md`. The Compose filename stayed `docker-compose.yml` and the
+  `scripts/db-reset.ts` guard strings remain matched. Phase 8 production
+  deployment scope is unchanged and was not pulled forward.
+- Verified end-to-end: `docker compose config` resolves only `db` without a
+  profile and `db` + `app` with `--profile app`; `docker compose --profile app
+  build` and `up --build` succeed; the `app` container waits for `db`'s health
+  check before starting; in-container `DATABASE_URL` resolves to
+  `db:5432` while the bind-mounted `.env` keeps its host-form value; a
+  bind-mounted source edit triggered an immediate Turbopack recompile inside
+  the container (hot reload confirmed under OrbStack); `docker compose exec
+  app pnpm db:migrate` and `docker compose exec -e ALLOW_DB_SEED=true app pnpm
+  db:seed` both ran successfully from inside the container; `curl
+  localhost:3000` returned a response from the containerized app; and, after
+  tearing the app container down, host `pnpm db:reset` and `pnpm db:check`
+  both still passed unaffected by the new `app` service definition.
+- pnpm note: the host's currently active pnpm (11.20.0 via corepack) requires
+  Node.js >= 22.13 and fails under a Node 20 image. The Dockerfile pins
+  `corepack prepare pnpm@10 --activate` instead — the latest pnpm 10.x line,
+  which supports Node 20 and reads this repository's `lockfileVersion: '9.0'`
+  lockfile without changes.
 - 2026-08-23 roadmap amendment: Phase 6.5 — Local containerized development is
   recorded as a new bounded checkpoint between Phase 6 and Phase 7.1 (section
   # 10.5): dev-mode application Dockerfile, `app` Compose service beside the
@@ -2059,13 +2090,12 @@ Full 45-domain-table pre-reset/post-reset/post-idempotency count equality is rec
 
 ## Immediate next task
 
-### Phase 6.5 — Local containerized development
+### Phase 7.1 — Structured skill matching
 
-Phase 6 (authentication + RBAC) is complete and awaiting final human review.
-After that review, the next implementation checkpoint is Phase 6.5 — Local
-containerized development (section # 10.5). Do not begin Phase 7.1 structured
-skill matching or any Phase 8 production deployment work before Phase 6.5 is
-completed and reviewed.
+Phase 6.5 (local containerized development) is complete and awaiting human
+review. After that review, the next implementation checkpoint is Phase 7.1 —
+Structured skill matching. Do not begin Phase 7.1 or any Phase 8 production
+deployment work before Phase 6.5 is reviewed.
 
 Immediate sequence:
 
@@ -2116,24 +2146,25 @@ Phase 6.4 security baseline ✅
         ↓
 Final Phase 6 human review
         ↓
-Phase 6.5 local containerized development
+Phase 6.5 local containerized development ✅
         ↓
 Phase 6.5 human review
         ↓
 Phase 7.1 structured skill matching
 ```
 
-### Immediate Phase 6.5 checklist
+### Phase 6.5 checklist (complete, pending human review)
 
-- [ ] Re-read the exact Phase 6.5 section (# 10.5) in this plan before implementation.
-- [ ] Read the relevant Next.js guides under `node_modules/next/dist/docs/` before writing dev-server/container configuration.
-- [ ] Keep `docker-compose.yml` as the Compose filename; do not break the `scripts/db-reset.ts` guard.
-- [ ] Preserve host `pnpm dev` and all existing `db:*` script behavior unchanged.
-- [ ] Do not begin Phase 7.1 matching or Phase 8 production deployment work.
+- [x] Re-read the exact Phase 6.5 section (# 10.5) in this plan before implementation.
+- [x] Read the relevant Next.js guides under `node_modules/next/dist/docs/` before writing dev-server/container configuration.
+- [x] Keep `docker-compose.yml` as the Compose filename; do not break the `scripts/db-reset.ts` guard.
+- [x] Preserve host `pnpm dev` and all existing `db:*` script behavior unchanged.
+- [x] Do not begin Phase 7.1 matching or Phase 8 production deployment work.
 
 ### Immediate next checkpoint
 
-- [ ] Phase 6.5 — Local containerized development, after final Phase 6 human review.
+- [ ] Phase 6.5 human review.
+- [ ] Phase 7.1 — Structured skill matching, after Phase 6.5 human review.
 - [ ] Do not begin Phase 7.1 before Phase 6.5 human review is complete.
 
 ### Agent sequencing rule
@@ -2150,13 +2181,37 @@ Before each agent implementation task:
 
 ### Recommended next agent instruction
 
-After final human review of Phase 6, proceed with Phase 6.5 — Local containerized development only. Do not implement Phase 7.1 matching, Phase 8 production deployment, schema, migration, seed, or auth changes, or unrelated runtime paths unless explicitly requested.
+After human review of Phase 6.5, proceed with Phase 7.1 — Structured skill matching only. Do not implement Phase 8 production deployment, schema, migration, seed, or auth changes, or unrelated runtime paths unless explicitly requested.
 
 ---
 
 # 15. Work Log
 
 Use this section after each development session.
+
+## 2026-09-06
+
+### Completed
+
+- Phase 6.5 — Local containerized development implemented and verified end to
+  end; see the Section 13 "Latest completed work" entry for full detail.
+- Files created: `Dockerfile`, `.dockerignore`.
+- Files modified: `docker-compose.yml` (added optional-profile `app`
+  service + `app_node_modules` volume), `.env.example` (documented host vs.
+  container `DATABASE_URL` forms), `package.json` (added `dev:docker`
+  script), `README.md` (added "Containerized Development" section),
+  `PRODUCTION_TRANSFORMATION_PLAN.md` (status table, header, Section 13/14/16
+  updates, checklist checkoffs).
+- No schema, migration, seed, auth, or Phase 7/8 changes were made.
+
+### Current blocker
+
+None. Awaiting human review of Phase 6.5 before Phase 7.1 — Structured skill
+matching begins.
+
+### Next action
+
+After human review of Phase 6.5, implement Phase 7.1 — Structured skill matching only.
 
 ## 2026-08-23
 
@@ -2529,6 +2584,34 @@ pnpm db:generate
 ```bash
 pnpm db:migrate
 ```
+
+## Containerized local development (Phase 6.5)
+
+Local development only — not a production image. The `app` service lives
+behind an optional Compose profile; bare `docker compose up -d` / `pnpm
+db:up` still start only `db`.
+
+```bash
+docker compose --profile app build          # Build the dev image
+docker compose --profile app up --build     # Start db + app, serve on localhost:3000
+pnpm dev:docker                             # Equivalent wrapper script
+
+docker compose logs -f app                  # Follow the Next.js dev server logs
+docker compose --profile app down           # Stop and remove db + app containers
+
+docker compose exec app pnpm db:migrate                         # Migrations from inside the container
+docker compose exec -e ALLOW_DB_SEED=true app pnpm db:seed      # Guarded seed from inside the container
+```
+
+The repository is bind-mounted into the `app` container for hot reload;
+`node_modules` lives in a separate named container volume
+(`app_node_modules`) so host and container installs never collide.
+`docker compose down -v` (run by `pnpm db:reset`) also removes that volume —
+the cost is a dependency reinstall on the next `--build`, not data loss.
+
+The `app` container's `DATABASE_URL` is set directly in `docker-compose.yml`
+to point at the `db` service hostname (`db:5432`), overriding the host-form
+value from the bind-mounted `.env` (`localhost:5432`) without modifying it.
 
 ---
 
