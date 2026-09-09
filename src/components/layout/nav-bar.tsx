@@ -1,6 +1,7 @@
 import Link from "next/link";
+import type { AuthenticatedPresentation } from "@/auth/authenticated-presentation";
+import { signOutCurrentUser } from "@/app/sign-in/actions";
 import { NavLinks } from "@/components/layout/nav-links";
-import { currentStudent, initials } from "@/lib/data/student";
 
 /** The VinUniversity chevron mark: navy left half, red right half. */
 function BrandMark({ className }: { className?: string }) {
@@ -12,11 +13,9 @@ function BrandMark({ className }: { className?: string }) {
   );
 }
 
-export function NavBar() {
-  // "Your work" used to resolve straight to the single engagement PRD D8
-  // allows. The fixture already carries eleven applications at once, and a
-  // student needs to see the ones still in selection too, so the link now
-  // points at the hub and is always present.
+export function NavBar({ identity }: { identity: AuthenticatedPresentation | null }) {
+  // Authenticated users navigate to the workspace hub, which can represent
+  // multiple projects without implying a personal identity to anonymous users.
   return (
     <header className="h-[60px] shrink-0 bg-card border-b border-line">
       <div className="h-full px-7 flex items-center justify-between gap-6">
@@ -29,13 +28,38 @@ export function NavBar() {
         </Link>
 
         <nav className="flex items-center gap-5 sm:gap-[22px]">
-          <NavLinks />
-          <span
-            className="w-7 h-7 rounded-full bg-brand text-white grid place-items-center text-[10px] font-semibold"
-            title={currentStudent.name}
-          >
-            {initials(currentStudent.name)}
-          </span>
+          <NavLinks
+            authenticated={identity !== null}
+            isFaculty={identity?.isFaculty ?? false}
+            isInternalUnitMember={identity?.isInternalUnitMember ?? false}
+            isPartnerRepresentative={identity?.isPartnerRepresentative ?? false}
+            isStudent={identity?.isStudent ?? false}
+          />
+          {identity ? (
+            <>
+              <span
+                className="w-7 h-7 rounded-full bg-brand text-white grid place-items-center text-[10px] font-semibold"
+                title={identity.displayName}
+              >
+                {identity.initials}
+              </span>
+              <form action={signOutCurrentUser}>
+                <button
+                  className="cursor-pointer text-meta font-semibold text-ink-2 transition-colors hover:text-brand hover:underline underline-offset-2"
+                  type="submit"
+                >
+                  Sign out
+                </button>
+              </form>
+            </>
+          ) : (
+            <Link
+              className="cursor-pointer font-semibold text-brand transition-colors hover:text-brand-deep hover:underline underline-offset-2"
+              href="/sign-in"
+            >
+              Sign in
+            </Link>
+          )}
         </nav>
       </div>
     </header>

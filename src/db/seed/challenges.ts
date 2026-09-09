@@ -8,11 +8,21 @@ import {
 } from "../schema";
 import type { SeedContext } from "./context";
 import { resolveCanonicalSkillSeedLabel } from "./skills";
+import { shiftDateOnly, shiftIso } from "./clock";
 
 type CompensationType = "PAID" | "UNPAID" | "CREDIT" | "OTHER" | "NOT_SPECIFIED";
 type WorkMode = "ONSITE" | "HYBRID" | "REMOTE";
 type ChallengeVisibility = "PUBLIC_PREVIEW" | "VINUNI_ONLY" | "INVITE_ONLY" | "PRIVATE";
-type ChallengeStatus = "APPLICATIONS_OPEN";
+/**
+ * Only the statuses this seeder actually produces. Kept narrower than the
+ * 19-state challenge lifecycle on purpose, so a typo cannot introduce a state
+ * the demo has no fixture for.
+ */
+type ChallengeStatus =
+  | "APPLICATIONS_OPEN"
+  | "DRAFT"
+  | "SUBMITTED"
+  | "REVISION_REQUESTED";
 type SkillRequirementType = "REQUIRED" | "PREFERRED" | "OPTIONAL";
 type EligibilityRuleType = "MIN_GPA" | "STUDY_YEAR" | "SCHOOL";
 
@@ -39,6 +49,8 @@ interface DemoChallengeSeed {
   eligibilityRules: DemoChallengeEligibilityRuleSeed[];
   expectedDeliverables: string;
   facultyAssignments: string[];
+  fullBrief: string | null;
+  interviewFormat: string;
   managingOrganizationKey: string;
   ownerOrganizationKey: string;
   publicId: string;
@@ -62,7 +74,7 @@ function deliverables(lines: string[]) {
 }
 
 function deadlineAtVietnamEndOfDay(date: string) {
-  return new Date(`${date}T16:59:00.000Z`);
+  return shiftIso(`${date}T16:59:00.000Z`);
 }
 
 function requiredSkill(name: string): DemoChallengeSkillSeed {
@@ -99,6 +111,8 @@ function minGpaRule(value: number): DemoChallengeEligibilityRuleSeed {
 
 export const DEMO_CHALLENGES: DemoChallengeSeed[] = [
   {
+    fullBrief: null,
+    interviewFormat: "45-min MS Teams call with the data lead",
     sourceFixtureId: "merchant-churn-model",
     slug: "merchant-churn-model",
     publicId: "33333333-3333-4333-8333-000000000001",
@@ -142,6 +156,8 @@ export const DEMO_CHALLENGES: DemoChallengeSeed[] = [
     facultyAssignments: ["user:fac-osei", "user:fac-pham"],
   },
   {
+    fullBrief: null,
+    interviewFormat: "30-min MS Teams call with the operations manager",
     sourceFixtureId: "route-optimisation",
     slug: "route-optimisation",
     publicId: "33333333-3333-4333-8333-000000000002",
@@ -165,11 +181,11 @@ export const DEMO_CHALLENGES: DemoChallengeSeed[] = [
     teamSizeMin: 2,
     teamSizeMax: 4,
     workMode: "REMOTE",
-    startDate: "2026-09-07",
-    applicationDeadline: deadlineAtVietnamEndOfDay("2026-08-25"),
+    startDate: "2027-09-06",
+    applicationDeadline: deadlineAtVietnamEndOfDay("2027-08-27"),
     compensationType: "OTHER",
     compensationDescription: "Work-study",
-    visibility: "VINUNI_ONLY",
+    visibility: "PUBLIC_PREVIEW",
     confidentialityLevel: "STANDARD",
     status: "APPLICATIONS_OPEN",
     skills: [
@@ -182,6 +198,8 @@ export const DEMO_CHALLENGES: DemoChallengeSeed[] = [
     facultyAssignments: ["user:fac-pham", "user:fac-nguyen-k"],
   },
   {
+    fullBrief: null,
+    interviewFormat: "45-min on-campus conversation with the supervising clinician",
     sourceFixtureId: "triage-protocol-review",
     slug: "triage-protocol-review",
     publicId: "33333333-3333-4333-8333-000000000003",
@@ -221,6 +239,8 @@ export const DEMO_CHALLENGES: DemoChallengeSeed[] = [
     facultyAssignments: ["user:fac-vu"],
   },
   {
+    fullBrief: null,
+    interviewFormat: "30-min MS Teams call with the programme director",
     sourceFixtureId: "community-health-outreach",
     slug: "community-health-outreach",
     publicId: "33333333-3333-4333-8333-000000000004",
@@ -260,6 +280,9 @@ export const DEMO_CHALLENGES: DemoChallengeSeed[] = [
     facultyAssignments: ["user:fac-vu", "user:fac-le"],
   },
   {
+    interviewFormat: "45-min MS Teams call with the operations director",
+    fullBrief:
+      "The partner runs a regional distribution network of eleven warehouses feeding roughly 1,400 retail points across northern Vietnam. Inbound shipment data lands in four systems that were never designed to talk to each other: a legacy ERP, two warehouse management tools acquired with regional operators, and a spreadsheet process still used for cross-border freight.\n\nThe operational consequence is that nobody can answer, on any given morning, how much stock is genuinely in transit versus stalled at a depot. Planners compensate by over-ordering, which the finance team estimates ties up a material amount of working capital across the network.\n\nYour work is to build the first unified view. That means reconciling the four sources into a single warehouse schema, establishing which fields can be trusted from which system, and producing a forecast module that flags likely stockouts two weeks ahead. The dashboard is the visible deliverable, but the reconciliation logic underneath it is the part the partner will keep.\n\nYou will have direct access to eighteen months of historical shipment data under NDA, and a weekly slot with the analytics team. The partner has been explicit that they would rather have a defensible, well-documented model over a sophisticated one they cannot maintain after handover.",
     sourceFixtureId: "supply-chain-dashboard",
     slug: "supply-chain-dashboard",
     publicId: "33333333-3333-4333-8333-000000000005",
@@ -302,6 +325,9 @@ export const DEMO_CHALLENGES: DemoChallengeSeed[] = [
     facultyAssignments: ["user:fac-pham", "user:fac-osei"],
   },
   {
+    interviewFormat: "30-min on-campus conversation with the facilities lead",
+    fullBrief:
+      "VinUniversity has committed to a measurable reduction in campus energy consumption, but the estimates it currently reports are extrapolated from a small number of building-level meters rather than measured directly.\n\nThis audit establishes the real baseline: what each building consumes, when, and how much of that is avoidable. The output feeds directly into the university's capital planning cycle, so the recommendations need to be costed, not just identified.",
     sourceFixtureId: "campus-energy-audit",
     slug: "campus-energy-audit",
     publicId: "33333333-3333-4333-8333-000000000006",
@@ -341,6 +367,9 @@ export const DEMO_CHALLENGES: DemoChallengeSeed[] = [
     facultyAssignments: ["user:fac-nguyen-k", "user:fac-le"],
   },
   {
+    interviewFormat: "30-min on-campus conversation with the head archivist",
+    fullBrief:
+      "The university's regional history collection exists only on paper, is consulted rarely because nobody can search it, and is deteriorating.\n\nThis project built the digitisation pipeline and the searchable front end that replaced it, along with the runbook the library uses to continue the work.",
     sourceFixtureId: "archive-digitisation",
     slug: "archive-digitisation",
     publicId: "33333333-3333-4333-8333-000000000007",
@@ -380,6 +409,8 @@ export const DEMO_CHALLENGES: DemoChallengeSeed[] = [
     facultyAssignments: ["user:fac-le", "user:fac-tran"],
   },
   {
+    fullBrief: null,
+    interviewFormat: "30-min MS Teams call with an investment associate",
     sourceFixtureId: "synthesized-demo-elab-venture-readiness-dashboard",
     slug: "demo-elab-venture-readiness-dashboard",
     publicId: "33333333-3333-4333-8333-000000000008",
@@ -403,8 +434,8 @@ export const DEMO_CHALLENGES: DemoChallengeSeed[] = [
     teamSizeMin: 2,
     teamSizeMax: 3,
     workMode: "HYBRID",
-    startDate: "2026-09-15",
-    applicationDeadline: deadlineAtVietnamEndOfDay("2026-09-05"),
+    startDate: "2027-09-13",
+    applicationDeadline: deadlineAtVietnamEndOfDay("2027-09-03"),
     compensationType: "CREDIT",
     compensationDescription: "Synthetic DEMO credit-bearing internal E-Lab project.",
     visibility: "VINUNI_ONLY",
@@ -422,6 +453,125 @@ export const DEMO_CHALLENGES: DemoChallengeSeed[] = [
     ],
     facultyAssignments: ["user:fac-pham"],
   },
+  /*
+   * The authoring lifecycle.
+   *
+   * Every other seeded challenge is already APPLICATIONS_OPEN, which left the
+   * whole approval loop with no starting fixture: /review had an empty queue,
+   * and the partner edit form had nothing in a state it is allowed to edit.
+   * These three sit at the points that loop passes through -- a draft the
+   * partner is still writing, one waiting on an internal-unit reviewer, and one
+   * sent back with comments. None is discoverable in the marketplace, which is
+   * what their statuses already guarantee.
+   */
+  {
+    fullBrief: null,
+    interviewFormat: "Short call with the operations lead",
+    sourceFixtureId: "warehouse-slotting-draft",
+    slug: "warehouse-slotting-draft",
+    publicId: "33333333-3333-4333-8333-000000000009",
+    title: "Warehouse slotting review",
+    ownerOrganizationKey: "org:demo-bencang",
+    managingOrganizationKey: "org:caid",
+    contactUserKey: "user:contact-org-bencang",
+    summary:
+      "Pick paths in the Hai Phong warehouse have grown by accretion and nobody has re-checked where fast-moving stock actually sits.",
+    description:
+      "Pick paths in the Hai Phong warehouse have grown by accretion and nobody has re-checked where fast-moving stock actually sits. This posting is still being drafted by the partner.",
+    subtype: "Project",
+    domain: "Operations, Logistics",
+    expectedDeliverables: deliverables([
+      "Map current slotting against pick frequency",
+      "Propose a revised layout with the expected travel saving",
+    ]),
+    durationWeeks: 8,
+    weeklyHours: 8,
+    teamSizeMin: 2,
+    teamSizeMax: 3,
+    workMode: "ONSITE",
+    startDate: "2026-10-05",
+    applicationDeadline: deadlineAtVietnamEndOfDay("2026-09-20"),
+    compensationType: "NOT_SPECIFIED",
+    compensationDescription: null,
+    visibility: "PRIVATE",
+    confidentialityLevel: "STANDARD",
+    status: "DRAFT",
+    skills: [requiredSkill("Data analysis"), preferredSkill("Python")],
+    eligibilityRules: [studyYearRule([2, 3, 4])],
+    facultyAssignments: [],
+  },
+  {
+    fullBrief: null,
+    interviewFormat: "30-min call with the sustainability team",
+    sourceFixtureId: "packaging-waste-audit",
+    slug: "packaging-waste-audit",
+    publicId: "33333333-3333-4333-8333-000000000010",
+    title: "Packaging waste audit",
+    ownerOrganizationKey: "org:demo-vhf",
+    managingOrganizationKey: "org:caid",
+    contactUserKey: "user:contact-org-vhf",
+    summary:
+      "Measure what the packaging line actually discards, and where in the process it becomes waste rather than stock.",
+    description:
+      "Measure what the packaging line actually discards, and where in the process it becomes waste rather than stock. Submitted for compliance review.",
+    subtype: "Project",
+    domain: "Sustainability, Operations",
+    expectedDeliverables: deliverables([
+      "Instrument the line to record discards by stage",
+      "Quantify avoidable waste and its cost",
+    ]),
+    durationWeeks: 10,
+    weeklyHours: 6,
+    teamSizeMin: 2,
+    teamSizeMax: 4,
+    workMode: "HYBRID",
+    startDate: "2026-10-12",
+    applicationDeadline: deadlineAtVietnamEndOfDay("2026-09-25"),
+    compensationType: "CREDIT",
+    compensationDescription: null,
+    visibility: "VINUNI_ONLY",
+    confidentialityLevel: "STANDARD",
+    status: "SUBMITTED",
+    skills: [requiredSkill("Data analysis"), preferredSkill("Data visualisation")],
+    eligibilityRules: [studyYearRule([2, 3, 4])],
+    facultyAssignments: [],
+  },
+  {
+    fullBrief: null,
+    interviewFormat: "Call with the clinical informatics lead",
+    sourceFixtureId: "patient-flow-mapping",
+    slug: "patient-flow-mapping",
+    publicId: "33333333-3333-4333-8333-000000000011",
+    title: "Outpatient flow mapping",
+    ownerOrganizationKey: "org:demo-health",
+    managingOrganizationKey: "org:caid",
+    contactUserKey: "user:contact-org-health",
+    summary:
+      "Trace how an outpatient actually moves through the clinic, and where the waiting accumulates.",
+    description:
+      "Trace how an outpatient actually moves through the clinic, and where the waiting accumulates. Sent back to the partner for revision.",
+    subtype: "Project",
+    domain: "Healthcare, Operations",
+    expectedDeliverables: deliverables([
+      "Map the current outpatient pathway end to end",
+      "Identify the three largest sources of waiting",
+    ]),
+    durationWeeks: 8,
+    weeklyHours: 6,
+    teamSizeMin: 2,
+    teamSizeMax: 3,
+    workMode: "ONSITE",
+    startDate: "2026-10-19",
+    applicationDeadline: deadlineAtVietnamEndOfDay("2026-09-28"),
+    compensationType: "CREDIT",
+    compensationDescription: null,
+    visibility: "VINUNI_ONLY",
+    confidentialityLevel: "STANDARD",
+    status: "REVISION_REQUESTED",
+    skills: [requiredSkill("Data analysis")],
+    eligibilityRules: [studyYearRule([3, 4])],
+    facultyAssignments: [],
+  },
 ];
 
 async function ensureDemoChallenge(ctx: SeedContext, seed: DemoChallengeSeed) {
@@ -437,11 +587,13 @@ async function ensureDemoChallenge(ctx: SeedContext, seed: DemoChallengeSeed) {
       domain: seed.domain,
       durationWeeks: seed.durationWeeks,
       expectedDeliverables: seed.expectedDeliverables,
+      fullBrief: seed.fullBrief,
+      interviewFormat: seed.interviewFormat,
       managingOrganizationId: ctx.getId(seed.managingOrganizationKey),
       ownerOrganizationId: ctx.getId(seed.ownerOrganizationKey),
       publicId: seed.publicId,
       slug: seed.slug,
-      startDate: seed.startDate,
+      startDate: shiftDateOnly(seed.startDate),
       status: seed.status,
       subtype: seed.subtype,
       summary: seed.summary,
@@ -464,10 +616,12 @@ async function ensureDemoChallenge(ctx: SeedContext, seed: DemoChallengeSeed) {
         domain: seed.domain,
         durationWeeks: seed.durationWeeks,
         expectedDeliverables: seed.expectedDeliverables,
+        fullBrief: seed.fullBrief,
+        interviewFormat: seed.interviewFormat,
         managingOrganizationId: ctx.getId(seed.managingOrganizationKey),
         ownerOrganizationId: ctx.getId(seed.ownerOrganizationKey),
         publicId: seed.publicId,
-        startDate: seed.startDate,
+        startDate: shiftDateOnly(seed.startDate),
         status: seed.status,
         subtype: seed.subtype,
         summary: seed.summary,

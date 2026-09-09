@@ -29,22 +29,56 @@ type Decision = "approved" | "revision";
  * the status vocabulary, the sign-off pills — is the visual language, not the
  * implementation.
  *
- * Decisions are local state and reset on reload, matching the rest of v1.
+ * Decisions are applied optimistically and written through the handlers; a
+ * rejected write puts the row back and says why.
  */
 export function PartnerMilestoneList({
   milestones,
   meetings = [],
   readOnly = false,
+  onApprove,
+  onRequestRevision,
 }: {
   milestones: Milestone[];
   meetings?: Meeting[];
   readOnly?: boolean;
+  onApprove?: (milestoneId: string) => Promise<string | null>;
+  onRequestRevision?: (milestoneId: string, comments: string) => Promise<string | null>;
 }) {
   const [decisions, setDecisions] = useState<Record<string, Decision>>({});
   const [openNote, setOpenNote] = useState<string | null>(null);
+  const [note, setNote] = useState("");
+  const [error, setError] = useState<string | null>(null);
   const byMilestone = meetingsByMilestone(meetings);
 
+  async function apply(
+    milestoneId: string,
+    decision: Decision,
+    write: () => Promise<string | null> | undefined
+  ) {
+    setError(null);
+    setDecisions((d) => ({ ...d, [milestoneId]: decision }));
+    const message = await write();
+    if (message) {
+      setError(message);
+      setDecisions((d) => {
+        const next = { ...d };
+        delete next[milestoneId];
+        return next;
+      });
+    }
+  }
+
   return (
+    <>
+      {error ? (
+        <div
+          role="alert"
+          className="mb-3 rounded-card border border-warn/35 bg-warn-soft px-4 py-3 text-ink-2"
+        >
+          {error}
+        </div>
+      ) : null}
     <ol className="flex flex-col">
       {milestones.map((milestone, index) => {
         const decision = decisions[milestone.id];
@@ -150,10 +184,9 @@ export function PartnerMilestoneList({
                     <button
                       type="button"
                       onClick={() =>
-                        setDecisions((d) => ({
-                          ...d,
-                          [milestone.id]: "approved",
-                        }))
+                        void apply(milestone.id, "approved", () =>
+                          onApprove?.(milestone.id)
+                        )
                       }
                       className="inline-flex items-center justify-center h-8 px-3 rounded-card bg-ok text-white text-[12px] font-semibold hover:opacity-90"
                     >
@@ -179,6 +212,8 @@ export function PartnerMilestoneList({
                       </label>
                       <textarea
                         rows={3}
+                        value={note}
+                        onChange={(event) => setNote(event.target.value)}
                         className="w-full border border-line rounded-card px-3 py-2 text-body resize-y"
                         placeholder="Be specific — the team sees this verbatim."
                       />
@@ -201,11 +236,12 @@ export function PartnerMilestoneList({
                         <button
                           type="button"
                           onClick={() => {
-                            setDecisions((d) => ({
-                              ...d,
-                              [milestone.id]: "revision",
-                            }));
+                            const comments = note;
                             setOpenNote(null);
+                            setNote("");
+                            void apply(milestone.id, "revision", () =>
+                              onRequestRevision?.(milestone.id, comments)
+                            );
                           }}
                           className="inline-flex items-center justify-center h-8 px-3 rounded-card bg-red text-white text-[12px] font-semibold hover:opacity-90"
                         >
@@ -220,8 +256,8 @@ export function PartnerMilestoneList({
               {decision ? (
                 <p className="text-meta text-ok mt-2">
                   {decision === "approved"
-                    ? "You approved this — not saved, this demo keeps decisions in memory."
-                    : "Revision requested — not saved, this demo keeps decisions in memory."}
+                    ? "You approved this. It completes once the supervisor has signed too."
+                    : "Revision requested — the team has it back."}
                 </p>
               ) : null}
 
@@ -237,6 +273,7 @@ export function PartnerMilestoneList({
         );
       })}
     </ol>
+    </>
   );
 }
 
@@ -268,7 +305,7 @@ function SignoffPill({
   );
 }
 
-/** The fixtures carry no filenames, so one is derived from the title. */
+/** No filename is stored on a milestone, so one is derived from the title. */
 function fileNameFor(milestone: Milestone): string {
   return `${milestone.title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}.zip`;
 }

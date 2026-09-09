@@ -1,8 +1,16 @@
 /**
- * Deadline maths. Seed data is fixed to the 2026 term, so "today" is pinned —
- * otherwise the urgent-deadline card silently stops being urgent.
+ * Deadline maths.
+ *
+ * "Now" is read per call rather than captured once. A module-level constant
+ * would freeze at process start, which is invisible in dev and wrong in a
+ * long-running server: a deadline would stop being urgent because the process
+ * had been up for a week. The seed keeps countdowns meaningful from the other
+ * side, translating its whole authored timeline onto the current one — see
+ * `src/db/seed/clock.ts`.
  */
-export const TODAY = new Date("2026-07-27T00:00:00Z");
+export function now(): Date {
+  return new Date();
+}
 
 /**
  * Wall-clock zone for times shown to the student. Fixtures author datetimes in
@@ -26,7 +34,7 @@ export function toDate(iso: string): Date {
 }
 
 /**
- * Whole days between the pinned TODAY and a deadline. Datetimes collapse to
+ * Whole days between now and a deadline. Datetimes collapse to
  * their display-timezone day first, so a meeting late in the day is "in 7
  * days", not rounded up to 8.
  */
@@ -34,7 +42,7 @@ export function daysUntil(iso: string): number {
   const target = DATE_ONLY.test(iso)
     ? toDate(iso)
     : toDate(`${dayKey(iso)}T00:00:00Z`);
-  return Math.round((target.getTime() - TODAY.getTime()) / MS_PER_DAY);
+  return Math.round((target.getTime() - now().getTime()) / MS_PER_DAY);
 }
 
 /** "Closes in 16 days" / "Closes in 3 days" / "Closes today" / "Closed". */
@@ -96,7 +104,7 @@ export function dayKey(iso: string): string {
 
 /** "Today" / "Tomorrow" / "Mon 3 Aug" — agenda day headings. */
 export function dayLabel(isoDay: string): string {
-  const today = dayKey(TODAY.toISOString());
+  const today = dayKey(now().toISOString());
   if (isoDay === today) return "Today";
   if (daysUntil(isoDay) === 1) return "Tomorrow";
   return toDate(isoDay).toLocaleDateString("en-GB", {

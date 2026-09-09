@@ -9,8 +9,10 @@ import { seedDemoChallenges } from "./seed/challenges";
 import { SeedContext } from "./seed/context";
 import { seedDemo } from "./seed/demo";
 import { seedDemoSelectionsOffersAgreements } from "./seed/offers";
+import { seedDemoMeetings } from "./seed/meetings";
 import { seedDemoProjects } from "./seed/projects";
 import { seedReference } from "./seed/reference";
+import { seedDemoStudentProfileDetails } from "./seed/student-profiles";
 import { formatSeedTarget, validateSeedSafety } from "./seed/safety";
 
 type Database = typeof import("./index")["db"];
@@ -44,6 +46,8 @@ async function readCounts(db: Database, schema: Schema) {
     organizationMemberships,
     organizations,
     projectMembers,
+    meetingAttendees,
+    meetings,
     projectResources,
     projects,
     selections,
@@ -52,6 +56,8 @@ async function readCounts(db: Database, schema: Schema) {
     skillRelationships,
     skills,
     studentProfiles,
+    studentCourses,
+    studentPreferredRoles,
     studentSkills,
     supervisionRequests,
     users,
@@ -72,6 +78,8 @@ async function readCounts(db: Database, schema: Schema) {
     relationshipCount,
     studentProfileCount,
     studentSkillCount,
+    studentCourseCount,
+    studentPreferredRoleCount,
     applicationCount,
     applicationMemberCount,
     applicationProjectCount,
@@ -91,6 +99,8 @@ async function readCounts(db: Database, schema: Schema) {
     deliverableCount,
     milestoneReviewCount,
     projectResourceCount,
+    meetingCount,
+    meetingAttendeeCount,
     feedbackCount,
     matchResultCount,
     matchSkillDetailCount,
@@ -110,6 +120,8 @@ async function readCounts(db: Database, schema: Schema) {
     db.select({ count: count() }).from(skillRelationships),
     db.select({ count: count() }).from(studentProfiles),
     db.select({ count: count() }).from(studentSkills),
+    db.select({ count: count() }).from(studentCourses),
+    db.select({ count: count() }).from(studentPreferredRoles),
     db.select({ count: count() }).from(applications),
     db.select({ count: count() }).from(applicationMembers),
     db.select({ count: count() }).from(applicationProjects),
@@ -129,6 +141,8 @@ async function readCounts(db: Database, schema: Schema) {
     db.select({ count: count() }).from(deliverables),
     db.select({ count: count() }).from(milestoneReviews),
     db.select({ count: count() }).from(projectResources),
+    db.select({ count: count() }).from(meetings),
+    db.select({ count: count() }).from(meetingAttendees),
     db.select({ count: count() }).from(feedback),
     db.select({ count: count() }).from(matchResults),
     db.select({ count: count() }).from(matchSkillDetails),
@@ -149,6 +163,8 @@ async function readCounts(db: Database, schema: Schema) {
     skills: skillCount[0].count,
     studentProfiles: studentProfileCount[0].count,
     studentSkills: studentSkillCount[0].count,
+    studentCourses: studentCourseCount[0].count,
+    studentPreferredRoles: studentPreferredRoleCount[0].count,
     applications: applicationCount[0].count,
     applicationMembers: applicationMemberCount[0].count,
     applicationProjects: applicationProjectCount[0].count,
@@ -168,6 +184,8 @@ async function readCounts(db: Database, schema: Schema) {
     deliverables: deliverableCount[0].count,
     milestoneReviews: milestoneReviewCount[0].count,
     projectResources: projectResourceCount[0].count,
+    meetings: meetingCount[0].count,
+    meetingAttendees: meetingAttendeeCount[0].count,
     feedback: feedbackCount[0].count,
     matchResults: matchResultCount[0].count,
     matchSkillDetails: matchSkillDetailCount[0].count,
@@ -203,11 +221,13 @@ async function main() {
     await seedBootstrap(seedContext);
     await seedReference(seedContext);
     await seedDemo(seedContext);
+    await seedDemoStudentProfileDetails(seedContext);
     await seedDemoChallenges(seedContext);
     await seedDemoApplications(seedContext);
     await seedDemoAssessments(seedContext);
     await seedDemoSelectionsOffersAgreements(seedContext);
     await seedDemoProjects(seedContext);
+    await seedDemoMeetings(seedContext);
 
     return seedContext;
   });
@@ -240,6 +260,8 @@ async function main() {
   );
   console.log(`  student profiles: ${before.studentProfiles} -> ${after.studentProfiles}`);
   console.log(`  student skills: ${before.studentSkills} -> ${after.studentSkills}`);
+  console.log(`  student courses: ${before.studentCourses} -> ${after.studentCourses}`);
+  console.log(`  student preferred roles: ${before.studentPreferredRoles} -> ${after.studentPreferredRoles}`);
   console.log(`  applications: ${before.applications} -> ${after.applications}`);
   console.log(
     `  application members: ${before.applicationMembers} -> ${after.applicationMembers}`
@@ -278,6 +300,10 @@ async function main() {
   );
   console.log(
     `  project resources: ${before.projectResources} -> ${after.projectResources}`
+  );
+  console.log(`  meetings: ${before.meetings} -> ${after.meetings}`);
+  console.log(
+    `  meeting attendees: ${before.meetingAttendees} -> ${after.meetingAttendees}`
   );
   console.log(`  feedback: ${before.feedback} -> ${after.feedback}`);
   console.log(`  match results: ${before.matchResults} -> ${after.matchResults}`);

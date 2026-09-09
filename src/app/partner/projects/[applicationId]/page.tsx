@@ -1,32 +1,28 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
-import { Chip } from "@/components/ui/chip";
-import { GroupHeading } from "@/components/partner/group-heading";
-import { PartnerMilestoneList } from "@/components/partner/partner-milestone-list";
-import { ProgressBar } from "@/components/workspace/progress-bar";
-import { formatDate, formatDateTime } from "@/lib/dates";
-import {
-  getOrgApplicationById,
-  milestoneProgress,
-  orgApplications,
-  partnerFeedbackOf,
-} from "@/lib/provider";
-import { getChallengeById, getFacultyById } from "@/lib/queries";
-import { confirmedMembers, pendingMembers } from "@/lib/teams";
+import { notFound, redirect } from "next/navigation";
 
-export function generateStaticParams() {
-  return orgApplications()
-    .filter((a) => a.project !== null)
-    .map((a) => ({ applicationId: a.id }));
-}
+import { getAuthenticatedActor } from "@/auth/authenticated-actor";
+import { GroupHeading } from "@/components/partner/group-heading";
+import { Chip } from "@/components/ui/chip";
+import { Section } from "@/components/ui/section";
+import { ProgressBar } from "@/components/workspace/progress-bar";
+import { toMeeting, toMilestone } from "@/lib/apply-view";
+import { formatDate } from "@/lib/dates";
+import { getPartnerDashboard } from "@/services/partner.service";
+import { getWorkspaceDetail } from "@/services/workspace.service";
+import { toApplicationActorContext } from "@/services/application.service";
+
+import { MilestonePanel } from "./milestone-panel";
+
+export const dynamic = "force-dynamic";
 
 /**
- * The partner's face of a live project.
+ * A live engagement from the partner's side.
  *
- * The same `ProjectRecord` the student's workspace renders, with one
- * difference that matters: `posterApproved` is a button here and a read-only
- * pill there. Everything else — milestones, the dual sign-off, the meetings —
- * is one record shown to the other party.
+ * The student's workspace and this screen read the same project, but they are
+ * not the same screen: the student comes here to see what they owe, the
+ * partner to sign off on what has arrived. The sign-off is a button here and a
+ * read-only pill there, and that difference is the reason both exist.
  */
 export default async function PartnerProjectPage({
   params,
@@ -34,190 +30,135 @@ export default async function PartnerProjectPage({
   params: Promise<{ applicationId: string }>;
 }) {
   const { applicationId } = await params;
-  const application = getOrgApplicationById(applicationId);
-  if (!application?.project) notFound();
 
-  const challenge = getChallengeById(application.challengeId);
-  if (!challenge) notFound();
+  const resolution = await getAuthenticatedActor();
+  if (resolution.status !== "RESOLVED") redirect("/sign-in");
 
-  const project = application.project;
-  const progress = milestoneProgress(project);
-  const supervisor = getFacultyById(application.facultySupervisorId);
-  const feedback = partnerFeedbackOf(project);
-  const confirmed = confirmedMembers(application.team);
-  const pending = pendingMembers(application.team);
+  // Ownership comes from the partner dashboard, which is scoped to the actor's
+  // organization: a project belonging to another partner is indistinguishable
+  // from one that does not exist.
+  const dashboard = await getPartnerDashboard(resolution.actor);
+  if (!dashboard) notFound();
 
-  const complete = application.stage === "COMPLETED";
+  const owned = dashboard.projects.find(
+    (project) => project.applicationPublicId === applicationId
+  );
+  if (!owned) notFound();
+
+  const detail = await getWorkspaceDetail(
+    applicationId,
+    toApplicationActorContext(resolution.actor)
+  );
+  if (!detail) notFound();
+
+  const milestones = detail.milestones.map(toMilestone);
+  const meetings = detail.meetings.map(toMeeting);
+  const readOnly =
+    detail.projectStatus === "COMPLETED" || detail.projectStatus === "ARCHIVED";
+
+  const awaitingYou = milestones.filter(
+    (milestone) => milestone.status === "Submitted" && !milestone.posterApproved
+  );
+  const finished = detail.projectStatus === "COMPLETED";
 
   return (
-    <div className="max-w-[980px] mx-auto px-6 sm:px-7 py-7 pb-16">
+    <div className="max-w-[900px] mx-auto px-6 sm:px-7 py-7 pb-16">
       <nav className="text-meta text-ink-3">
-        <Link href="/partner/projects">Projects</Link>
+        <Link href="/partner/projects">Your projects</Link>
         <span className="mx-1.5">›</span>
-        {challenge.title}
+        {detail.challengeTitle}
       </nav>
 
-      <div className="flex flex-wrap gap-1.5 mt-3.5 mb-2.5">
-        <Chip variant={complete ? "ok" : "ok"}>
-          {complete ? "Completed" : "In progress"}
+      <div className="flex flex-wrap items-start justify-between gap-4 mt-3.5">
+        <div className="min-w-0">
+          <h1>{detail.challengeTitle}</h1>
+          <p className="text-ink-2 mt-2">
+            {detail.members.length} student
+            {detail.members.length === 1 ? "" : "s"}
+            {detail.project.supervisorName
+              ? ` · supervised by ${detail.project.supervisorName}`
+              : ""}
+            {detail.project.startDate
+              ? ` · started ${formatDate(detail.project.startDate)}`
+              : ""}
+          </p>
+        </div>
+        <Chip variant={finished ? "ok" : "solid"}>
+          {detail.projectStatus.replaceAll("_", " ")}
         </Chip>
-        <Chip>{application.team.name}</Chip>
-        <Chip>{challenge.subType}</Chip>
       </div>
 
-      <h1>{challenge.title}</h1>
-      <p className="text-ink-2 mt-2">
-        Started {formatDate(project.startedAt)} · {progress.approved} of{" "}
-        {progress.total} milestones approved
-      </p>
+      <div className="mt-5">
+        <ProgressBar
+          approved={detail.progress.completed}
+          total={detail.progress.total}
+        />
+      </div>
 
-      <ProgressBar
-        approved={progress.approved}
-        total={progress.total}
-        className="mt-5"
-      />
-
-      {complete && !feedback ? (
-        <div className="mt-6 border border-warn rounded-card bg-warn-soft px-4 py-3.5 flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <p className="font-semibold text-ink">
-              This project is finished and waiting on your review
-            </p>
-            <p className="text-ink-2 mt-1">
-              The team sees your feedback, and so does their supervisor.
-            </p>
-          </div>
-          <Link
-            href={`/partner/projects/${application.id}/close`}
-            className="inline-flex items-center justify-center h-9 px-4 rounded-card bg-brand text-white font-semibold hover:bg-brand-deep hover:text-white shrink-0"
-          >
-            Close out →
-          </Link>
-        </div>
-      ) : null}
-
-      <section className="mt-7">
-        <GroupHeading title="Milestones" />
-        <div className="bg-card border border-line rounded-card p-5">
-          <PartnerMilestoneList
-            milestones={project.milestones}
-            meetings={project.meetings}
-            readOnly={complete}
-          />
-        </div>
-        <p className="text-meta text-ink-3 mt-2.5 leading-relaxed">
-          Both you and the faculty supervisor sign off each milestone. Your
-          approval alone does not close it, and neither does theirs.
+      {awaitingYou.length > 0 ? (
+        <p className="mt-4 rounded-card border border-l-[3px] border-warn/35 border-l-warn bg-warn-soft px-4 py-2.5 text-ink-2">
+          {awaitingYou.length} deliverable
+          {awaitingYou.length === 1 ? " is" : "s are"} waiting on your sign-off.
         </p>
-      </section>
-
-      {feedback ? (
-        <section className="mt-7">
-          <GroupHeading title="Your close-out review" />
-          <div className="bg-card border border-line rounded-card p-5">
-            <div className="grid sm:grid-cols-3 gap-2.5">
-              <Stat label="Quality" value={feedback.qualityBand} />
-              <Stat label="Reliability" value={feedback.reliabilityBand} />
-              <Stat label="Host again" value={feedback.wouldHostAgain} />
-            </div>
-            <p className="text-ink-2 mt-4 leading-relaxed">{feedback.note}</p>
-            <p className="text-meta text-ink-3 mt-3">
-              Submitted {formatDate(feedback.submittedAt)}
-            </p>
-          </div>
-        </section>
       ) : null}
 
-      <section className="mt-7">
-        <GroupHeading title="The team" />
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
-          {confirmed.map((member) => (
-            <div
-              key={member.studentId}
-              className="bg-card border border-line rounded-card px-4 py-3.5"
+      {finished ? (
+        <p className="mt-4 rounded-card border border-l-[3px] border-ok/30 border-l-ok bg-ok-soft px-4 py-2.5 text-ink-2">
+          This project is finished.{" "}
+          <Link
+            className="font-semibold"
+            href={`/partner/projects/${applicationId}/close`}
+          >
+            Close it out →
+          </Link>
+        </p>
+      ) : null}
+
+      <Section
+        title="Milestones"
+        aside="Faculty and partner both sign off"
+      >
+        <MilestonePanel
+          meetings={meetings}
+          milestones={milestones}
+          readOnly={readOnly}
+        />
+      </Section>
+
+      <Section title="The team">
+        <ul className="flex flex-col gap-2.5">
+          {detail.members.map((member) => (
+            <li
+              key={member.fullName}
+              className="bg-card border border-line rounded-card px-4 py-3 flex flex-wrap items-center justify-between gap-3"
             >
-              <p className="font-semibold text-ink">{member.name}</p>
-              <p className="text-meta text-ink-3 mt-0.5">
-                {member.major} · Year {member.year} · {member.college}
-              </p>
-              <p className="text-meta text-ink-2 mt-1.5">
-                {member.role} · {member.hoursAvailable} hrs/wk
-              </p>
-            </div>
-          ))}
-        </div>
-        {pending.length > 0 ? (
-          <p className="text-meta text-ink-3 mt-2.5">
-            {pending.length} invitation{pending.length === 1 ? "" : "s"} still
-            outstanding.
-          </p>
-        ) : null}
-      </section>
-
-      <section className="mt-7">
-        <GroupHeading title="Supervision & contact" />
-        <div className="grid sm:grid-cols-2 gap-2.5">
-          <div className="bg-card border border-line rounded-card px-4 py-3.5">
-            <p className="font-semibold text-ink">
-              {supervisor?.name ?? "To be confirmed"}
-            </p>
-            <p className="text-meta text-ink-3 mt-0.5">
-              {supervisor ? supervisor.title : "Faculty supervisor"}
-            </p>
-            <p className="text-meta text-ink-2 mt-1.5">
-              Mentors the team and signs off milestones
-            </p>
-          </div>
-          <div className="bg-card border border-line rounded-card px-4 py-3.5">
-            <p className="font-semibold text-ink">
-              {project.posterContact.name}
-            </p>
-            <p className="text-meta text-ink-3 mt-0.5">
-              {project.posterContact.role}
-            </p>
-            <p className="text-meta text-ink-2 mt-1.5 break-words">
-              {project.posterContact.email}
-            </p>
-          </div>
-        </div>
-      </section>
-
-      {project.meetings.length > 0 ? (
-        <section className="mt-7">
-          <GroupHeading title="Meetings" count={project.meetings.length} />
-          <div className="flex flex-col gap-2">
-            {project.meetings.map((meeting) => (
-              <div
-                key={meeting.id}
-                className="bg-card border border-line rounded-card px-4 py-3 flex flex-wrap items-center justify-between gap-3"
-              >
-                <div className="min-w-0">
-                  <p className="font-medium text-ink">{meeting.title}</p>
-                  <p className="text-meta text-ink-3 mt-0.5">
-                    {formatDateTime(meeting.startsAt)} ·{" "}
-                    {meeting.durationMinutes} min
-                  </p>
-                </div>
-                <Link
-                  href={`/meeting/${meeting.id}`}
-                  className="text-meta font-semibold text-brand hover:text-brand-deep shrink-0"
-                >
-                  Open →
-                </Link>
+              <div className="min-w-0">
+                <p className="font-semibold text-ink">{member.fullName}</p>
+                <p className="text-meta text-ink-3 mt-0.5">
+                  {member.major ?? "—"}
+                  {member.studyYear ? ` · Year ${member.studyYear}` : ""}
+                </p>
               </div>
-            ))}
+              {member.projectRole ? <Chip>{member.projectRole}</Chip> : null}
+            </li>
+          ))}
+        </ul>
+      </Section>
+
+      {detail.contactPerson ? (
+        <section className="mt-7">
+          <GroupHeading title="Your contact on this project" />
+          <div className="bg-card border border-line rounded-card p-4">
+            <p className="font-semibold text-ink">
+              {detail.contactPerson.displayName}
+            </p>
+            <p className="text-meta text-ink-3 mt-0.5">
+              {detail.contactPerson.roleLabel ?? "Contact"}
+              {detail.contactPerson.email ? ` · ${detail.contactPerson.email}` : ""}
+            </p>
           </div>
         </section>
       ) : null}
-    </div>
-  );
-}
-
-function Stat({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="bg-line-2 rounded-card px-3.5 py-3">
-      <p className="text-meta text-ink-3">{label}</p>
-      <p className="font-semibold text-[15px] text-brand mt-1">{value}</p>
     </div>
   );
 }

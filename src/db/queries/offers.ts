@@ -35,6 +35,7 @@ export interface OfferRead {
     managingOrganizationName: string;
     ownerOrganizationName: string;
     slug: string;
+    subtype: string | null;
     summary: string;
     title: string;
   };
@@ -80,6 +81,7 @@ export async function getOfferByApplicationPublicId(
       applicationStatus: sql<string>`coalesce(${applications.status}, 'SUBMITTED')`,
       challengeId: challenges.id,
       challengeSlug: challenges.slug,
+      challengeSubtype: challenges.subtype,
       challengeSummary: challenges.summary,
       challengeTitle: challenges.title,
       compensationNote: offers.compensationNote,
@@ -126,6 +128,7 @@ export async function getOfferByApplicationPublicId(
       managingOrganizationName: row.managingOrganizationName,
       ownerOrganizationName: row.ownerOrganizationName,
       slug: row.challengeSlug,
+      subtype: row.challengeSubtype,
       summary: row.challengeSummary,
       title: row.challengeTitle,
     },

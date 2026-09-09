@@ -1,34 +1,34 @@
-import { currentFacultyId, getFacultyById } from "@/lib/data/faculty";
-import {
-  getFeedbackQueue,
-  getMilestoneQueue,
-  getPendingInvites,
-  getSettledRows,
-} from "@/lib/supervision";
-import { FacultyQueue } from "@/components/faculty/faculty-queue";
+import { notFound, redirect } from "next/navigation";
+
+import { getAuthenticatedActor, hasActorCapability } from "@/auth/authenticated-actor";
+import { getFacultyQueue } from "@/services/faculty.service";
+
+import { FacultyQueueShell } from "./queue-shell";
+
+export const dynamic = "force-dynamic";
 
 /**
- * The faculty supervision queue (low-fi option A): invitations to supervise,
- * milestones needing sign-off, and completed projects still waiting on
- * feedback, triaged into one list rather than three separate screens.
+ * A supervisor's obligations as one priority queue.
+ *
+ * Invitations, milestone sign-offs and closing feedback all land here sorted
+ * by how soon each is due, rather than in three separate lists a supervisor
+ * has to reconcile themselves.
  */
-export default function FacultyQueuePage() {
-  const faculty = getFacultyById(currentFacultyId);
-  const invites = getPendingInvites(currentFacultyId);
-  const milestones = getMilestoneQueue(currentFacultyId);
-  const feedback = getFeedbackQueue(currentFacultyId);
-  const settled = getSettledRows(currentFacultyId);
+export default async function FacultyPage() {
+  const resolution = await getAuthenticatedActor();
+  if (resolution.status !== "RESOLVED") redirect("/sign-in");
+  if (!hasActorCapability(resolution.actor, "FACULTY")) notFound();
 
-  if (!faculty) return null;
+  const queue = await getFacultyQueue(resolution.actor.user.userId);
 
   return (
     <div className="max-w-[1080px] mx-auto px-6 sm:px-7 py-7 pb-16">
-      <FacultyQueue
-        faculty={faculty}
-        invites={invites}
-        milestones={milestones}
-        feedback={feedback}
-        settled={settled}
+      <FacultyQueueShell
+        feedback={queue.feedback}
+        invites={queue.invites}
+        load={{ ...queue.load, name: resolution.actor.user.fullName }}
+        milestones={queue.milestones}
+        settled={queue.settled}
       />
     </div>
   );

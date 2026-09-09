@@ -7,7 +7,7 @@ import { cn } from "@/lib/cn";
 import { formatDate } from "@/lib/dates";
 import { getAuthenticatedActor } from "@/auth/authenticated-actor";
 import { toApplicationActorContext } from "@/services/application.service";
-import { getAssessmentResult } from "@/services/assessment.service";
+import { AssessmentError, getAssessmentResult } from "@/services/assessment.service";
 
 export const dynamic = "force-dynamic";
 
@@ -20,7 +20,13 @@ export default async function AssessmentResultPage({
   const resolution = await getAuthenticatedActor();
   if (resolution.status !== "RESOLVED") redirect("/sign-in");
   const actor = toApplicationActorContext(resolution.actor);
-  const assessment = await getAssessmentResult(applicationId, actor);
+  let assessment: Awaited<ReturnType<typeof getAssessmentResult>>;
+  try {
+    assessment = await getAssessmentResult(applicationId, actor);
+  } catch (error) {
+    if (error instanceof AssessmentError && error.code === "FORBIDDEN") notFound();
+    throw error;
+  }
   if (!assessment) notFound();
 
   const { attempt, challenge, result } = assessment;
@@ -95,9 +101,9 @@ export default async function AssessmentResultPage({
             {result.overallBand ?? "Reviewed"}
           </span>
           <span className="text-ink-2">
-            {result.overallScore === null
-              ? "qualitative band only; no numeric score was imported"
-              : `${result.overallScore} overall score`}
+            {passed
+              ? "above the threshold for this challenge"
+              : "below the threshold for this challenge"}
           </span>
         </div>
       </div>
@@ -121,7 +127,7 @@ export default async function AssessmentResultPage({
           )}
         </div>
         <p className="text-meta text-ink-3 mt-2.5">
-          Bands, not rankings. You are not shown how you ranked against other
+          Bands, not scores. You are not shown how you ranked against other
           applicants.
         </p>
       </Section>

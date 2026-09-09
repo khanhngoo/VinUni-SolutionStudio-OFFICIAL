@@ -1,4 +1,6 @@
 import Link from "next/link";
+import type { AuthenticatedActorResolution } from "@/auth/authenticated-actor";
+import { SelectionTimeline } from "@/components/challenge/selection-timeline";
 import { Section } from "@/components/ui/section";
 import {
   challengeDeadlineKey,
@@ -10,11 +12,19 @@ import {
 import { deadlineLabel, isUrgent } from "@/lib/dates";
 
 interface MarketplaceApplyPanelProps {
+  actor: AuthenticatedActorResolution;
   challenge: MarketplaceChallengeDetailModel;
+  /**
+   * -1 before applying, which renders every node as a preview of the process
+   * rather than pretending the student has entered it.
+   */
+  timelineNodeIndex?: number;
 }
 
 export function MarketplaceApplyPanel({
+  actor,
   challenge,
+  timelineNodeIndex = -1,
 }: MarketplaceApplyPanelProps) {
   const deadline = challengeDeadlineKey(challenge);
   const urgent = isUrgent(deadline);
@@ -39,12 +49,17 @@ export function MarketplaceApplyPanel({
           </div>
 
           <div className="text-right">
-            <Link
-              href={`/challenges/${challenge.slug}/apply`}
-              className="inline-flex items-center h-10 px-5 rounded-card bg-brand text-white font-semibold hover:bg-brand-deep hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-            >
-              Apply to this challenge
-            </Link>
+            {actor.status === "NO_SESSION" ? (
+              <Link href="/sign-in" className="inline-flex items-center h-10 px-5 rounded-card bg-brand text-white font-semibold hover:bg-brand-deep hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent">
+                Sign in to apply
+              </Link>
+            ) : actor.status === "RESOLVED" && actor.actor.capabilities.has("STUDENT") ? (
+              <Link href={`/challenges/${challenge.slug}/apply`} className="inline-flex items-center h-10 px-5 rounded-card bg-brand text-white font-semibold hover:bg-brand-deep hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent">
+                Apply to this challenge
+              </Link>
+            ) : (
+              <p className="font-semibold text-ink-2">Applications are available to student accounts.</p>
+            )}
             <p className="text-meta text-ink-3 mt-2">
               Teams of {challengeSizeLabel(challenge)} ·{" "}
               {challengeWeeklyHoursLabel(challenge)} ·{" "}
@@ -56,10 +71,7 @@ export function MarketplaceApplyPanel({
 
       <Section title="Selection timeline">
         <div className="bg-card border border-line rounded-card px-5 py-6">
-          <p className="text-ink-2">
-            Application submission, assessment, offer, and workspace state are
-            still handled by the static MVP flows until Phase 5 migrates them.
-          </p>
+          <SelectionTimeline currentNodeIndex={timelineNodeIndex} />
         </div>
       </Section>
     </>

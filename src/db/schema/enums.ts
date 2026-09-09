@@ -288,3 +288,60 @@ export const resourceSensitivity = pgEnum("resource_sensitivity", [
   "CONFIDENTIAL",
   "RESTRICTED",
 ]);
+
+export const meetingKind = pgEnum("meeting_kind", [
+  "KICKOFF",
+  "WEEKLY_SYNC",
+  "SUPERVISOR_ONE_ON_ONE",
+  "MILESTONE_REVIEW",
+  "FINAL_PRESENTATION",
+]);
+
+/**
+ * A student's rough shape for one weekday. Three states, not a calendar —
+ * enough for a team to spot a shared afternoon, and little enough that a
+ * student will actually keep it current.
+ */
+export const dayAvailability = pgEnum("day_availability", [
+  "FREE",
+  "PARTLY",
+  "BUSY",
+]);
+
+/**
+ * The role a student usually plays on a team. Held in two places on purpose:
+ * here as a profile-level default, and on `application_members.preferred_role`
+ * as the commitment made for one specific application. The second is the
+ * authority whenever a team actually exists.
+ */
+export const teamRole = pgEnum("team_role", [
+  "DATA_ML",
+  "BACKEND",
+  "FRONTEND",
+  "ANALYSIS",
+  "RESEARCH",
+  "DESIGN",
+  "DOMAIN_EXPERT",
+  "COORDINATION",
+]);
+
+/**
+ * Where a course row came from. `SELF` rows carry no grade and stay out of
+ * every GPA calculation — a student may add context, never transcript facts.
+ */
+export const courseSource = pgEnum("course_source", ["REGISTRAR", "SELF"]);
+
+export const experienceKind = pgEnum("experience_kind", [
+  "INTERNSHIP",
+  "RESEARCH",
+  "TEACHING",
+  "PART_TIME",
+  "VOLUNTEERING",
+  "OTHER",
+]);
+
+export const studentWorkMode = pgEnum("student_work_mode", [
+  "ON_SITE",
+  "HYBRID",
+  "REMOTE",
+]);

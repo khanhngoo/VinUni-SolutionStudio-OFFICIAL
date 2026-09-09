@@ -1,29 +1,21 @@
-"use client";
-
-import { usePathname } from "next/navigation";
-import { FacultyNavBar } from "@/components/layout/faculty-nav-bar";
+import type { AuthenticatedPresentation } from "@/auth/authenticated-presentation";
 import { NavBar } from "@/components/layout/nav-bar";
-import { PartnerNavBar } from "@/components/layout/partner-nav-bar";
 
 /**
- * Picks which portal's header to render. Faculty and partner are separate
- * app surfaces (own auth in a real deployment) from the student marketplace,
- * so each gets its own header rather than a shared nav with role-based links.
+ * One consistent header for every route. Role-specific sections (faculty,
+ * partner, review) still live at their own routes with their own pages —
+ * they just share this chrome instead of each reimplementing a header.
  */
-export function Chrome({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname();
-
-  const header = pathname.startsWith("/faculty") ? (
-    <FacultyNavBar />
-  ) : pathname.startsWith("/partner") ? (
-    <PartnerNavBar />
-  ) : (
-    <NavBar />
-  );
-
+export function Chrome({
+  children,
+  identity,
+}: {
+  children: React.ReactNode;
+  identity: AuthenticatedPresentation | null;
+}) {
   return (
     <>
-      {header}
+      <NavBar identity={identity} />
       <main className="flex-1">{children}</main>
     </>
   );

@@ -291,7 +291,9 @@ export interface PinnedCourse {
  * three roles see three different slices. `Peer` is what a classmate sees
  * (roles and availability — enough to decide about teaming up). This adds the
  * things a partner needs to judge fit — skills, assessment band, showcased
- * courses — and still withholds GPA, transcript and any raw score.
+ * courses — and still withholds GPA and transcript. The per-brief fit score a
+ * partner sees is computed at match time from these fields; it is not stored
+ * on the student, because it is a property of a pairing rather than a person.
  */
 export interface DirectoryStudent {
   id: string;
@@ -304,7 +306,7 @@ export interface DirectoryStudent {
   roles: TeamRole[];
   hoursAvailable: number;
   weeklyAvailability: DayAvailability[];
-  /** Null when they have never sat one. Never a raw score. */
+  /** Null when they have never sat one. A band, never a percentile. */
   assessmentBand: ScoreBand | null;
   pinnedCourses: PinnedCourse[];
   /** Two live challenges is the Studio's cap — a full student can't be invited. */
@@ -318,6 +320,39 @@ export interface ApplicationDraft {
   relevantExperience: string;
   hoursPerWeek: number;
   facultySupervisorId: string;
+  /** The team is named in step one and has to survive to the server. */
+  teamName: string;
+  /** Everyone invited in step one, as user ids. They become INVITED members. */
+  invitedStudentIds: string[];
+}
+
+/**
+ * Another student, as a teammate sees them while building a team.
+ *
+ * Deliberately not a full `Student` record — a teammate never sees another
+ * student's GPA or transcript, only what bears on working together.
+ *
+ * `liveChallenges` is what makes someone a bad invite: two at once is against
+ * the Studio's own guidance, so those render unavailable rather than hidden.
+ */
+/** A supervisor with no slots left cannot take another team. */
+export function isAtCapacity(faculty: {
+  slotsTotal: number;
+  slotsUsed: number;
+}): boolean {
+  return faculty.slotsTotal > 0 && faculty.slotsUsed >= faculty.slotsTotal;
+}
+
+export interface Peer {
+  id: string;
+  name: string;
+  major: string;
+  year: number;
+  college: College;
+  roles: TeamRole[];
+  hoursAvailable: number;
+  weeklyAvailability: DayAvailability[];
+  liveChallenges: number;
 }
 
 export interface EligibilityResult {
@@ -520,6 +555,40 @@ export interface PartnerFeedback {
 export type WouldHostAgain = "Yes" | "With reservations" | "No";
 
 export type SupervisionInviteStatus = "pending" | "accepted" | "declined";
+
+/**
+ * What the student's inbox carries.
+ *
+ * Four kinds, because they ask different things of the reader: a `status` row
+ * reports something that already happened, while the two invite kinds are
+ * decisions still owed. `system` is everything the Studio says on its own
+ * behalf. Only invites are `actionable` — a row that reports a stage change has
+ * nothing to answer, and giving it buttons would imply otherwise.
+ */
+export type NotificationKind =
+  | "status"
+  | "team-invite"
+  | "partner-invite"
+  | "system";
+
+export type InboxResponse = "accepted" | "declined";
+
+export interface InboxItem {
+  id: string;
+  kind: NotificationKind;
+  title: string;
+  body: string;
+  /** ISO datetime — inbox sorts newest first and groups by day. */
+  createdAt: string;
+  read: boolean;
+  challengeId: string | null;
+  applicationId: string | null;
+  /** Where the row leads when opened. Null when there is nowhere to go. */
+  href: string | null;
+  /** True when the row is a decision, not a report. */
+  actionable: boolean;
+  orgName: string | null;
+}
 
 /**
  * A team's request that a faculty member supervise their application —

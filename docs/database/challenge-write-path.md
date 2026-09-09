@@ -223,4 +223,87 @@ Phase 4.4 verification covers:
 - durable challenge review insertion inside the transaction
 - unchanged Phase 3 compact seed counts after rollback
 
+## Pre-Phase-7 Integration Closure — Cluster D (browser integration)
+
+Date: 2026-08-25
+
+Cluster D connects the Phase 4.4 write service described above to the real
+Phase 6 authenticated actor and to a browser UI. It does not change any
+function signature, authorization rule, or lifecycle transition documented
+earlier in this file — it only adds callers.
+
+**Actor adapter.** `toChallengeWriteActorContext(actor: AuthenticatedActor)`
+(added to `src/services/challenge-write.service.ts`) maps the real Phase 6
+session actor (`@/auth/authenticated-actor`) into the existing
+`ChallengeWriteActorContext` shape, mirroring `toApplicationActorContext` in
+`src/services/application.service.ts`. The browser runtime (`/partner/post`,
+`/partner/challenges/[id]`, `/review/**`) uses this adapter exclusively;
+`getDevelopmentChallengeWriteActor` remains untouched and is used only by
+rollback verifier scripts (`scripts/verify-challenge-writes.ts`,
+`scripts/verify-partner-post-flow.ts`).
+
+**Owner/managing organization resolution.** The owner organization is never
+browser input: `/partner/post`'s server action re-resolves the actor via
+`getAuthenticatedActor()`, requires the `PARTNER_REPRESENTATIVE` capability,
+and resolves the exact owner organization through the existing
+`resolvePartnerOrganization` (`src/services/partner.service.ts`). The
+managing organization is an explicit, required form selection among real
+`INTERNAL_UNIT` organizations read from PostgreSQL
+(`listInternalUnitOrganizations` in `src/db/queries/review.ts`) — there is no
+default/automatic routing rule, and `createChallengeDraft`'s existing
+`managingOrganization.organizationType === "INTERNAL_UNIT"` check remains
+the authoritative validation. Managing organization is fixed after draft
+creation; no reassignment UI or service semantics were added.
+
+**Canonical skill authoring.** `listActiveCanonicalSkills`
+(`src/db/queries/skills.ts`) is a new UI-safe read of the frozen canonical
+taxonomy (canonical name, category name, internal id for plumbing only — no
+embeddings). The shared `SkillPicker` component
+(`src/components/challenge/skill-picker.tsx`) lets an authoring form check
+existing skills and mark each REQUIRED/PREFERRED; there is no free-text
+skill input anywhere. The selection is submitted as the existing
+`ChallengeSkillWriteInput[]` DTO shape and re-validated/normalized entirely
+by `createChallengeDraft`/`updateChallengeDraft` — the browser is never
+authoritative over canonical skill identity.
+
+**New browser surfaces.**
+
+- `/partner/post` — real challenge-authoring form, backed by
+  `createChallengeDraft`. Produces a `DRAFT` only; never auto-submits.
+- `/partner/challenges/[id]` — extended (not replaced) to add DRAFT/
+  REVISION_REQUESTED editing (`updateChallengeDraft` + skill replacement)
+  and submission (`submitChallengeForReview`), plus read-only review history
+  from `challenge_reviews`.
+- `/review` and `/review/[slug]` (new) — one generic internal-unit review
+  runtime. The queue (`src/services/review.service.ts`,
+  `src/db/queries/review.ts`) scopes strictly to the actor's own active
+  `INTERNAL_UNIT` organization memberships; the detail read is scoped by
+  `managingOrganizationId` the same way `getOwnedChallengeDetail` scopes by
+  `ownerOrganizationId` for partners, so a slug managed by an unrelated
+  internal unit resolves to `null` → `notFound()`, not a leak. Review
+  decisions (`recordChallengeReviewDecision`) and explicit publish
+  (`publishApprovedChallenge`) are separate actions; approval never
+  auto-publishes.
+
+**Authorization remains layered.** Every `/partner/post`, `/partner/
+challenges/[id]`, and `/review/**` page and server action independently
+re-resolves `getAuthenticatedActor()` and re-checks the relevant capability
+(`PARTNER_REPRESENTATIVE` or `INTERNAL_UNIT_MEMBER`) before any sensitive
+read or write — optional layout gates (`ReviewLayout`, `PartnerLayout`) are
+defense-in-depth, never the sole boundary. Resource-scoped organization
+authorization (`assertOwnerCanWrite`, `assertManagingCanWrite`) inside
+`challenge-write.service.ts` remains the sole authority for whether a given
+actor may write a given challenge.
+
+**Verification.** `scripts/verify-partner-post-flow.ts` adds the
+Cluster D-specific assertions inside one rollback transaction: explicit
+managing-unit selection with normalized `challenge_skills`, cross-unit
+review denial in both directions (CAID/E-Lab), unknown/duplicate canonical
+skill rejection with no partial writes, and the full
+submit → revision-requested → edit → resubmit lifecycle. A full Playwright
+browser run additionally exercised the same flow end-to-end and confirmed
+canonical database state matched the UI at every step; see
+`context/post-phase-6-e2e-audit-report.md`'s Cluster D section for the full
+run log.
+
 The rollback verifier leaves `challenges`, `challenge_skills`, `challenge_eligibility_rules`, `challenge_faculty_assignments`, `challenge_reviews`, applications, assessments, selections, offers, projects, and matching tables unchanged.

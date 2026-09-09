@@ -1,6 +1,6 @@
 import { Chip, type ChipVariant } from "@/components/ui/chip";
 import { cn } from "@/lib/cn";
-import { initials } from "@/lib/data/student";
+import { initials } from "@/lib/text";
 import { formatDate } from "@/lib/dates";
 import type { InviteStatus, TeamMember } from "@/lib/types";
 

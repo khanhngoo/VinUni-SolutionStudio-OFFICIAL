@@ -3,13 +3,41 @@ import { CognitiveRunner } from "@/components/assessment/cognitive-runner";
 import { TechnicalRunner } from "@/components/assessment/technical-runner";
 import { getAuthenticatedActor } from "@/auth/authenticated-actor";
 import { toApplicationActorContext } from "@/services/application.service";
-import { getAssessmentResult, getAssessmentTakingSession } from "@/services/assessment.service";
+import {
+  AssessmentError,
+  getAssessmentResult,
+  getAssessmentTakingSession,
+} from "@/services/assessment.service";
 import {
   saveAssessmentResponseForAuthenticatedActor,
   submitAssessmentForAuthenticatedActor,
 } from "../actions";
 
 export const dynamic = "force-dynamic";
+
+async function loadTakingSessionOrDeny(
+  applicationId: string,
+  actor: Parameters<typeof getAssessmentTakingSession>[1]
+) {
+  try {
+    return await getAssessmentTakingSession(applicationId, actor);
+  } catch (error) {
+    if (error instanceof AssessmentError && error.code === "FORBIDDEN") notFound();
+    throw error;
+  }
+}
+
+async function loadResultOrDeny(
+  applicationId: string,
+  actor: Parameters<typeof getAssessmentResult>[1]
+) {
+  try {
+    return await getAssessmentResult(applicationId, actor);
+  } catch (error) {
+    if (error instanceof AssessmentError && error.code === "FORBIDDEN") notFound();
+    throw error;
+  }
+}
 
 export default async function TakeAssessmentPage({
   params,
@@ -20,10 +48,10 @@ export default async function TakeAssessmentPage({
   const resolution = await getAuthenticatedActor();
   if (resolution.status !== "RESOLVED") redirect("/sign-in");
   const actor = toApplicationActorContext(resolution.actor);
-  const session = await getAssessmentTakingSession(applicationId, actor);
+  const session = await loadTakingSessionOrDeny(applicationId, actor);
 
   if (!session) {
-    const result = await getAssessmentResult(applicationId, actor);
+    const result = await loadResultOrDeny(applicationId, actor);
     if (!result) notFound();
     if (
       result.attempt?.status === "SUBMITTED" ||

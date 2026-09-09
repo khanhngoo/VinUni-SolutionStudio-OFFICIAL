@@ -1,16 +1,22 @@
 import Link from "next/link";
 import { ProgressBar } from "@/components/workspace/progress-bar";
 import { VerifiedMark } from "@/components/profile/verified-mark";
-import { initials } from "@/lib/data/student";
-import { profileStrength } from "@/lib/profile";
+import { initials } from "@/lib/text";
+import { profileStrength, type ProfileCompleteness } from "@/lib/profile";
 import { COLLEGE_NAMES, type Student } from "@/lib/types";
 
 /**
  * Identity and the facts a teammate or partner checks first. Pinned to the
  * left so they stay put while the record below scrolls.
  */
-export function ProfileRail({ student }: { student: Student }) {
-  const strength = profileStrength(student);
+export function ProfileRail({
+  student,
+  counts,
+}: {
+  student: Student;
+  counts: ProfileCompleteness;
+}) {
+  const strength = profileStrength(student, counts);
 
   return (
     <div>

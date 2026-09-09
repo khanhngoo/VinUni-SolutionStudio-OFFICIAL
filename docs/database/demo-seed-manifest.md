@@ -85,7 +85,7 @@ The compact future DEMO workflow set is:
 
 | Scenario coverage | Selected future fixture |
 |---|---|
-| Public technical challenge | `route-optimisation` |
+| Canonical public marketplace challenge | `route-optimisation` |
 | Confidential partner challenge | `merchant-churn-model` |
 | Solo application / rejected assessment outcome | `app-triage` |
 | Team application with pending invite | `app-route` |
@@ -98,7 +98,7 @@ The compact future DEMO workflow set is:
 | Partner approval workflow | `papp-depot` |
 | Internal E-Lab-managed challenge | `demo-elab-venture-readiness-dashboard` |
 
-`multimodal-perception` is not used as the public technical challenge because `org-vinai` is excluded until organization classification is explicitly approved. `route-optimisation` preserves public technical coverage through deterministic partner `org-bencang`.
+`multimodal-perception` is not used as the public technical challenge because `org-vinai` is excluded until organization classification is explicitly approved. `route-optimisation` is the canonical `PUBLIC_PREVIEW` marketplace scenario, preserving deterministic public coverage through partner `org-bencang` while CAID remains its manager.
 
 ## Organizations Selected
 
@@ -248,7 +248,7 @@ Phase 3.3 seeds the challenge-side records needed by the compact scenario spine.
 | Stable slug | Source fixture | Owner organization | Managing organization | Contact user | Visibility | Confidentiality | Status |
 |---|---|---|---|---|---|---|---|
 | `merchant-churn-model` | `merchant-churn-model` | `org:demo-bencang` | `org:caid` | `user:contact-org-bencang` | `PRIVATE` | `HIGH_CONFIDENTIALITY` | `APPLICATIONS_OPEN` |
-| `route-optimisation` | `route-optimisation` | `org:demo-bencang` | `org:caid` | `user:contact-org-bencang` | `VINUNI_ONLY` | `STANDARD` | `APPLICATIONS_OPEN` |
+| `route-optimisation` | `route-optimisation` | `org:demo-bencang` | `org:caid` | `user:contact-org-bencang` | `PUBLIC_PREVIEW` | `STANDARD` | `APPLICATIONS_OPEN` |
 | `triage-protocol-review` | `triage-protocol-review` | `org:demo-health` | `org:caid` | `user:contact-org-health` | `VINUNI_ONLY` | `STANDARD` | `APPLICATIONS_OPEN` |
 | `community-health-outreach` | `community-health-outreach` | `org:demo-vhf` | `org:caid` | `user:contact-org-vhf` | `VINUNI_ONLY` | `STANDARD` | `APPLICATIONS_OPEN` |
 | `supply-chain-dashboard` | `supply-chain-dashboard` | `org:demo-bencang` | `org:caid` | `user:contact-org-bencang` | `VINUNI_ONLY` | `STANDARD` | `APPLICATIONS_OPEN` |
@@ -256,7 +256,7 @@ Phase 3.3 seeds the challenge-side records needed by the compact scenario spine.
 | `archive-digitisation` | `archive-digitisation` | `org:demo-heritage` | `org:caid` | `user:contact-org-heritage` | `VINUNI_ONLY` | `STANDARD` | `APPLICATIONS_OPEN` |
 | `demo-elab-venture-readiness-dashboard` | synthesized DEMO | `org:elab` | `org:elab` | `user:elab-admin-dev` | `VINUNI_ONLY` | `DEMO_INTERNAL` | `APPLICATIONS_OPEN` |
 
-`APPLICATIONS_OPEN` is the Phase 3.3 marketplace-ready status for seeded DEMO challenges. Public marketplace examples are visible to VinUni users through `VINUNI_ONLY`; the confidential merchant challenge remains discoverable only through the private/confidential path represented by the seed data.
+`APPLICATIONS_OPEN` is the Phase 3.3 marketplace-ready status for seeded DEMO challenges. `route-optimisation` is the canonical non-confidential `PUBLIC_PREVIEW` example for anonymous and external-partner marketplace coverage; the remaining ordinary marketplace fixtures are `VINUNI_ONLY`. The confidential merchant challenge remains discoverable only through the private/confidential path represented by the seed data.
 
 ### Field Mapping Conventions
 
@@ -265,6 +265,8 @@ Phase 3.3 seeds the challenge-side records needed by the compact scenario spine.
 - `challenges.expected_deliverables` is a newline bullet list from static challenge responsibilities.
 - `challenges.domain` is the comma-joined static `domainTags` list.
 - `application_deadline` uses the fixture deadline at Vietnam end-of-day represented as `16:59:00.000Z`.
+- Open standalone marketplace fixtures use fixed 2027 dates (`route-optimisation`: deadline `2027-08-27`, start `2027-09-06`; E-Lab readiness dashboard: deadline `2027-09-03`, start `2027-09-13`) so reset data remains deterministic and suitable for durable E2E coverage. Runtime availability always evaluates the real server clock; the seed does not pin or derive a runtime date.
+- Fixtures with seeded applications, assessments, selections, offers, or projects retain their historical dates when that lifecycle evidence is intentional; an expired deadline is not rewritten merely to make every seeded challenge current.
 - Static `Work-study` compensation maps to `compensation_type = OTHER` with `compensation_description = Work-study`.
 - Static `applicantCount`, `lockedBlocks`, assessment track/minutes, and interview format remain derived, deferred, or presentation-only and are not persisted in Phase 3.3.
 
@@ -471,7 +473,7 @@ Phase 3.7 seeds only selected-application, durable offer, and individual agreeme
 
 | Application | Challenge | Source | `selected_by` | `selected_at` | Offer status | `respond_by` | `responded_by` | `responded_at` | Hours/week | Duration | Start date | NDA required |
 |---|---|---|---|---|---|---|---|---|---:|---:|---|---|
-| `app-route` | `route-optimisation` | `DIRECT_FIXTURE` | `user:contact-org-bencang` | `2026-07-26T08:00:00Z` | `PENDING` | `2026-07-28T16:00:00Z` | `NULL` | `NULL` | 10 | 10 | `2026-08-17` | true |
+| `app-route` | `route-optimisation` | `DIRECT_FIXTURE` | `user:contact-org-bencang` | `2026-07-26T08:00:00Z` | `PENDING` | `2027-07-28T16:00:00Z` | `NULL` | `NULL` | 10 | 10 | `2027-08-17` | true |
 | `app-supply` | `supply-chain-dashboard` | `DIRECT_FIXTURE` | `user:contact-org-bencang` | `2026-06-18T08:00:00Z` | `ACCEPTED` | `2026-06-21T12:00:00Z` | `user:stu-jordan-lee` | `2026-06-20T10:00:00Z` | 12 | 12 | `2026-06-22` | true |
 | `app-energy` | `campus-energy-audit` | `DIRECT_FIXTURE` | `user:contact-org-facilities` | `2026-04-05T08:00:00Z` | `ACCEPTED` | `2026-04-08T12:00:00Z` | `user:stu-jordan-lee` | `2026-04-07T10:00:00Z` | 6 | 14 | `2026-04-13` | false |
 | `app-archive` | `archive-digitisation` | `DIRECT_FIXTURE` | `user:contact-org-heritage` | `2025-12-18T08:00:00Z` | `ACCEPTED` | `2025-12-21T12:00:00Z` | `user:stu-jordan-lee` | `2025-12-20T10:00:00Z` | 6 | 16 | `2026-01-12` | false |
@@ -483,6 +485,8 @@ Offer response rules:
 - Accepted offers use `responded_by` = the accepted application leader.
 - External partner selections use the deterministic partner contact where available instead of defaulting every `selected_by` to CAID.
 - Offer expiration remains derived from `offers.status = PENDING` plus `respond_by`; no `EXPIRED` status is stored.
+- The `app-route` offer is the one canonical **live** PENDING scenario, kept open on purpose for durable E2E coverage. Its `respond_by`/`start_date` are fixed deterministic dates chosen far enough in the future (currently one calendar year past their original values) that they do not derive `EXPIRED` against the real server clock; they are not computed from `Date.now()` at seed time. `selected_at`/`created_at` remain historical issuance timestamps. All other offers are historical/terminal (`ACCEPTED`) and intentionally retain their original historical dates — an expired lifecycle record is not rewritten merely to look current. This mirrors the standalone-challenge convention above: open/live demo records use fixed future dates; historical lifecycle evidence stays historical.
+- Offer terms (`hours_per_week`, `duration`, `start_date`, compensation, NDA requirement) are independent negotiated snapshots and are not derived from the current challenge posting — see the table above, where every offer's hours/duration/start date differs from its own challenge's listed values. Realigning a pending offer's terms to a challenge's current posting is not required by, and must not be inferred from, temporal-coherence fixes; only forward-looking scheduling fields (`respond_by`, and `start_date` for the one live pending scenario) need to stay in the future.
 
 ### Agreement Mapping
 

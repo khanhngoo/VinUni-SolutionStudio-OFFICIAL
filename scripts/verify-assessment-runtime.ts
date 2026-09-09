@@ -23,6 +23,7 @@ import {
   encodeQuestionKey,
   getAssessmentPreflight,
   getAssessmentResult,
+  getAssessmentTakingSession,
   getDevelopmentAssessmentActor,
   saveAssessmentResponse,
   startAssessmentAttempt,
@@ -80,6 +81,29 @@ async function main() {
         "FORBIDDEN",
         () => getAssessmentPreflight(DISPOSABLE_APP, hoang, { database: tx }),
         "wrong member access should be forbidden"
+      );
+
+      // Route-boundary regression: the /assessment/[applicationId]/result page
+      // (and its sibling /assessment/[applicationId] preflight page) both map
+      // this same AssessmentError code to notFound(); this proves the service
+      // layer still raises the FORBIDDEN code they key off of. See
+      // context/post-phase-6-e2e-audit-report.md for the Playwright coverage
+      // of the actual route boundary (result page 404 vs. 500).
+      await expectAssessmentError(
+        "FORBIDDEN",
+        () => getAssessmentResult(DISPOSABLE_APP, hoang, { database: tx }),
+        "wrong member access to assessment result should be forbidden"
+      );
+
+      // Route-boundary regression: /assessment/[applicationId]/take calls both
+      // getAssessmentTakingSession and getAssessmentResult; this proves the
+      // taking-session call also raises the same FORBIDDEN code the route
+      // maps to notFound(). See context/post-phase-6-e2e-audit-report.md for
+      // the Playwright coverage of the actual take-route boundary.
+      await expectAssessmentError(
+        "FORBIDDEN",
+        () => getAssessmentTakingSession(DISPOSABLE_APP, hoang, { database: tx }),
+        "wrong member access to assessment taking session should be forbidden"
       );
 
       const started = await startAssessmentAttempt(DISPOSABLE_APP, bao, {

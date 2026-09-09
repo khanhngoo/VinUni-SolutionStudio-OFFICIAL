@@ -3,36 +3,40 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { ConfirmDeclineDialog } from "@/components/faculty/confirm-decline-dialog";
-import { FeedbackDialog } from "@/components/faculty/feedback-dialog";
 import { RequestChangesDialog } from "@/components/faculty/request-changes-dialog";
 import { Chip } from "@/components/ui/chip";
 import { cn } from "@/lib/cn";
 import { formatDate } from "@/lib/dates";
-import { teamSize } from "@/lib/teams";
-import type { ApplicationWithChallenge } from "@/lib/queries";
 import type {
+  FacultyLoad,
   FeedbackQueueItem,
   InviteQueueItem,
   MilestoneQueueItem,
-} from "@/lib/supervision";
-import type { Faculty } from "@/lib/types";
+  SettledSupervision,
+} from "@/lib/faculty-queue";
 
 type ItemKind = "invite" | "milestone" | "feedback";
 
 interface FacultyQueueProps {
-  faculty: Faculty;
+  faculty: FacultyLoad;
   invites: InviteQueueItem[];
   milestones: MilestoneQueueItem[];
   feedback: FeedbackQueueItem[];
   /** Supervised teams with nothing outstanding — the only way to reach them. */
-  settled: ApplicationWithChallenge[];
+  settled: SettledSupervision[];
+  onAcceptInvite?: (requestId: string) => Promise<string | null>;
+  onDeclineInvite?: (requestId: string) => Promise<string | null>;
+  onApproveMilestone?: (milestoneId: string) => Promise<string | null>;
+  onRequestChanges?: (milestoneId: string, comments: string) => Promise<string | null>;
 }
 
 /**
- * All state here is local. There is no persistence layer, so accepting,
- * approving or writing feedback updates this screen only — reloading returns
- * the queue to its seeded state, the same way the student's offer and
- * deliverable flows behave.
+ * Accepting, declining, approving and requesting changes all write. The row
+ * disappears optimistically and the handler's error message brings it back,
+ * so the common case has no spinner and a failure is still visible.
+ *
+ * Writing feedback does not persist yet: there is no close-out mutation, so
+ * that row stays put and says so rather than pretending.
  */
 export function FacultyQueue({
   faculty,
@@ -40,13 +44,19 @@ export function FacultyQueue({
   milestones: initialMilestones,
   feedback: initialFeedback,
   settled,
+  onAcceptInvite,
+  onDeclineInvite,
+  onApproveMilestone,
+  onRequestChanges,
 }: FacultyQueueProps) {
   const [invites, setInvites] = useState(initialInvites);
   const [milestones, setMilestones] = useState(initialMilestones);
-  const [feedback, setFeedback] = useState(initialFeedback);
+  // Feedback rows cannot be resolved from here yet, so this list never changes.
+  const feedback = initialFeedback;
   // Accepting a supervision consumes a slot, so the load bar has to move with
   // it — otherwise it keeps reporting the seeded number all session.
   const [slotsUsed, setSlotsUsed] = useState(faculty.slotsUsed);
+  const [error, setError] = useState<string | null>(null);
 
   const [typeFilter, setTypeFilter] = useState<Record<ItemKind, boolean>>({
     invite: true,
@@ -55,12 +65,12 @@ export function FacultyQueue({
   });
   const [teamFilter, setTeamFilter] = useState<Set<string>>(new Set());
 
-  const atCapacity = slotsUsed >= faculty.slotsTotal;
+  const atCapacity = faculty.slotsTotal > 0 && slotsUsed >= faculty.slotsTotal;
 
   const teams = useMemo(() => {
     const seen = new Map<string, string>();
-    for (const { application, challenge } of [...invites, ...milestones, ...feedback]) {
-      seen.set(application.id, challenge.title);
+    for (const item of [...invites, ...milestones, ...feedback]) {
+      seen.set(item.applicationPublicId, item.challengeTitle);
     }
     return [...seen.entries()];
   }, [invites, milestones, feedback]);
@@ -82,13 +92,16 @@ export function FacultyQueue({
       ...(typeFilter.milestone ? milestones : []),
       ...(typeFilter.feedback ? feedback : []),
     ].filter(
-      (item) => teamFilter.size === 0 || teamFilter.has(item.application.id),
+      (item) => teamFilter.size === 0 || teamFilter.has(item.applicationPublicId),
     );
 
     return items.sort((a, b) => a.daysLeft - b.daysLeft);
   }, [invites, milestones, feedback, typeFilter, teamFilter]);
 
-  const slotsPct = Math.round((slotsUsed / faculty.slotsTotal) * 100);
+  const slotsPct =
+    faculty.slotsTotal > 0
+      ? Math.round((slotsUsed / faculty.slotsTotal) * 100)
+      : 0;
 
   return (
     <div className="flex flex-col sm:flex-row gap-8">
@@ -168,25 +181,43 @@ export function FacultyQueue({
           </span>
         </div>
 
+        {error ? (
+          <div
+            role="alert"
+            className="mb-3 rounded-card border border-warn/35 bg-warn-soft px-4 py-3 text-ink-2"
+          >
+            {error}
+          </div>
+        ) : null}
+
         <div className="flex flex-col gap-2.5">
           {rows.map((item) => {
             if (item.kind === "invite") {
               return (
                 <InviteRow
-                  key={item.invite.id}
+                  key={item.requestId}
                   item={item}
                   atCapacity={atCapacity}
-                  onAccept={() => {
-                    setSlotsUsed((n) => Math.min(n + 1, faculty.slotsTotal));
-                    setInvites((prev) =>
-                      prev.filter((i) => i.invite.id !== item.invite.id),
-                    );
+                  onAccept={async () => {
+                    setError(null);
+                    setSlotsUsed((n) => n + 1);
+                    setInvites((prev) => prev.filter((i) => i.requestId !== item.requestId));
+                    const message = await onAcceptInvite?.(item.requestId);
+                    if (message) {
+                      setError(message);
+                      setSlotsUsed((n) => Math.max(n - 1, 0));
+                      setInvites((prev) => [...prev, item]);
+                    }
                   }}
-                  onDecline={() =>
-                    setInvites((prev) =>
-                      prev.filter((i) => i.invite.id !== item.invite.id),
-                    )
-                  }
+                  onDecline={async () => {
+                    setError(null);
+                    setInvites((prev) => prev.filter((i) => i.requestId !== item.requestId));
+                    const message = await onDeclineInvite?.(item.requestId);
+                    if (message) {
+                      setError(message);
+                      setInvites((prev) => [...prev, item]);
+                    }
+                  }}
                 />
               );
             }
@@ -194,31 +225,56 @@ export function FacultyQueue({
             if (item.kind === "milestone") {
               return (
                 <MilestoneRow
-                  key={item.milestone.id}
+                  key={item.milestoneId}
                   item={item}
-                  onResolve={() =>
+                  onApprove={async () => {
+                    setError(null);
                     setMilestones((prev) =>
                       prev.map((m) =>
-                        m.milestone.id === item.milestone.id
+                        m.milestoneId === item.milestoneId
                           ? { ...m, actionNeeded: false }
                           : m,
                       ),
-                    )
-                  }
+                    );
+                    const message = await onApproveMilestone?.(item.milestoneId);
+                    if (message) {
+                      setError(message);
+                      setMilestones((prev) =>
+                        prev.map((m) =>
+                          m.milestoneId === item.milestoneId
+                            ? { ...m, actionNeeded: true }
+                            : m,
+                        ),
+                      );
+                    }
+                  }}
+                  onRequestChanges={async (comments) => {
+                    setError(null);
+                    setMilestones((prev) =>
+                      prev.map((m) =>
+                        m.milestoneId === item.milestoneId
+                          ? { ...m, actionNeeded: false }
+                          : m,
+                      ),
+                    );
+                    const message = await onRequestChanges?.(item.milestoneId, comments);
+                    if (message) {
+                      setError(message);
+                      setMilestones((prev) =>
+                        prev.map((m) =>
+                          m.milestoneId === item.milestoneId
+                            ? { ...m, actionNeeded: true }
+                            : m,
+                        ),
+                      );
+                    }
+                  }}
                 />
               );
             }
 
             return (
-              <FeedbackRow
-                key={item.application.id}
-                item={item}
-                onSubmitted={() =>
-                  setFeedback((prev) =>
-                    prev.filter((f) => f.application.id !== item.application.id),
-                  )
-                }
-              />
+              <FeedbackRow key={item.applicationPublicId} item={item} />
             );
           })}
 
@@ -239,14 +295,14 @@ export function FacultyQueue({
               <span aria-hidden="true" className="flex-1 h-px bg-line" />
             </div>
             <div className="flex flex-wrap gap-2">
-              {settled.map(({ application, challenge }) => (
+              {settled.map((row) => (
                 <Link
-                  key={application.id}
-                  href={`/faculty/${application.id}`}
+                  key={row.applicationPublicId}
+                  href={`/faculty/${row.applicationPublicId}`}
                   className="text-ink-3 hover:text-brand"
                 >
                   <Chip variant="outline-dashed">
-                    {challenge.title} · {application.team.name}
+                    {row.challengeTitle} · {row.teamName}
                   </Chip>
                 </Link>
               ))}
@@ -330,19 +386,20 @@ function InviteRow({
   onAccept: () => void;
   onDecline: () => void;
 }) {
-  const { application, challenge, daysLeft } = item;
+  const { challengeTitle, daysLeft, teamName } = item;
   const [declineOpen, setDeclineOpen] = useState(false);
 
   return (
     <>
       <QueueCard
         chip={<Chip>Invitation</Chip>}
-        title={challenge.title}
-        href={`/faculty/${application.id}`}
+        title={challengeTitle}
+        href={`/faculty/${item.applicationPublicId}`}
         meta={
           <>
-            Team of {teamSize(application.team)} · {challenge.colleges.join(", ")} ·{" "}
-            {challenge.durationWeeks} wks · {challenge.hoursPerWeek} h/wk ·{" "}
+            Team of {item.teamSize}
+            {item.colleges.length > 0 ? ` · ${item.colleges.join(", ")}` : ""} ·{" "}
+            {item.durationWeeks ?? "—"} wks · {item.hoursPerWeek ?? "—"} h/wk ·{" "}
             <span className={daysLeft <= 2 ? "text-warn font-medium" : undefined}>
               {daysLeft <= 0
                 ? "expires today"
@@ -377,8 +434,8 @@ function InviteRow({
       />
       <ConfirmDeclineDialog
         open={declineOpen}
-        challengeTitle={challenge.title}
-        teamName={application.team.name}
+        challengeTitle={challengeTitle}
+        teamName={teamName}
         onCancel={() => setDeclineOpen(false)}
         onConfirm={() => {
           setDeclineOpen(false);
@@ -391,25 +448,28 @@ function InviteRow({
 
 function MilestoneRow({
   item,
-  onResolve,
+  onApprove,
+  onRequestChanges,
 }: {
   item: MilestoneQueueItem;
-  onResolve: () => void;
+  onApprove: () => void;
+  onRequestChanges: (comments: string) => void;
 }) {
-  const { milestone, application, challenge, actionNeeded, daysLeft } = item;
+  const { actionNeeded, challengeTitle, daysLeft } = item;
   const [dialogOpen, setDialogOpen] = useState(false);
 
   return (
     <>
       <QueueCard
         chip={<Chip variant="warn">Milestone</Chip>}
-        title={`${challenge.title} — ${milestone.title}`}
-        href={`/faculty/${application.id}`}
+        title={`${challengeTitle} — ${item.milestoneTitle}`}
+        href={`/faculty/${item.applicationPublicId}`}
         dimmed={!actionNeeded}
         meta={
           actionNeeded ? (
             <>
-              {milestone.deliverable} · due {formatDate(milestone.dueDate)}
+              {item.deliverable}
+              {item.dueDate ? ` · due ${formatDate(item.dueDate)}` : ""}
               {daysLeft < 0 ? (
                 <span className="text-warn font-medium">
                   {" "}
@@ -417,7 +477,7 @@ function MilestoneRow({
                 </span>
               ) : null}{" "}
               · partner sign-off:{" "}
-              {milestone.posterApproved ? "approved" : "pending"}
+              {item.partnerApproved ? "approved" : "pending"}
             </>
           ) : (
             "You approved this · waiting on the partner"
@@ -435,7 +495,7 @@ function MilestoneRow({
               </button>
               <button
                 type="button"
-                onClick={onResolve}
+                onClick={onApprove}
                 className="h-8 px-3.5 rounded-card bg-brand text-white font-semibold hover:bg-brand-deep"
               >
                 Approve
@@ -446,53 +506,39 @@ function MilestoneRow({
       />
       <RequestChangesDialog
         open={dialogOpen}
-        milestoneTitle={milestone.title}
+        milestoneTitle={item.milestoneTitle}
         onCancel={() => setDialogOpen(false)}
-        onSubmit={() => {
+        onSubmit={(comments) => {
           setDialogOpen(false);
-          onResolve();
+          onRequestChanges(comments);
         }}
       />
     </>
   );
 }
 
-function FeedbackRow({
-  item,
-  onSubmitted,
-}: {
-  item: FeedbackQueueItem;
-  onSubmitted: () => void;
-}) {
-  const { application, challenge, daysLeft } = item;
-  const [dialogOpen, setDialogOpen] = useState(false);
+function FeedbackRow({ item }: { item: FeedbackQueueItem }) {
+  const { challengeTitle, daysLeft } = item;
 
   return (
-    <>
-      <QueueCard
-        chip={<Chip variant="accent">Feedback due</Chip>}
-        title={challenge.title}
-        href={`/faculty/${application.id}`}
-        meta={`Completed ${formatDate(application.stageEnteredAt)} · ${Math.abs(
-          daysLeft,
-        )} days without a review`}
-        actions={
-          <button
-            type="button"
-            onClick={() => setDialogOpen(true)}
-            className="h-8 px-3.5 rounded-card bg-brand text-white font-semibold hover:bg-brand-deep"
-          >
-            Write feedback
-          </button>
-        }
-      />
-      <FeedbackDialog
-        open={dialogOpen}
-        challengeTitle={challenge.title}
-        teamName={application.team.name}
-        onClose={() => setDialogOpen(false)}
-        onSubmitted={onSubmitted}
-      />
-    </>
+    <QueueCard
+      chip={<Chip variant="accent">Feedback due</Chip>}
+      title={challengeTitle}
+      href={`/faculty/${item.applicationPublicId}`}
+      meta={`${item.teamName} · ${Math.abs(daysLeft)} days without a closing review`}
+      actions={
+        // Closing feedback has no mutation behind it yet. The row still earns
+        // its place -- it is a real obligation -- but the button is disabled
+        // rather than accepting a note it would silently drop.
+        <button
+          type="button"
+          disabled
+          title="Written feedback is not yet stored"
+          className="h-8 px-3.5 rounded-card border border-line text-ink-3 font-semibold disabled:opacity-60"
+        >
+          Write feedback
+        </button>
+      }
+    />
   );
 }

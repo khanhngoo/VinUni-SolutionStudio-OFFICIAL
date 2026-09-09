@@ -41,7 +41,8 @@ async function main() {
 
       const route = await getOfferDetail(APP_ROUTE, jordan, { database: tx, now: now() });
       assert(route?.offer.status === "PENDING", "app-route must remain the pending offer scenario");
-      assert(route.offer.isExpired, "app-route expiration should be derived from respond_by");
+      assert(!route.offer.isExpired, "canonical live app-route offer must stay unexpired against the fixed verification clock");
+      assert(route.canRespond, "accepted leader must be able to respond to the live app-route offer");
 
       const supply = await getOfferDetail(APP_SUPPLY, jordan, { database: tx, now: now() });
       assert(supply?.offer.status === "ACCEPTED", "accepted historical offer should render");

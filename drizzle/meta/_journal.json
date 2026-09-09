@@ -8,6 +8,41 @@
       "when": 1786814911814,
       "tag": "0000_empty_gladiator",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1787674425830,
+      "tag": "0001_common_mauler",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1787675405787,
+      "tag": "0002_colossal_energizer",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1787677789148,
+      "tag": "0003_warm_guardian",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1788519829754,
+      "tag": "0004_funny_microchip",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1788684218980,
+      "tag": "0005_self_service_credentials",
+      "breakpoints": true
     }
   ]
 }

@@ -1,4 +1,4 @@
-import { DAY_NAMES } from "@/lib/profile";
+import { DAY_NAMES } from "@/lib/text";
 import type { Challenge, Team, TeamMember, TeamRole } from "@/lib/types";
 
 /**
@@ -28,6 +28,55 @@ export function declinedMembers(team: Team): TeamMember[] {
 
 export function teamSize(team: Team): number {
   return confirmedMembers(team).length;
+}
+
+/**
+ * The roster as it would stand with these invitations out.
+ *
+ * Returns a new team rather than mutating, so the wizard can hold a list of
+ * invited ids as its state and let every existing derivation — readiness,
+ * hours, shared days — run over the result unchanged.
+ */
+export function withInvites(
+  base: Team,
+  name: string,
+  invitees: InviteeSeed[],
+  invitedAt: string,
+): Team {
+  const taken = new Set(base.members.map((m) => m.studentId));
+
+  return {
+    name,
+    members: [
+      ...base.members,
+      ...invitees
+        .filter((peer) => !taken.has(peer.id))
+        .map<TeamMember>((peer) => ({
+          studentId: peer.id,
+          name: peer.name,
+          major: peer.major,
+          year: peer.year,
+          college: peer.college,
+          role: peer.roles[0] ?? "Analysis",
+          hoursAvailable: peer.hoursAvailable,
+          weeklyAvailability: peer.weeklyAvailability,
+          status: "invited",
+          invitedAt,
+        })),
+    ],
+  };
+}
+
+/** The fields `withInvites` needs — satisfied by `Peer`. */
+export interface InviteeSeed {
+  id: string;
+  name: string;
+  major: string;
+  year: number;
+  college: TeamMember["college"];
+  roles: TeamRole[];
+  hoursAvailable: number;
+  weeklyAvailability: TeamMember["weeklyAvailability"];
 }
 
 export function sizeLabel(challenge: Challenge): string {

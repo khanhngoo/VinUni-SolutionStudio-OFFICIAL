@@ -1,4 +1,3 @@
-import { directoryStudents } from "@/lib/data/directory";
 import type { Challenge, DirectoryStudent, ScoreBand } from "@/lib/types";
 
 /**
@@ -9,13 +8,15 @@ import type { Challenge, DirectoryStudent, ScoreBand } from "@/lib/types";
  * the shape a real implementation would need anyway: whatever ranks the list,
  * the UI still has to explain itself.
  *
- * Two rules the output obeys, both inherited from the student side:
+ * Two rules the output obeys:
  *
- *  - No numeric score reaches the screen. `fitBand` is the same `ScoreBand`
- *    vocabulary students see of their own assessments (PRD §8.5), so a partner
- *    cannot build a league table out of people.
+ *  - The score is per-brief and says so. It reaches the screen alongside
+ *    `fitBand` — the same `ScoreBand` vocabulary students see of their own
+ *    assessments (PRD §8.5) — but it is one student against one challenge, not
+ *    a standing rank, and no surface sorts people across briefs by it.
  *  - Reasons are sentences about the brief, not feature weights. A partner
- *    deciding about a person deserves a claim they can disagree with.
+ *    deciding about a person deserves a claim they can disagree with, and a
+ *    number with no reasons under it is not one.
  */
 
 /** How many the deck holds. The partner asked for a shortlist, not a database. */
@@ -30,7 +31,11 @@ export interface Recommendation {
   caveats: string[];
   matchedSkills: string[];
   missingSkills: string[];
-  /** Internal only. Orders the deck; never rendered. */
+  /**
+   * Orders the deck, and rendered on the card. A weighted sum rather than a
+   * percentage — it can exceed 100 or go negative, so every render path runs it
+   * through `clampScore`.
+   */
   score: number;
 }
 
@@ -207,11 +212,20 @@ export function scoreStudent(
  * still renders the "at capacity" state and disables the invite, which is what
  * a partner needs on the rare deck where someone unavailable does place.
  */
+/**
+ * Ranks a directory against one brief.
+ *
+ * The directory arrives as an argument rather than being read here, so the
+ * privacy scope stays a decision of the query that built it — a partner sees
+ * pinned courses and no transcript — and the ranking itself stays pure and
+ * testable.
+ */
 export function recommendationsFor(
+  students: DirectoryStudent[],
   challenge: Challenge,
   limit: number = DECK_SIZE,
 ): Recommendation[] {
-  return directoryStudents
+  return students
     .map((student) => scoreStudent(student, challenge))
     .sort((a, b) => b.score - a.score)
     .slice(0, limit);

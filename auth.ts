@@ -3,6 +3,11 @@ import Credentials from "next-auth/providers/credentials";
 import MicrosoftEntraID from "next-auth/providers/microsoft-entra-id";
 
 import { getDevelopmentIdentity, isDevelopmentAuthenticationEnabled } from "@/auth/development-identities";
+import {
+  authenticateSelfServiceCredentials,
+  isSelfServiceAuthenticationEnabled,
+  SELF_SERVICE_PROVIDER_ID,
+} from "@/auth/self-service-authentication";
 
 const entraEnvironment = {
   clientId: process.env.AUTH_MICROSOFT_ENTRA_ID_ID,
@@ -12,9 +17,13 @@ const entraEnvironment = {
 
 export function getProductionEntraConfigurationError(environment = process.env.NODE_ENV): string | null {
   if (environment !== "production") return null;
-  return Object.values(entraEnvironment).every(Boolean)
+  return isMicrosoftEntraAuthenticationConfigured()
     ? null
     : "Microsoft Entra ID is not configured. Set AUTH_MICROSOFT_ENTRA_ID_ID, AUTH_MICROSOFT_ENTRA_ID_SECRET, and a tenant-specific AUTH_MICROSOFT_ENTRA_ID_ISSUER.";
+}
+
+export function isMicrosoftEntraAuthenticationConfigured() {
+  return Object.values(entraEnvironment).every(Boolean);
 }
 
 const providers = [];
@@ -34,7 +43,33 @@ if (isDevelopmentAuthenticationEnabled()) {
   );
 }
 
-if (!getProductionEntraConfigurationError()) {
+if (isSelfServiceAuthenticationEnabled()) {
+  providers.push(
+    Credentials({
+      id: SELF_SERVICE_PROVIDER_ID,
+      name: "Email and password",
+      credentials: {
+        email: { label: "Email", type: "email" },
+        password: { label: "Password", type: "password" },
+      },
+      async authorize(credentials) {
+        const identity = await authenticateSelfServiceCredentials(
+          credentials?.email,
+          credentials?.password
+        );
+        return identity
+          ? {
+              email: identity.email,
+              id: identity.userId.toString(),
+              name: identity.fullName,
+            }
+          : null;
+      },
+    })
+  );
+}
+
+if (isMicrosoftEntraAuthenticationConfigured()) {
   providers.push(
     MicrosoftEntraID({
       clientId: entraEnvironment.clientId,

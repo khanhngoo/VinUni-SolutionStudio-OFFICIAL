@@ -1,0 +1,1 @@
+ALTER TABLE "challenges" ADD COLUMN "full_brief" text;

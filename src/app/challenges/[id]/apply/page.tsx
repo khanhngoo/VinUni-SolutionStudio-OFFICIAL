@@ -1,180 +1,142 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
-import { InvitePicker } from "@/components/team/invite-picker";
-import { MemberRow } from "@/components/team/member-row";
-import { TeamFit } from "@/components/team/team-fit";
-import { Chip } from "@/components/ui/chip";
-import { Section } from "@/components/ui/section";
-import { cn } from "@/lib/cn";
-import { peers } from "@/lib/data/peers";
-import { currentStudent } from "@/lib/data/student";
-import { lastMileTeam } from "@/lib/data/teams";
+import { notFound, redirect } from "next/navigation";
+
 import {
-  canAddMore,
-  sizeLabel,
-  teamReadiness,
-  teamSize,
-} from "@/lib/teams";
-import { getAllChallengeIds, getChallengeById } from "@/lib/queries";
+  getAuthenticatedActor,
+  hasActorCapability,
+} from "@/auth/authenticated-actor";
+import { Section } from "@/components/ui/section";
+import { db } from "@/db";
+import {
+  getStudentTeamProfile,
+  listFacultyOptions,
+  listInvitablePeers,
+} from "@/db/queries/students";
+import {
+  soloTeamFor,
+  toApplyChallenge,
+  toCollege,
+  toFaculty,
+  toPeer,
+  toTeamRole,
+  toWeek,
+} from "@/lib/apply-view";
+import { marketplaceContextForActor } from "@/lib/challenge-marketplace";
+import {
+  getMyApplicationForChallenge,
+  toApplicationActorContext,
+} from "@/services/application.service";
+import { getMarketplaceChallengeBySlug } from "@/services/challenge.service";
 
-export function generateStaticParams() {
-  return getAllChallengeIds().map((id) => ({ id }));
-}
+import { ApplyWizardShell } from "./wizard-shell";
 
-const STEPS = ["Your team", "Motivation", "Supervisor", "Review"];
+export const dynamic = "force-dynamic";
 
 /**
- * Step one of applying. Teams are per-application, so this is where one gets
- * assembled — and nothing downstream can start until the roster is legal and
- * every invitation has been answered.
+ * Applying, in four steps: team, motivation, supervisor, review.
  *
- * The roster shown is the seeded example; there is no persistence layer, so
- * invitations sent here are session-only.
+ * A server shell over a client wizard — the page resolves the challenge, the
+ * invitable peers and the faculty options, and the wizard owns the draft, since
+ * a form spread over four screens has to keep its answers somewhere.
+ *
+ * The roster starts as a team of one. That is the honest starting point: the
+ * applicant is the leader, and everyone else arrives by invitation and has to
+ * accept before the team is final.
  */
 export default async function ApplyPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const { id } = await params;
-  const challenge = getChallengeById(id);
+  const { id: slug } = await params;
+  const resolution = await getAuthenticatedActor();
+  if (resolution.status !== "RESOLVED") redirect("/sign-in");
+  if (!hasActorCapability(resolution.actor, "STUDENT")) notFound();
+
+  const challenge = await getMarketplaceChallengeBySlug(
+    slug,
+    marketplaceContextForActor(resolution.actor)
+  );
   if (!challenge) notFound();
 
-  const team = lastMileTeam;
-  const readiness = teamReadiness(team, challenge);
-  const takenIds = team.members.map((m) => m.studentId);
+  const actor = toApplicationActorContext(resolution.actor);
+  const existing = await getMyApplicationForChallenge(challenge.slug, actor);
+
+  const viewerId = resolution.actor.user.userId;
+  const [peerRows, facultyRows, teamProfile] = await Promise.all([
+    listInvitablePeers(db, viewerId),
+    listFacultyOptions(db),
+    getStudentTeamProfile(db, viewerId),
+  ]);
+
+  const applyChallenge = toApplyChallenge(challenge);
+  const leaderName = resolution.actor.user.fullName;
+
+  // The leader row is the applicant's real profile. Their first stated role is
+  // the team role they arrive with; with none stated, Coordination is the
+  // honest default for whoever is leading.
+  const leaderRole = toTeamRole(teamProfile?.roles[0] ?? "") ?? "Coordination";
+
+  const baseTeam = soloTeamFor({
+    college: toCollege(teamProfile?.school),
+    hoursAvailable: teamProfile?.hoursAvailable ?? 0,
+    major: teamProfile?.major ?? "—",
+    name: leaderName,
+    role: leaderRole,
+    studentId: String(viewerId),
+    teamName: `${leaderName.split(" ")[0]}'s team`,
+    weeklyAvailability: toWeek(teamProfile?.weeklyAvailability),
+    year: teamProfile?.studyYear ?? 0,
+  });
 
   return (
     <article className="max-w-[820px] mx-auto px-6 sm:px-7 py-7 pb-16">
       <nav className="text-meta text-ink-3">
         <Link href="/challenges">Challenges</Link>
         <span className="mx-1.5">›</span>
-        <Link href={`/challenges/${challenge.id}`}>{challenge.title}</Link>
+        <Link href={`/challenges/${challenge.slug}`}>{challenge.title}</Link>
         <span className="mx-1.5">›</span>
         Apply
       </nav>
 
-      <ol className="flex items-center flex-wrap gap-x-2 gap-y-2 mt-4">
-        {STEPS.map((step, i) => (
-          <li key={step} className="flex items-center gap-2">
-            <span
-              className={cn(
-                "w-[18px] h-[18px] rounded-full grid place-items-center text-[10px] font-semibold",
-                i === 0
-                  ? "bg-brand text-white"
-                  : "border border-line text-ink-3",
-              )}
-            >
-              {i + 1}
-            </span>
-            <span
-              className={cn(
-                "text-meta",
-                i === 0 ? "text-ink font-semibold" : "text-ink-3",
-              )}
-            >
-              {step}
-            </span>
-            {i < STEPS.length - 1 ? (
-              <span aria-hidden="true" className="w-5 h-px bg-line mx-1" />
-            ) : null}
-          </li>
-        ))}
-      </ol>
-
-      <h1 className="mt-5">Form your team</h1>
-      <p className="text-ink-2 mt-2">
-        {challenge.orgName ?? challenge.orgCategory} asks for{" "}
-        <strong className="text-ink font-semibold">
-          {sizeLabel(challenge)} students
-        </strong>{" "}
-        at {challenge.hoursPerWeek} h/wk for {challenge.durationWeeks} weeks.
-      </p>
-
-      <Section title="Team">
-        <div className="bg-card border border-line rounded-card p-5">
-          <div className="flex flex-wrap gap-4">
-            <div className="flex-1 min-w-[220px]">
-              <label
-                htmlFor="team-name"
-                className="text-meta text-ink-3 uppercase tracking-[0.07em]"
+      {existing ? (
+        <>
+          <h1 className="mt-5">Apply to {challenge.title}</h1>
+          <Section title="Application already submitted">
+            <div className="bg-card border border-line rounded-card p-5">
+              <p className="font-semibold text-ink">
+                You are already part of this application.
+              </p>
+              <p className="text-ink-2 mt-1.5">
+                Status: {existing.status.replaceAll("_", " ")}
+                {existing.teamName ? ` · Team ${existing.teamName}` : ""}
+              </p>
+              <p className="text-meta text-ink-3 mt-3">
+                A second application cannot be submitted while this one is active.
+              </p>
+              <Link
+                className="inline-block font-semibold mt-4"
+                href={`/applications/${existing.publicId}`}
               >
-                Team name
-              </label>
-              <input
-                id="team-name"
-                defaultValue={team.name}
-                className="w-full h-9 mt-1.5 px-3 rounded-card border border-line bg-card text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-              />
+                View application →
+              </Link>
             </div>
-            <div className="w-[150px]">
-              <p className="text-meta text-ink-3 uppercase tracking-[0.07em]">
-                Size
-              </p>
-              <p className="mt-1.5 h-9 flex items-center font-semibold text-ink">
-                {teamSize(team)} of {sizeLabel(challenge)}
-              </p>
-            </div>
-          </div>
-        </div>
-      </Section>
-
-      <Section title="Members" aside={`${team.members.length} listed`}>
-        <ul className="flex flex-col gap-2.5">
-          {team.members.map((member) => (
-            <MemberRow
-              key={member.studentId}
-              member={member}
-              trailing={<Chip>{member.role}</Chip>}
-            />
-          ))}
-        </ul>
-
-        <div className="mt-2.5">
-          <InvitePicker
-            peers={peers}
-            takenIds={takenIds}
-            canInvite={canAddMore(team, challenge)}
-          />
-        </div>
-      </Section>
-
-      <Section title="Fit">
-        <TeamFit team={team} challenge={challenge} />
-      </Section>
-
-      <div className="flex flex-wrap items-center justify-end gap-2.5 mt-7">
-        <Link
-          href={`/challenges/${challenge.id}`}
-          className="inline-flex items-center h-10 px-5 rounded-card border border-line text-brand font-semibold hover:border-brand hover:text-brand"
-        >
-          Save draft
-        </Link>
-        <Link
-          href={`/challenges/${challenge.id}`}
-          aria-disabled={!readiness.ready}
-          className={cn(
-            "inline-flex items-center h-10 px-5 rounded-card font-semibold",
-            readiness.ready
-              ? "bg-brand text-white hover:bg-brand-deep hover:text-white"
-              : "bg-line-2 text-ink-3 pointer-events-none",
+          </Section>
+        </>
+      ) : (
+        <ApplyWizardShell
+          baseTeam={baseTeam}
+          challenge={applyChallenge}
+          challengeSlug={challenge.slug}
+          defaultHours={Math.min(
+            teamProfile?.hoursAvailable ?? challenge.weeklyHours ?? 0,
+            challenge.weeklyHours ?? 0
           )}
-        >
-          Next · Motivation
-        </Link>
-      </div>
-
-      {!readiness.ready ? (
-        <p className="text-meta text-ink-3 mt-2.5 text-right">
-          You can keep drafting — the application can&apos;t be submitted until
-          every invitation is answered.
-        </p>
-      ) : null}
-
-      <p className="text-meta text-ink-3 mt-6">
-        Applying as {currentStudent.name} · you are the team leader and the
-        partner&apos;s point of contact.
-      </p>
+          facultyOptions={facultyRows.map(toFaculty)}
+          leaderName={leaderName}
+          peers={peerRows.map(toPeer)}
+        />
+      )}
     </article>
   );
 }

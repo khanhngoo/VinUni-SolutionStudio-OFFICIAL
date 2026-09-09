@@ -1,12 +1,12 @@
 import Link from "next/link";
 import { Chip } from "@/components/ui/chip";
 import { ChevronRightIcon } from "@/components/ui/icons";
-import { ctaFor, STAGE_VARIANT } from "@/lib/pipeline";
+import { ctaForView, STAGE_VARIANT, type PipelineApplicationView } from "@/lib/pipeline";
 import { deadlineLabel } from "@/lib/dates";
-import { STAGE_LABELS, type Application } from "@/lib/types";
+import { STAGE_LABELS } from "@/lib/types";
 
 interface PipelineCtaProps {
-  application: Application;
+  application: PipelineApplicationView;
 }
 
 /**
@@ -15,7 +15,7 @@ interface PipelineCtaProps {
  * accumulating a branch per pipeline stage.
  */
 export function PipelineCta({ application }: PipelineCtaProps) {
-  const cta = ctaFor(application);
+  const cta = ctaForView(application);
 
   return (
     <div className="bg-card border border-line rounded-card p-5">

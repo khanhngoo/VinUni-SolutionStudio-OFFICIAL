@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { AvailabilityLegend } from "@/components/profile/availability-grid";
 import { cn } from "@/lib/cn";
-import { DAY_NAMES } from "@/lib/profile";
+import { DAY_NAMES } from "@/lib/text";
 import { WEEKDAY_LABELS, type DayAvailability } from "@/lib/types";
 
 const CYCLE: DayAvailability[] = ["free", "partly", "busy"];
@@ -12,21 +12,27 @@ const CYCLE: DayAvailability[] = ["free", "partly", "busy"];
  * The one genuinely interactive field on the profile. Clicking cycles a day
  * rather than opening a picker — three states is fewer than a dropdown costs.
  *
- * Like the rest of the prototype the change is session-only; nothing is saved.
+ * The grid owns the week while the student is clicking, and reports each
+ * change upward so the form around it can save one shape rather than reading
+ * seven separate controls.
  */
 export function AvailabilityEditor({
   initial,
+  onChange,
 }: {
   initial: DayAvailability[];
+  onChange?: (week: DayAvailability[]) => void;
 }) {
   const [week, setWeek] = useState<DayAvailability[]>(initial);
 
   function cycle(index: number) {
-    setWeek((current) =>
-      current.map((day, i) =>
+    setWeek((current) => {
+      const next = current.map((day, i) =>
         i === index ? CYCLE[(CYCLE.indexOf(day) + 1) % CYCLE.length] : day,
-      ),
-    );
+      );
+      onChange?.(next);
+      return next;
+    });
   }
 
   return (

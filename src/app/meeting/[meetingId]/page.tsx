@@ -1,19 +1,21 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
+
 import { Chip } from "@/components/ui/chip";
 import { VideoIcon } from "@/components/ui/icons";
 import { Section } from "@/components/ui/section";
 import { formatDateTime } from "@/lib/dates";
+import { meetingKindLabel } from "@/lib/labels";
 import {
   meetingChipVariant,
   meetingState,
   meetingTimeLabel,
 } from "@/lib/meetings";
-import { getAllMeetingIds, getMeetingById } from "@/lib/queries";
+import { getAuthenticatedActor } from "@/auth/authenticated-actor";
+import { toApplicationActorContext } from "@/services/application.service";
+import { getMeetingDetail, WorkspaceError } from "@/services/workspace.service";
 
-export function generateStaticParams() {
-  return getAllMeetingIds().map((meetingId) => ({ meetingId }));
-}
+export const dynamic = "force-dynamic";
 
 export default async function MeetingPage({
   params,
@@ -21,10 +23,21 @@ export default async function MeetingPage({
   params: Promise<{ meetingId: string }>;
 }) {
   const { meetingId } = await params;
-  const row = getMeetingById(meetingId);
-  if (!row) notFound();
+  const resolution = await getAuthenticatedActor();
+  if (resolution.status !== "RESOLVED") redirect("/sign-in");
 
-  const { meeting, application, challenge } = row;
+  let meeting;
+  try {
+    meeting = await getMeetingDetail(
+      meetingId,
+      toApplicationActorContext(resolution.actor)
+    );
+  } catch (error) {
+    if (error instanceof WorkspaceError && error.code === "FORBIDDEN") notFound();
+    throw error;
+  }
+  if (!meeting) notFound();
+
   const state = meetingState(meeting);
 
   return (
@@ -32,7 +45,9 @@ export default async function MeetingPage({
       <nav className="text-meta text-ink-3">
         <Link href="/workspace">Your work</Link>
         <span className="mx-1.5">›</span>
-        <Link href={`/workspace/${application.id}`}>{challenge.title}</Link>
+        <Link href={`/workspace/${meeting.applicationPublicId}`}>
+          {meeting.challengeTitle}
+        </Link>
         <span className="mx-1.5">›</span>
         Meeting
       </nav>
@@ -41,8 +56,10 @@ export default async function MeetingPage({
         <Chip variant={meetingChipVariant(state)}>
           {meetingTimeLabel(meeting)}
         </Chip>
-        <Chip>{meeting.kind}</Chip>
-        <Chip>{meeting.durationMinutes} min</Chip>
+        <Chip>{meetingKindLabel(meeting.kind)}</Chip>
+        {meeting.durationMinutes ? (
+          <Chip>{meeting.durationMinutes} min</Chip>
+        ) : null}
       </div>
 
       <h1>{meeting.title}</h1>
@@ -53,15 +70,17 @@ export default async function MeetingPage({
           <VideoIcon className="w-3.5 h-3.5" />
         </span>
         <p className="font-semibold text-ink mt-3">
-          Video calls aren&apos;t wired up yet
+          This call happens in your provider&apos;s app
         </p>
         <p className="text-ink-2 mt-1.5 max-w-[46ch] mx-auto">
-          Joining from inside the platform is coming soon. Until then this
-          meeting runs on the link your partner shared.
+          The Studio keeps the schedule; the call itself runs on the link your
+          partner shared.
         </p>
-        <p className="text-meta text-ink-3 mt-3 break-all">{meeting.joinUrl}</p>
+        {meeting.joinUrl ? (
+          <p className="text-meta text-ink-3 mt-3 break-all">{meeting.joinUrl}</p>
+        ) : null}
         <Link
-          href={`/workspace/${application.id}`}
+          href={`/workspace/${meeting.applicationPublicId}`}
           className="inline-grid place-items-center h-9 px-4 mt-5 rounded-card bg-brand text-white font-semibold hover:bg-brand-deep hover:text-white"
         >
           Back to workspace
@@ -72,10 +91,10 @@ export default async function MeetingPage({
         <ul className="grid sm:grid-cols-3 gap-2.5">
           {meeting.attendees.map((attendee) => (
             <li
-              key={`${attendee.name}-${attendee.role}`}
+              key={`${attendee.fullName}-${attendee.role}`}
               className="bg-card border border-line rounded-card px-4 py-3.5"
             >
-              <p className="font-semibold text-ink">{attendee.name}</p>
+              <p className="font-semibold text-ink">{attendee.fullName}</p>
               <p className="text-meta text-ink-3 mt-0.5">{attendee.role}</p>
             </li>
           ))}
