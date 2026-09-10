@@ -1,7 +1,10 @@
 # Database Architecture Notes
 
-Phase: 2 complete — ERD v1 frozen, Drizzle schema implemented, initial migration verified  
-Date: 2026-08-16
+Database baseline: Phase 2 complete — ERD v1 frozen, Drizzle schema implemented, initial migration verified
+
+Current transformation context: Phase 6.6 Checkpoints A–G complete; Checkpoint H final verification remains
+
+Last updated: 2026-09-10
 
 ## Documentation Map
 
@@ -45,6 +48,20 @@ Each of these documents one route/domain's migration from static fixtures to the
 | `workspace-runtime-path.md` | Project workspace — Phase 5.4 |
 | `phase-5.5-transaction-boundaries.md` | Cross-cutting: which layer owns PostgreSQL transactions (services, not mutation helpers or components) — Phase 5.5 |
 
+### Authentication, authorization, and platform administration (Phase 6)
+
+These documents describe the runtime identity and authorization model built on
+top of the database schema. They do not supersede `schema.dbml` for structural
+database decisions.
+
+| File | What it is |
+| --- | --- |
+| `../security/authentication-architecture.md` | Authentication providers, session identity, self-service credentials, and deployment boundaries. |
+| `../security/authorization-matrix.md` | Resource/action authorization rules, including marketplace visibility. |
+| `../security/role-model.md` | Authenticated actor capabilities and the distinction between organization-scoped and global authority. |
+| `../security/security-baseline.md` | Cross-cutting security controls and assumptions. |
+| `../../context/admin-console-implementation-plan.md` | Phase 6.6 global platform administration architecture, scope, checkpoints, and verification plan. |
+
 ## ERD v1 Status
 
 `docs/database/schema.dbml` is the implementation-ready ERD v1 frozen after Phase 2.3 reconciliation and semantic cleanup.
@@ -62,6 +79,37 @@ constraint with the `users_email_lower_unique` expression index. The canonical
 DBML, modular Drizzle schema, and migration `0005_self_service_credentials.sql`
 carry the change together. A credential does not grant a profile, organization
 membership, or authorization capability.
+
+### Post-freeze reviewed platform administration extension (Phase 6.6)
+
+The 2026-09-09 Phase 6.6 — Global Platform Administration change (see
+`context/admin-console-implementation-plan.md` and
+`PRODUCTION_TRANSFORMATION_PLAN.md` Section 10.6) is recorded as a second
+post-freeze schema extension. It adds the `platform_role` and
+`platform_role_status` enums and the `user_platform_roles` table: a global,
+database-backed role assignment, distinct from `organization_memberships`'
+organization-scoped `ADMIN` role. The canonical DBML, modular Drizzle schema
+(`src/db/schema/enums.ts`, `src/db/schema/governance.ts`), and migration
+`0006_platform_owner_roles.sql` carry the change together.
+
+`user_platform_roles` rows are re-read from PostgreSQL on every actor
+resolution; a JWT/session claim is never authoritative for platform
+authority. Rows are retained on revocation (`status` flips to `REVOKED`) so
+administration history stays explainable. The invariant that at least one
+`ACTIVE PLATFORM_OWNER` row must remain is enforced by application logic in
+the revocation transaction (Phase 6.6 Checkpoint C/F), not by a database
+constraint.
+
+Phase 6.6 Checkpoints C–G now implement the runtime layer that consumes this
+schema: actor resolution derives `PLATFORM_OWNER` from active database rows,
+the guarded `pnpm admin:grant-owner` recovery/bootstrap command can grant the
+first owner, and the protected `/admin` console provides metadata-oriented
+operational views. The approved mutation subset is limited to second-owner
+grant/revocation and account suspension/reactivation; organization
+verification and exact-email organization membership assignment remain
+deferred. Checkpoint H final verification remains outstanding. None of these
+capabilities makes `PLATFORM_OWNER` a universal bypass of established resource
+authorization policies.
 
 ## Authority
 
@@ -83,7 +131,13 @@ CAID and E-Lab are organizations, not shared user accounts.
 
 Every human has an individual `users` record. Internal VinUni units use `organizations.organization_type = INTERNAL_UNIT`; external companies, NGOs, hospitals, and similar partners use `EXTERNAL_PARTNER`.
 
-Permissions are scoped through `organization_memberships`. `membership_role.ADMIN` means administrator for that organization scope only; ERD v1 does not add a global `SYSTEM_ADMIN` role.
+Organization permissions are scoped through `organization_memberships`.
+`membership_role.ADMIN` means administrator for that organization only; it
+does not grant access to the global administration console. The post-freeze
+Phase 6.6 extension adds the separate database-backed `PLATFORM_OWNER` global
+role through `user_platform_roles`. The schema still has no `SYSTEM_ADMIN`
+role, and `PLATFORM_OWNER` does not silently override ordinary resource-level
+authorization policies.
 
 `challenges.owner_organization_id` and `challenges.managing_organization_id` intentionally have different semantics:
 

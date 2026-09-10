@@ -34,9 +34,31 @@ they must not authorize from organization names.
 ## Deliberate boundaries
 
 JWTs and sessions carry authentication data only; PostgreSQL remains the
-authority for role resolution. ERD v1 has no global `SYSTEM_ADMIN`, and none is
-introduced. The existing Phase 4/5 development actor helpers and domain policy
-enforcement remain unchanged in Phase 6.2. Phase 6.3 will replace those
-temporary actor boundaries with authenticated actors and define the resource
-permission matrix; this module does not decide access to challenges,
-applications, offers, or workspaces.
+authority for role resolution. The existing Phase 4/5 development actor helpers
+and domain policy enforcement remain unchanged in Phase 6.2. Phase 6.3 will
+replace those temporary actor boundaries with authenticated actors and define
+the resource permission matrix; this module does not decide access to
+challenges, applications, offers, or workspaces.
+
+## Phase 6.6 amendment (2026-09-09)
+
+At the time this document was written for Phase 6.2, ERD v1 had no global
+`SYSTEM_ADMIN` role and none was introduced. That decision is superseded: Phase
+6.6 — Global Platform Administration (see
+`context/admin-console-implementation-plan.md`) introduces one explicit,
+database-backed global role, `PLATFORM_OWNER`, distinct from every existing
+organization-scoped role described above.
+
+- `PLATFORM_OWNER` is granted through `user_platform_roles` rows only; it is
+  never inferred from an organization name, email domain, JWT/session claim,
+  or self-service registration.
+- CAID and E-Lab `ADMIN` memberships remain organization-scoped exactly as
+  described in this document and do not imply `PLATFORM_OWNER`, and the
+  inverse is also true.
+- `PLATFORM_OWNER` does not become a universal authorization bypass. Existing
+  resource policies described by Phase 6.3 keep their current logic; the
+  global admin console uses dedicated read models and explicitly enumerated
+  owner mutations, each with its own policy.
+- Schema (`user_platform_roles`, enums), actor-resolution, and policy-helper
+  implementation are tracked separately under Phase 6.6 Checkpoints B and C,
+  not as part of this Phase 6.2 module.

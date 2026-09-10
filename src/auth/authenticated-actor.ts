@@ -6,6 +6,7 @@ import {
   organizationMemberships,
   organizations,
   studentProfiles,
+  userPlatformRoles,
 } from "@/db/schema";
 
 import {
@@ -19,12 +20,14 @@ type OrganizationType = NonNullable<
   typeof organizations.$inferSelect["organizationType"]
 >;
 type OrganizationMembershipRole = typeof organizationMemberships.$inferSelect["role"];
+type PlatformRole = typeof userPlatformRoles.$inferSelect["role"];
 
 export type AuthenticatedActorCapability =
   | "STUDENT"
   | "FACULTY"
   | "PARTNER_REPRESENTATIVE"
-  | "INTERNAL_UNIT_MEMBER";
+  | "INTERNAL_UNIT_MEMBER"
+  | "PLATFORM_OWNER";
 
 export interface AuthenticatedActorMembership {
   membershipId: bigint;
@@ -33,10 +36,21 @@ export interface AuthenticatedActorMembership {
   role: OrganizationMembershipRole;
 }
 
+/**
+ * Phase 6.6 global platform authority. Distinct from `memberships` above:
+ * an organization ADMIN never implies a platform role, and the inverse is
+ * also true. Only ACTIVE rows are resolved here.
+ */
+export interface AuthenticatedActorPlatformRole {
+  platformRoleId: bigint;
+  role: PlatformRole;
+}
+
 export interface AuthenticatedActor {
   capabilities: ReadonlySet<AuthenticatedActorCapability>;
   facultyProfile: { userId: bigint } | null;
   memberships: readonly AuthenticatedActorMembership[];
+  platformRoles: readonly AuthenticatedActorPlatformRole[];
   studentProfile: { userId: bigint } | null;
   user: AuthenticatedUser;
 }
@@ -53,7 +67,7 @@ export type AuthenticatedActorResolution =
 export async function resolveAuthenticatedActor(
   user: AuthenticatedUser
 ): Promise<AuthenticatedActor> {
-  const [studentProfile, facultyProfile, rows] = await Promise.all([
+  const [studentProfile, facultyProfile, rows, platformRoleRows] = await Promise.all([
     db
       .select({ userId: studentProfiles.userId })
       .from(studentProfiles)
@@ -82,12 +96,25 @@ export async function resolveAuthenticatedActor(
           eq(organizationMemberships.status, "ACTIVE")
         )
       ),
+    db
+      .select({ platformRoleId: userPlatformRoles.id, role: userPlatformRoles.role })
+      .from(userPlatformRoles)
+      .where(
+        and(
+          eq(userPlatformRoles.userId, user.userId),
+          eq(userPlatformRoles.status, "ACTIVE")
+        )
+      ),
   ]);
 
   const memberships: AuthenticatedActorMembership[] = rows.map((row) => ({
     membershipId: row.membershipId,
     organizationId: row.organizationId,
     organizationType: row.organizationType,
+    role: row.role,
+  }));
+  const platformRoles: AuthenticatedActorPlatformRole[] = platformRoleRows.map((row) => ({
+    platformRoleId: row.platformRoleId,
     role: row.role,
   }));
   const capabilities = new Set<AuthenticatedActorCapability>();
@@ -100,11 +127,15 @@ export async function resolveAuthenticatedActor(
   if (memberships.some((membership) => membership.organizationType === "INTERNAL_UNIT")) {
     capabilities.add("INTERNAL_UNIT_MEMBER");
   }
+  if (platformRoles.some((platformRole) => platformRole.role === "PLATFORM_OWNER")) {
+    capabilities.add("PLATFORM_OWNER");
+  }
 
   return {
     capabilities,
     facultyProfile: facultyProfile[0] ?? null,
     memberships,
+    platformRoles,
     studentProfile: studentProfile[0] ?? null,
     user,
   };

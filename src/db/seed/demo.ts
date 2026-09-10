@@ -6,10 +6,10 @@ import {
   organizations,
   studentProfiles,
   studentSkills,
-  users,
 } from "../schema";
 import type { SeedContext } from "./context";
 import { resolveCanonicalSkillSeedLabel } from "./skills";
+import { upsertUserByLowerEmail } from "./users";
 
 type OrganizationType = "INTERNAL_UNIT" | "EXTERNAL_PARTNER";
 type StudentSchool = "CAS" | "CBM" | "CECS" | "CHS";
@@ -393,23 +393,7 @@ async function ensureDemoUser(
   ctx: SeedContext,
   seed: Pick<DemoContactSeed | DemoStudentSeed | DemoFacultySeed, "email" | "fullName" | "key">
 ) {
-  const [user] = await ctx.tx
-    .insert(users)
-    .values({
-      email: seed.email,
-      fullName: seed.fullName,
-      status: "ACTIVE",
-    })
-    .onConflictDoUpdate({
-      target: users.email,
-      set: {
-        fullName: seed.fullName,
-        status: "ACTIVE",
-        updatedAt: new Date(),
-      },
-    })
-    .returning({ id: users.id });
-
+  const user = await upsertUserByLowerEmail(ctx, seed.email, seed.fullName);
   ctx.setId(seed.key, user.id);
   return user.id;
 }

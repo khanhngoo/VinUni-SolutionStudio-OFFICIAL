@@ -30,6 +30,7 @@ import {
   type SkillRequirementType,
   type WorkMode,
 } from "@/db/mutations/challenges";
+import { recordAuditEvent, type AuditAction } from "@/services/audit.service";
 
 export type ChallengeWriteErrorCode =
   | "CONFLICT"
@@ -215,6 +216,18 @@ export async function createChallengeDraft(
     await replaceChallengeSkills(tx, challenge.id, skills);
     await replaceChallengeEligibilityRules(tx, challenge.id, eligibilityRules);
 
+    await recordAuditEvent(tx, {
+      userId: actor.userId,
+      action: "CHALLENGE_CREATED",
+      entityType: "challenge",
+      entityId: challenge.id,
+      details: {
+        slug: challenge.slug ?? slug,
+        managingOrganizationId: input.managingOrganizationId.toString(),
+        ownerOrganizationId: input.ownerOrganizationId.toString(),
+      },
+    });
+
     return {
       publicId: challenge.publicId,
       slug: challenge.slug ?? slug,
@@ -287,6 +300,14 @@ export async function submitChallengeForReview(
     );
     if (!updated) invalidTransition(challenge, "submit for review", SUBMITTABLE_STATUSES);
 
+    await recordAuditEvent(tx, {
+      userId: actor.userId,
+      action: "CHALLENGE_SUBMITTED",
+      entityType: "challenge",
+      entityId: challenge.id,
+      details: { slug: updated.slug ?? slug, fromStatus: challenge.status },
+    });
+
     return {
       slug: updated.slug ?? slug,
       status: updated.status ?? "SUBMITTED",
@@ -321,11 +342,44 @@ export async function recordChallengeReviewDecision(
       reviewerOrganizationId,
     });
 
+    await recordAuditEvent(tx, {
+      userId: actor.userId,
+      action: reviewDecisionAuditAction(input.decision),
+      entityType: "challenge",
+      entityId: challenge.id,
+      details: {
+        slug: updated.slug ?? slug,
+        decision: input.decision,
+        reviewerOrganizationId: reviewerOrganizationId.toString(),
+        hasComments: Boolean(input.comments),
+      },
+    });
+
     return {
       slug: updated.slug ?? slug,
       status: updated.status ?? nextStatus,
     };
   });
+}
+
+/**
+ * Section 11.3's catalog has a dedicated code for two of the three review
+ * decisions (`CHALLENGE_APPROVED`, `CHALLENGE_REVISION_REQUESTED`) but not a
+ * `CHALLENGE_REJECTED` code. A `REJECTED` decision (which moves the
+ * challenge to `CANCELLED`) is a documented Checkpoint E coverage gap: it
+ * still produces a durable, filterable event via the catalog's generic
+ * `CHALLENGE_REVIEWED` code, with `details.decision` carrying the actual
+ * outcome, rather than silently going unaudited.
+ */
+function reviewDecisionAuditAction(decision: ReviewDecision): AuditAction {
+  switch (decision) {
+    case "APPROVED":
+      return "CHALLENGE_APPROVED";
+    case "REVISION_REQUESTED":
+      return "CHALLENGE_REVISION_REQUESTED";
+    case "REJECTED":
+      return "CHALLENGE_REVIEWED";
+  }
 }
 
 export async function publishApprovedChallenge(
@@ -344,6 +398,14 @@ export async function publishApprovedChallenge(
       "APPLICATIONS_OPEN"
     );
     if (!updated) invalidTransition(challenge, "publish", PUBLISHABLE_STATUSES);
+
+    await recordAuditEvent(tx, {
+      userId: actor.userId,
+      action: "CHALLENGE_PUBLISHED",
+      entityType: "challenge",
+      entityId: challenge.id,
+      details: { slug: updated.slug ?? slug },
+    });
 
     return {
       slug: updated.slug ?? slug,

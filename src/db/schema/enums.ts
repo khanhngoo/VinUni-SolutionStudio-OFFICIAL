@@ -345,3 +345,15 @@ export const studentWorkMode = pgEnum("student_work_mode", [
   "HYBRID",
   "REMOTE",
 ]);
+
+/**
+ * Global platform authority (Phase 6.6), distinct from `membershipRole`'s
+ * organization-scoped `ADMIN`. v1 defines exactly one role — do not add
+ * speculative roles without an approved permissions matrix.
+ */
+export const platformRole = pgEnum("platform_role", ["PLATFORM_OWNER"]);
+
+export const platformRoleStatus = pgEnum("platform_role_status", [
+  "ACTIVE",
+  "REVOKED",
+]);

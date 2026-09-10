@@ -1,7 +1,7 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 import { db } from "../src/db";
-import { facultyProfiles, organizationMemberships, organizations, studentProfiles, users } from "../src/db/schema";
+import { facultyProfiles, organizationMemberships, organizations, studentProfiles, userPlatformRoles, users } from "../src/db/schema";
 import type { AuthenticatedActor } from "../src/auth/authenticated-actor";
 
 /**
@@ -20,6 +20,10 @@ export async function getAuthenticatedActorForVerification(email: string): Promi
     .from(organizationMemberships)
     .innerJoin(organizations, eq(organizations.id, organizationMemberships.organizationId))
     .where(eq(organizationMemberships.userId, user.userId));
+  const platformRoles = await db
+    .select({ platformRoleId: userPlatformRoles.id, role: userPlatformRoles.role })
+    .from(userPlatformRoles)
+    .where(and(eq(userPlatformRoles.userId, user.userId), eq(userPlatformRoles.status, "ACTIVE")));
 
   const capabilities = new Set<string>();
   if (student) capabilities.add("STUDENT");
@@ -28,11 +32,13 @@ export async function getAuthenticatedActorForVerification(email: string): Promi
     if (m.organizationType === "EXTERNAL_PARTNER") capabilities.add("PARTNER_REPRESENTATIVE");
     if (m.organizationType === "INTERNAL_UNIT") capabilities.add("INTERNAL_UNIT_MEMBER");
   }
+  if (platformRoles.some((p) => p.role === "PLATFORM_OWNER")) capabilities.add("PLATFORM_OWNER");
 
   return {
     capabilities: capabilities as AuthenticatedActor["capabilities"],
     facultyProfile: faculty ? { userId: faculty.userId } : null,
     memberships: memberships as AuthenticatedActor["memberships"],
+    platformRoles: platformRoles as AuthenticatedActor["platformRoles"],
     studentProfile: student ? { userId: student.userId } : null,
     user,
   };

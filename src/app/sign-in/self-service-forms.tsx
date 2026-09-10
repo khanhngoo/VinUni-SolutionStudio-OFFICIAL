@@ -1,6 +1,9 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
+
+import { EyeIcon, EyeOffIcon } from "@/components/ui/icons";
+import { cn } from "@/lib/cn";
 
 import {
   signInWithSelfService,
@@ -138,22 +141,40 @@ function Field({
   name: string;
   type: "email" | "password" | "text";
 }) {
+  const [revealed, setRevealed] = useState(false);
+  const isPassword = type === "password";
   const descriptionId = description ? `${id}-description` : undefined;
 
   return (
     <label className="block text-sm font-medium text-ink" htmlFor={id}>
       {label}
-      <input
-        aria-describedby={descriptionId}
-        autoComplete={autoComplete}
-        className="mt-1.5 h-10 w-full rounded-card border border-line bg-white px-3 text-ink outline-none focus:border-brand focus:ring-2 focus:ring-brand/15"
-        id={id}
-        maxLength={maxLength}
-        minLength={minLength}
-        name={name}
-        required
-        type={type}
-      />
+      <span className="relative mt-1.5 block">
+        <input
+          aria-describedby={descriptionId}
+          autoComplete={autoComplete}
+          className={cn(
+            "h-10 w-full rounded-card border border-line bg-white px-3 text-ink outline-none focus:border-brand focus:ring-2 focus:ring-brand/15",
+            isPassword && "pr-10"
+          )}
+          id={id}
+          maxLength={maxLength}
+          minLength={minLength}
+          name={name}
+          required
+          type={isPassword && revealed ? "text" : type}
+        />
+        {isPassword ? (
+          <button
+            aria-label={revealed ? "Hide password" : "Show password"}
+            aria-pressed={revealed}
+            className="absolute inset-y-0 right-0 flex w-10 items-center justify-center text-ink-3 hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+            onClick={() => setRevealed((value) => !value)}
+            type="button"
+          >
+            {revealed ? <EyeOffIcon className="h-4 w-4" /> : <EyeIcon className="h-4 w-4" />}
+          </button>
+        ) : null}
+      </span>
       {description ? (
         <span className="mt-1.5 block text-xs font-normal leading-relaxed text-ink-3" id={descriptionId}>
           {description}

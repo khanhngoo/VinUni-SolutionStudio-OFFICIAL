@@ -306,6 +306,20 @@ Enum resource_sensitivity {
   RESTRICTED
 }
 
+// Phase 6.6 — Global Platform Administration.
+// A global role, distinct from membership_role.ADMIN (organization-scoped).
+// v1 defines exactly one role: PLATFORM_OWNER. Do not add speculative
+// platform roles (e.g. PLATFORM_ADMIN, SUPPORT_OPERATOR) without an approved
+// permissions matrix.
+Enum platform_role {
+  PLATFORM_OWNER
+}
+
+Enum platform_role_status {
+  ACTIVE
+  REVOKED
+}
+
 
 //////////////////////////////////////////////////////////////
 // USERS
@@ -1584,6 +1598,44 @@ Table notifications {
 
 
 //////////////////////////////////////////////////////////////
+// PLATFORM ADMINISTRATION (Phase 6.6)
+//
+// Global platform authority, separate from organization_memberships.
+// role/status are re-read from PostgreSQL on every actor resolution; JWT/
+// session claims are never authoritative. Rows are retained on revocation
+// (status flips to REVOKED) so administration history stays explainable.
+// granted_by is nullable only for the documented bootstrap/recovery path;
+// ordinary grants must identify the acting owner. At least one ACTIVE
+// PLATFORM_OWNER row must exist after initial bootstrap; application logic
+// (not a database constraint) must prevent revoking the final ACTIVE owner.
+//////////////////////////////////////////////////////////////
+
+Table user_platform_roles {
+  id bigint [pk, increment]
+
+  user_id bigint [not null]
+
+  role platform_role [not null]
+
+  status platform_role_status [not null, default: 'ACTIVE']
+
+  granted_by bigint
+  granted_at timestamptz
+
+  revoked_by bigint
+  revoked_at timestamptz
+
+  created_at timestamptz
+  updated_at timestamptz
+
+  indexes {
+    (user_id, role) [unique]
+    (role, status)
+  }
+}
+
+
+//////////////////////////////////////////////////////////////
 // AUDIT LOG
 //////////////////////////////////////////////////////////////
 
@@ -1871,5 +1923,11 @@ Ref: users.id < project_resources.created_by
 Ref: users.id < consent_records.user_id
 
 Ref: users.id < notifications.user_id
+
+Ref: users.id < user_platform_roles.user_id
+
+Ref: users.id < user_platform_roles.granted_by
+
+Ref: users.id < user_platform_roles.revoked_by
 
 Ref: users.id < audit_logs.user_id

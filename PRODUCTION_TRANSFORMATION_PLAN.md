@@ -2,8 +2,8 @@
 
 **Repository:** `VinUni-SolutionStudio-OFFICIAL`
 **Project:** VinUniversity Solution Studio / AI-in-Action Platform
-**Last updated:** 2026-09-06
-**Current phase:** Phase 6.5 complete / ready for human review — next checkpoint: Phase 7.1 — Structured skill matching
+**Last updated:** 2026-09-09
+**Current phase:** Phase 6.5 complete / ready for human review — Phase 6.6 (Global Platform Administration) Checkpoints A through G are complete (Checkpoint F scoped to the human-approved subset: second-owner grant/revoke UI and account suspension/reactivation; organization verification and exact-email membership assignment remain deferred, unapproved); next checkpoint: Phase 6.6 Checkpoint H (final verification). Phase 6.6 was inserted ahead of Phase 7.1 by the 2026-09-09 roadmap amendment; see Section 15 work log. Phase 7.1 — Structured skill matching is deferred until Phase 6.6 and Phase 8 private staging are complete.
 
 ---
 
@@ -147,8 +147,17 @@ VinUni-SolutionStudio-OFFICIAL/
 | Phase 5 | Applications, assessments, offers, workspace → real DB | ✅ Complete / human review complete |
 | Phase 6 | Authentication + RBAC | ✅ Complete / ready for final human review |
 | Phase 6.5 | Local containerized development | ✅ Complete / ready for human review |
-| Phase 7 | Skill + semantic matching | ⬜ Not started |
-| Phase 8 | Production deployment | ⬜ Not started |
+| Phase 6.6 | Global platform administration | 🔶 Checkpoints A–G complete (F scoped to approved subset); Checkpoint H next |
+| Phase 7 | Skill + semantic matching | ⬜ Not started — deferred until after Phase 6.6 and Phase 8 |
+| Phase 8 | Production deployment (private staging/internal demo) | ⬜ Not started — next after Phase 6.6 |
+
+**Execution sequence note (2026-09-09):** the numeric section order below is
+preserved for historical continuity, but the active execution sequence is
+**Phase 6.6 → Phase 8 (private staging) → Phase 7 (matching, when
+reprioritized)**, not the numeric 7-then-8 order. See Section 10.6 and
+`context/admin-console-implementation-plan.md` Section 17 for the full
+rationale. Do not begin Phase 7 implementation before Phase 6.6 and Phase 8
+are complete unless explicitly reprioritized by human review.
 
 ---
 
@@ -1679,7 +1688,585 @@ docker compose exec -e ALLOW_DB_SEED=true app pnpm db:seed
 
 ---
 
+# 10.6. Phase 6.6 — Global Platform Administration
+
+## Goal
+
+Give the application owner/operator a global, database-backed operational
+view and a small set of explicitly authorized governance actions across
+users, organizations, challenges, applications, assessments, offers, and
+projects — separate from every existing organization-scoped role.
+
+The full architecture, schema, authority model, checkpoints (A–H), mutation
+policy, audit design, and verification plan for this phase are recorded in
+`context/admin-console-implementation-plan.md` and are authoritative for
+implementation. This section tracks phase status only; it does not duplicate
+that document.
+
+Phase 6.6 was inserted ahead of Phase 7.1 by roadmap amendment on 2026-09-09
+(see Section 15 work log) following the same bounded-checkpoint precedent
+used for Phase 6.5 (Section 10.5).
+
+## Human-approved decisions (2026-09-09)
+
+- `PLATFORM_OWNER` is approved as the initial global role, database-backed via
+  a new `user_platform_roles` table, separate from the existing organization
+  `ADMIN` role. It is not a universal authorization bypass.
+- Multiple simultaneously ACTIVE `PLATFORM_OWNER` accounts are permitted, with
+  the final ACTIVE owner protected from revocation/suspension.
+- The v1 admin console is metadata-only: identifiers, statuses, timestamps,
+  relationships, and counts. Existing policies continue protecting private
+  briefs, assessment answers, CVs, transcripts, and other sensitive content
+  unless separately approved and tested.
+- Phase sequencing: Phase 6.6 → Phase 8 (private staging/internal demo) →
+  Phase 7 (matching), reprioritized later. `MATCHING_ENABLED=false` remains
+  the deployed default while Phase 7 is deferred.
+
+## Human-approved decisions (2026-09-09, Checkpoint F mutation-category gate)
+
+Per-category approval was obtained explicitly (via a direct multi-select
+question, not defaulted) before any Checkpoint F code was written, matching
+`context/admin-console-implementation-plan.md` Section 10's requirement that
+each mutation category be approved separately:
+
+- **Approved:** second-owner grant/revoke UI (`/admin/access`) — wires the
+  already-approved Checkpoint C `grantPlatformOwner`/`revokePlatformOwner`
+  service functions to an authenticated in-app Server Action; no new
+  authority model.
+- **Approved:** account suspension/reactivation (Section 10.3 semantics).
+- **Still deferred, not approved:** organization verification/rejection
+  (Section 10.4).
+- **Still deferred, not approved:** exact-email organization membership
+  assignment (Section 10.5).
+
+Implementing either deferred category requires the same kind of explicit,
+separate approval before any code is written for it.
+
+## Phase 6.6 checkpoint status
+
+| Checkpoint | Description | Status |
+|---|---|---|
+| A | Roadmap and governance amendment | ✅ Complete — this amendment; see Section 15 work log |
+| B | Canonical schema (`schema.dbml`) and Drizzle migration | ✅ Complete — human-reviewed 2026-09-09 |
+| C | Actor capability and bootstrap CLI | ✅ Complete (2026-09-09) |
+| D | Read-only `/admin` shell | ✅ Complete (2026-09-09) |
+| E | Audit and activity instrumentation | ✅ Complete (2026-09-09) |
+| F | Access governance mutations | ✅ Complete (2026-09-09) — scoped to the approved subset (second-owner grant/revoke UI, suspend/reactivate); organization verification and membership assignment deferred, unapproved |
+| G | Operational coverage (assessments/offers/system status) | ✅ Complete (2026-09-09) |
+| H | Final verification | ⬜ Not started |
+
+## Phase 6.6 not in scope (Checkpoint A)
+
+- No schema, migration, Drizzle, actor-resolution, or route code changes.
+- No `/admin` routes, services, or mutations.
+- No Phase 7 matching or Phase 8 deployment implementation work.
+
+## Checkpoint A exit criteria
+
+- [x] `PRODUCTION_TRANSFORMATION_PLAN.md` records Phase 6.6 and the amended
+      execution sequence (this section, Section 4, Section 13, Section 14).
+- [x] `docs/security/role-model.md` records that the "no global admin role"
+      decision is superseded, without rewriting the Phase 6.2 historical
+      record.
+- [x] `PLATFORM_OWNER`, multi-owner recovery, and metadata-only v1 scope are
+      recorded as human-approved above.
+- [x] Human review of this Checkpoint A amendment before Checkpoint B
+      (schema/migration) begins.
+
+## Checkpoint B — canonical schema and migration (2026-09-09)
+
+- Added `platform_role` (`PLATFORM_OWNER`) and `platform_role_status`
+  (`ACTIVE`, `REVOKED`) enums and the `user_platform_roles` table to
+  `docs/database/schema.dbml` first, per Section 6.2 of
+  `context/admin-console-implementation-plan.md`.
+- Added the matching modular Drizzle definitions to `src/db/schema/enums.ts`
+  and `src/db/schema/governance.ts` (`userPlatformRoles`), re-exported through
+  the existing `src/db/schema/index.ts` barrel.
+- Columns: `id`, `user_id` (FK → `users.id`, restrict/cascade), `role`,
+  `status` (default `ACTIVE`), `granted_by`/`granted_at`,
+  `revoked_by`/`revoked_at` (both nullable FK → `users.id`, restrict/cascade),
+  `created_at`, `updated_at`. Indexes: unique `(user_id, role)`, plus
+  `(role, status)`. The last-ACTIVE-owner invariant is documented as an
+  application-transaction responsibility (Checkpoint C/F), not a DB
+  constraint, matching the plan's design rationale.
+- Generated migration `drizzle/0006_platform_owner_roles.sql` via
+  `pnpm db:generate`, then renamed from drizzle-kit's random tag to a
+  descriptive one (both the `.sql` file and the `drizzle/meta/_journal.json`
+  tag), matching the existing `0005_self_service_credentials` precedent.
+- Verified with `pnpm exec drizzle-kit check` ("Everything's fine"), a full
+  local `pnpm db:reset` (drops the Docker volume, recreates it, and replays
+  all 7 migrations from empty), `pnpm db:check`, and a direct `psql \d
+  user_platform_roles` confirming the live table matches the Drizzle
+  definition exactly. `pnpm exec tsc --noEmit` and `pnpm lint` pass clean.
+- Updated `docs/database/README.md` with a "Post-freeze reviewed platform
+  administration extension (Phase 6.6)" subsection, mirroring the existing
+  Phase 6.1 self-service-authentication precedent.
+- No actor-resolution, policy, route, or mutation code was added — schema
+  only, per Checkpoint B's scope boundary.
+
+### Unrelated finding surfaced during verification — fixed 2026-09-09
+
+`pnpm db:reset`'s seed step failed after migrations applied successfully:
+`src/db/seed/users.ts:41` and `src/db/seed/demo.ts:404` called
+`onConflictDoUpdate({ target: users.email, ... })`, but migration
+`0005_self_service_credentials.sql` (2026-09-06, unrelated to Phase 6.6)
+replaced the plain unique index on `email` with a `users_email_lower_unique`
+expression index on `lower(email)`. Postgres `ON CONFLICT` requires an exact
+matching constraint/index, and Drizzle's `onConflictDoUpdate` `target` option
+only accepts a plain column reference — it cannot target an expression index
+at all — so the plain-column target never matched anything after migration
+0005 and every seed run failed. This predated Phase 6.6 and was originally
+left unfixed pending direction; it was fixed during Checkpoint C once it
+became a real blocker (Checkpoint C's own verification needs seeded users).
+Fix: replaced both call sites with a shared `upsertUserByLowerEmail` helper
+in `src/db/seed/users.ts` (select by `lower(email)`, then branch to
+update-by-id or insert) and re-ran `pnpm db:reset` + `ALLOW_DB_SEED=true pnpm
+db:seed` clean; `scripts/verify-role-model.ts` and
+`scripts/verify-self-service-authentication.ts` still pass against the
+reseeded database.
+
+## Checkpoint C — actor capability and bootstrap (2026-09-09)
+
+- Extended `AuthenticatedActorCapability` in `src/auth/authenticated-actor.ts`
+  with `PLATFORM_OWNER`, derived from ACTIVE `user_platform_roles` rows
+  queried alongside the existing profile/membership queries inside
+  `resolveAuthenticatedActor()` (one added parallel query, re-read from
+  PostgreSQL on every resolution — never from a JWT/session claim). Added
+  `platformRoles` to the `AuthenticatedActor` shape, parallel to
+  `memberships`, per Section 6.3 of `context/admin-console-implementation-plan.md`.
+- Added `src/services/platform-admin-policy.ts`: `hasPlatformOwnerCapability`
+  and `requirePlatformOwner` (throws `PlatformOwnerRequiredError`). Deferred
+  `canPlatformOwnerRead`/`canPlatformOwnerMutate` from Section 6.4 until
+  Checkpoint D/F, when there is a concrete resource-type/mutation list to
+  check against — implementing them now would be a speculative stub with no
+  caller.
+- Added `src/services/platform-admin.service.ts`: `grantPlatformOwner` and
+  `revokePlatformOwner`, each a single `db.transaction` that re-checks target
+  state, enforces the invariants from Section 7 (idempotent grant,
+  refuse-unless-`allowAdditionalOwner` for a second owner, refuse revoking
+  the final ACTIVE owner via a `SELECT ... FOR UPDATE` lock over all ACTIVE
+  owner rows, reactivate-not-duplicate on re-grant after revocation), and
+  writes a same-transaction `audit_logs` row (`PLATFORM_OWNER_BOOTSTRAPPED` /
+  `PLATFORM_OWNER_GRANTED` / `PLATFORM_OWNER_REVOKED`, entity type `user`).
+  Typed `PlatformAdminError` with codes `NOT_FOUND`, `VALIDATION_ERROR`,
+  `CONFLICT`, `LAST_PLATFORM_OWNER`.
+- Added the guarded bootstrap/recovery CLI `scripts/admin-grant-owner.ts`
+  (`pnpm admin:grant-owner`), gated behind `ALLOW_PLATFORM_OWNER_BOOTSTRAP=true`,
+  resolving the target by exact case-insensitive email via the existing
+  `resolveAuthenticatedUserByEmail` (never creates a user, never accepts a
+  password), supporting `--allow-additional-owner` and `--revoke`. `grantedBy`/
+  `revokedBy` are always `null` from this CLI path, matching the "documented
+  bootstrap/recovery path" nullability carved out in the `user_platform_roles`
+  schema comment; a future in-app Checkpoint F mutation must supply the
+  acting owner's ID.
+- Added `scripts/verify-platform-admin.ts`, covering the Section 16.1/16.2
+  catalog: seeded CAID/E-Lab admins and a student start without
+  `PLATFORM_OWNER`; org-scoped `ADMIN` and `PLATFORM_OWNER` coexist without
+  conflation; unknown/`SUSPENDED` targets are refused with no row written;
+  case-insensitive email resolution; bootstrap grant writes one
+  `PLATFORM_OWNER_BOOTSTRAPPED` audit event; a repeat grant is idempotent
+  with no duplicate row or audit event; a silent second owner is refused
+  (`CONFLICT`) and `allowAdditionalOwner` makes it explicit; the final ACTIVE
+  owner cannot be revoked, including self-revocation
+  (`LAST_PLATFORM_OWNER`), and the refused call changes no rows; a repeat
+  revoke is idempotent; re-granting a revoked owner reactivates the same row
+  instead of violating the `(user_id, role)` unique index; no audit `details`
+  contain credential-shaped text; a synthetic in-memory actor cannot conjure
+  `PLATFORM_OWNER` from an email domain. A `spawnSync` subprocess check
+  confirms the CLI itself exits non-zero and prints `REFUSED` without
+  `ALLOW_PLATFORM_OWNER_BOOTSTRAP=true`. The script deletes every row it
+  creates in a `finally` block, so it is safely rerunnable.
+- Also manually smoke-tested the real CLI end-to-end against the seeded
+  `CAID_ADMIN_DEMO` identity (grant → idempotent repeat → refused
+  last-owner revoke), then deleted the resulting rows directly so the local
+  dev database is back at its clean seeded baseline.
+- Fixed `scripts/_actor.ts` (the shared actor fixture used by several
+  `verify-*.ts` scripts), which was missing `platformRoles` entirely and
+  failed to compile after the `AuthenticatedActor` shape changed; it now
+  resolves ACTIVE platform roles the same way `resolveAuthenticatedActor`
+  does.
+- Verified with `pnpm exec tsc --noEmit`, `pnpm lint`, `pnpm exec drizzle-kit
+  check`, `pnpm db:check`, `scripts/verify-role-model.ts`, and
+  `scripts/verify-platform-admin.ts` — all pass. No `/admin` routes, read
+  models, or Checkpoint F-scope mutations (suspension, org verification,
+  membership assignment) were added.
+
+### Deliberate scope decision: no synthetic development owner yet
+
+Section 7.3 of `context/admin-console-implementation-plan.md` makes a
+synthetic `PLATFORM_OWNER_DEMO` development identity conditional — "only if
+browser E2E needs it" — and it was not one of the four decision gates
+explicitly approved before Checkpoint A. It was not added in Checkpoint C.
+`scripts/verify-platform-admin.ts` exercises grant/revoke against existing
+seeded identities (`CAID_ADMIN_DEMO`, `ELAB_ADMIN_DEMO`) instead.
+
+Checkpoint D did need a signed-in owner for browser verification of
+`/admin`; rather than add a permanent synthetic identity, the session used
+the existing `pnpm admin:grant-owner` CLI to temporarily grant
+`CAID_ADMIN_DEMO` in the local dev database, verified `/admin` in a real
+browser, then deleted the row directly afterward (`DELETE FROM
+user_platform_roles`) so no owner grant persists in seeded/reset state. This
+deferral still holds; revisit only if repeated manual verification makes the
+CLI round-trip genuinely burdensome.
+
+## Checkpoint D — read-only `/admin` shell (2026-09-09)
+
+- Read the installed Next.js 16 docs (`node_modules/next/dist/docs/01-app/02-guides/authentication.md`)
+  before writing any route; confirmed the existing repo pattern already
+  matches its guidance — a layout is an optimistic first gate only
+  (`due to Partial Rendering... these don't re-render on navigation`), and
+  every page/Server Action must independently re-check.
+- Added `src/app/admin/layout.tsx` (first gate: `getAuthenticatedActor()` +
+  `hasActorCapability(actor, "PLATFORM_OWNER")`, `notFound()` otherwise;
+  persistent "Global administration" header) and
+  `src/components/admin/admin-navigation.tsx` (client component, current-tab
+  highlighting via `usePathname`). Every page below repeats the same
+  resolve-and-check independently of the layout, per Section 13.3.
+- Added `src/db/queries/admin.ts`: `getAdminOverview()` and
+  `listAdminUsers`/`listAdminOrganizations`/`listAdminChallenges`/
+  `listAdminApplications`/`listAdminProjects`. Bounded pagination (page size
+  25, capped at 100), deterministic `ORDER BY id DESC`, set-based
+  `count(*)`/`GROUP BY` aggregates (never loaded-and-counted in React), and
+  batched lookups by the returned page's IDs for derived fields (user
+  capabilities, membership counts, application/milestone counts) instead of
+  per-row queries — mirroring the existing `src/db/queries/challenges.ts`
+  batch-by-ids convention. Status filters are validated against each
+  table's actual Drizzle enum (`challengeStatus.enumValues.find(...)`, etc.)
+  before reaching the query layer; an unrecognized `?status=` value is
+  silently ignored rather than reaching Postgres, which would otherwise
+  raise `invalid input value for enum` and leak a raw DB error (verified
+  live — see below).
+- Added `src/app/admin/page.tsx` (overview: live count tiles for users by
+  status/derived capability, organizations by type/verification, and
+  challenges/applications/projects by actual stored status, each row linking
+  to its exact filtered list — Section 9.1/14.2) and five list pages
+  (`users`, `organizations`, `challenges`, `applications`, `projects`),
+  each independently authorized, each backed by one dedicated query.
+  Detail (`[id]`) pages are deferred — Checkpoint D's own scope explicitly
+  separates "lists" from "metadata-only details as needed", and challenge
+  titles are intentionally left as plain text rather than links to
+  `/challenges/[slug]`, since that route's ordinary visibility policy would
+  404 an owner viewing an unpublished/private challenge (Section 9.7: no
+  borrowed authority, no dead links).
+- Added `src/components/admin/status-summary.tsx` (`StatusBreakdown` —
+  count-with-link rows) and `src/components/admin/workflow-table.tsx`
+  (`WorkflowTable` — the one generic list table every page uses) and
+  `src/components/admin/admin-pagination.tsx` (query-param-preserving
+  Previous/Next).
+- No `audit_logs`/activity display: the overview explicitly states activity
+  and audit history are not shown yet, since `audit_logs` is not populated
+  by real domain mutations until Checkpoint E (Section 14.2: never imply
+  audit coverage predates instrumentation).
+- Live-verified in a real browser (dev server + Playwright), not just typed
+  and linted: signed in as `CAID_ADMIN_DEMO` (temporarily granted
+  `PLATFORM_OWNER` via the CLI), confirmed the overview tiles, all five list
+  pages, status-filtered links (`?status=APPLICATIONS_OPEN` correctly
+  narrowed 11→8), and that an invalid `?status=BOGUS_VALUE` is silently
+  ignored rather than 500ing. Confirmed the persona matrix directly against
+  the live routes: anonymous → redirect to `/sign-in`; `JORDAN_STUDENT_DEMO`
+  → 404; `ELAB_ADMIN_DEMO` (org-scoped `ADMIN`, no platform role) → 404 on
+  both `/admin` and a direct `/admin/users` URL guess (confirms per-page
+  re-authorization, not just the layout). Server log showed clean
+  200/404/307 responses throughout, no unhandled errors.
+- Added `scripts/verify-admin-shell.ts`: the same persona matrix
+  (CAID/E-Lab admin, student, faculty, partner all rejected by
+  `requirePlatformOwner`) as a repeatable direct-function test, plus a
+  grant → gate-opens → revoke → gate-closes round trip (using a second
+  temporary owner so the revoke doesn't hit Checkpoint C's already-verified
+  last-owner protection), plus query sanity checks (page-size bound,
+  deterministic ordering, an out-of-range page returns an empty page rather
+  than throwing). Cleans up every row it creates in a `finally` block.
+- Verified with `pnpm exec tsc --noEmit`, `pnpm lint`, `pnpm exec drizzle-kit
+  check`, `pnpm db:check`, `scripts/verify-role-model.ts`,
+  `scripts/verify-platform-admin.ts`, and `scripts/verify-admin-shell.ts` —
+  all pass. Confirmed zero leftover `user_platform_roles` rows after the
+  browser session. No mutations, audit instrumentation, or Phase 7/8 work
+  were added.
+
+## Checkpoint E — audit and activity (2026-09-09)
+
+- Added `src/services/audit.service.ts`: the Section 11.3 event catalog as a
+  typed `AUDIT_ACTIONS` const (with `AuditAction`) and an `AUDIT_ENTITY_TYPES`
+  const (with `AuditEntityType`), plus the one reusable
+  `recordAuditEvent(executor, event)` primitive. It accepts either `db` or an
+  open transaction and never opens its own — callers pass the same
+  transaction their domain mutation used, so the audit row commits or rolls
+  back with it (Section 11.4), and every field is authoritative service
+  state, never client-supplied actor/entity identity.
+- Migrated `src/services/platform-admin.service.ts`'s three inline
+  `audit_logs` inserts (`PLATFORM_OWNER_BOOTSTRAPPED`/`_GRANTED`/`_REVOKED`,
+  Checkpoint C) onto `recordAuditEvent`, removing the private
+  `insertAuditEvent` helper it previously duplicated. Observable behavior is
+  unchanged (same fields, same transaction) — confirmed by rerunning
+  `scripts/verify-platform-admin.ts` and `scripts/verify-admin-shell.ts`
+  unmodified after the refactor; both still pass.
+- Instrumented the full challenge lifecycle in
+  `src/services/challenge-write.service.ts` — the bounded, real starting set
+  for this checkpoint (Section 15.5: "pick a bounded, real starting set and
+  say explicitly what's covered vs. deferred"):
+  - `createChallengeDraft` → `CHALLENGE_CREATED`
+  - `submitChallengeForReview` → `CHALLENGE_SUBMITTED`
+  - `recordChallengeReviewDecision` → `CHALLENGE_APPROVED` /
+    `CHALLENGE_REVISION_REQUESTED`, chosen by `input.decision`
+  - `publishApprovedChallenge` → `CHALLENGE_PUBLISHED`
+
+  **Documented coverage gap:** the catalog (Section 11.3) has no dedicated
+  `CHALLENGE_REJECTED` code for the review-decision `REJECTED` outcome (which
+  moves a challenge to `CANCELLED`). Rather than silently leaving it
+  unaudited, `reviewDecisionAuditAction()` falls back to the catalog's
+  generic `CHALLENGE_REVIEWED` code with `details.decision: "REJECTED"`
+  recording the actual outcome. Flagging here per Section 15.5's
+  "document ... gaps explicitly" — resolving it (adding a dedicated code) is
+  a candidate for Checkpoint G or a later catalog revision, not done here to
+  avoid widening the catalog beyond what Section 11.3 actually lists.
+
+  **Deferred, not instrumented this checkpoint:** `updateChallengeDraft`
+  (no catalog event for draft edits) and `replaceChallengeFacultyRouting`
+  (not in the Section 11.3 catalog). Every other catalog entry (organization
+  membership/verification, applications, assessments, offers, projects,
+  milestones) is deferred to whichever checkpoint implements the mutation it
+  documents — the catalog anticipates them; nothing before that mutation
+  exists should write a row for it.
+- Added `listAdminAuditEvents` to `src/db/queries/admin.ts`: bounded,
+  deterministic (`ORDER BY id DESC`), filterable by `action`/`entityType`/
+  `entityId`/`actorUserId`, with a `LEFT JOIN` to `users` for the actor's
+  display name (nullable — bootstrap/system events have no acting user).
+  `/admin/activity` and `/admin/audit` both read this one function; they are
+  two presentations of the same table, not two separate read models.
+- Added `src/app/admin/activity/page.tsx` (unfiltered chronological feed,
+  Section 9.2) and `src/app/admin/audit/page.tsx` (the same feed with a
+  `<form method="get">` filter bar for action/entity type/entity ID — plain
+  HTML, no client JS, consistent with every other `/admin` list page's
+  URL-query-param-only filtering convention). Both independently re-check
+  `requirePlatformOwner`-equivalent (`hasActorCapability(actor,
+  "PLATFORM_OWNER")`) before querying, matching every other `/admin` page.
+  Both state "Coverage begins 2026-09-09" explicitly and both filter values
+  are validated against the actual `AUDIT_ACTIONS`/`AUDIT_ENTITY_TYPES`
+  catalog before reaching the query (an unrecognized value is dropped, same
+  convention as the Checkpoint D status filters).
+- Updated `src/components/admin/admin-navigation.tsx` to add "Activity" and
+  "Audit" nav entries (both routes now exist). Updated the overview page's
+  notice box (`src/app/admin/page.tsx`) from "not shown yet" to link to both
+  new pages and state the coverage start date, rather than embedding a live
+  feed inline on the overview (kept the overview's own scope to counts).
+- Added `scripts/verify-admin-audit.ts`: exercises the full instrumented
+  challenge lifecycle (create → submit → approve → publish, plus a second
+  challenge's revision-requested and rejected paths) inside one outer
+  transaction, asserting the exact expected `audit_logs` row appears after
+  each successful step. Also asserts two failed-mutation cases (`FORBIDDEN`
+  owner-reviewing-own-challenge, `INVALID_TRANSITION` double-submit) write
+  **no** audit row, satisfying Section 15.5's explicit "rollback tests
+  proving a failed mutation writes no audit row" requirement. The whole
+  scenario is rolled back at the end (same `ROLLBACK`-symbol pattern as
+  `scripts/verify-challenge-writes.ts`); the script asserts the total
+  `audit_logs` row count is unchanged afterward, which is a stronger
+  atomicity proof than the per-step checks alone — it shows every
+  successful step's audit row also rolled back together with its domain
+  write. A lighter query-layer pass (`listAdminAuditEvents` page-size bound,
+  deterministic ordering, action-filter correctness, out-of-range page)
+  runs afterward against real committed data.
+- Live-verified in a real browser (dev server + Playwright): granted
+  `CAID_ADMIN_DEMO` `PLATFORM_OWNER` via the CLI (same temporary-grant
+  pattern as Checkpoint D), confirmed `/admin/activity` renders real
+  `PLATFORM_OWNER_BOOTSTRAPPED`/`_GRANTED`/`_REVOKED` rows from this and
+  prior checkpoints' CLI usage with correct actor names/timestamps/details;
+  confirmed `/admin/audit`'s filter form actually narrows results
+  (`?action=PLATFORM_OWNER_REVOKED` correctly dropped 4→1 matching events);
+  confirmed the updated overview notice links to both pages. Confirmed
+  `JORDAN_STUDENT_DEMO` (no platform role) gets 404 on a direct URL guess to
+  both `/admin/activity` and `/admin/audit`, proving the new routes inherit
+  the same per-page defense-in-depth as every existing `/admin` page.
+  Afterward the temporary grant could not be revoked through the ordinary
+  CLI path — it was the sole ACTIVE owner, so `revokePlatformOwner` correctly
+  refused with `LAST_PLATFORM_OWNER` — so the row was deleted directly
+  (`DELETE FROM user_platform_roles WHERE user_id = 1`), matching Checkpoint
+  D's precedent for cleaning up test-only role state. The `audit_logs` rows
+  from this grant were deliberately left in place (audit history is never
+  edited, Section 18 security checklist) — they are true records of a real
+  grant that really happened.
+- Verified with `pnpm exec tsc --noEmit`, `pnpm lint`, `pnpm exec drizzle-kit
+  check`, `pnpm db:check`, `scripts/verify-role-model.ts`,
+  `scripts/verify-self-service-authentication.ts`,
+  `scripts/verify-platform-admin.ts`, `scripts/verify-admin-shell.ts`,
+  `scripts/verify-admin-audit.ts`, `scripts/verify-challenge-writes.ts`, and
+  `scripts/verify-partner-post-flow.ts` — all pass, confirming the
+  `challenge-write.service.ts` instrumentation caused no regression in the
+  pre-existing challenge-lifecycle test suites. No schema/migration changes
+  were needed (`audit_logs` already existed from Phase 6.2). Confirmed zero
+  leftover `user_platform_roles` rows after the browser session. No
+  Checkpoint F owner mutations (suspension, organization verification,
+  membership assignment, an in-app grant/revoke UI), Phase 7 matching, or
+  Phase 8 work were added.
+
+## Checkpoint F — access governance (2026-09-09, scoped to the approved subset)
+
+- Obtained explicit per-mutation-category approval before writing any
+  Checkpoint F code (see the Section 10.6 "Human-approved decisions
+  (Checkpoint F mutation-category gate)" note above): second-owner
+  grant/revoke UI and account suspension/reactivation approved; organization
+  verification/rejection and exact-email membership assignment still
+  deferred, unapproved.
+- Extended `src/services/platform-admin.service.ts` with
+  `suspendUserAccount`/`reactivateUserAccount` (Section 10.3 semantics):
+  moves `users.status` between `ACTIVE`/`SUSPENDED`; requires a non-empty,
+  ≤500-character reason for suspension; refuses to suspend the final
+  accessible ACTIVE platform owner (the same lock-and-check pattern
+  `revokePlatformOwner` already uses); never touches credentials; idempotent
+  in both directions; writes `USER_SUSPENDED`/`USER_REACTIVATED` (Section
+  11.3's existing catalog entries — no new event codes needed) atomically
+  with the status change via `recordAuditEvent`. Confirmed
+  `resolveAuthenticatedUserByEmail` already treats any non-ACTIVE status as
+  a failed resolution (`INACTIVE`), so suspension blocking future sign-in
+  needed no new code — it was already a consequence of the existing actor
+  resolution path.
+- Added `getAdminUserDetail(userId)` and `listAdminPlatformOwners()` to
+  `src/db/queries/admin.ts`. The user detail read keeps identity,
+  authentication/credential presence, student/faculty profile, organization
+  memberships, and global platform role as distinct fields — never
+  collapsed into one editable role (Section 9.3) — plus that user's own
+  recent audit events (reusing `listAdminAuditEvents` from Checkpoint E, no
+  new pagination logic). `listAdminPlatformOwners` is deliberately
+  unbounded/unpaginated: the last-owner invariant already keeps the ACTIVE
+  owner set small by construction.
+- Added `/admin/access` (list of ACTIVE owners with a grant form and a
+  per-owner revoke form; the sole remaining owner shows a
+  "cannot be revoked" message instead of a revoke control) and
+  `src/app/admin/access/actions.ts` (`grantOwnerAction`/`revokeOwnerAction`).
+  Added `/admin/users/[userId]` (the detail page — identity, platform role,
+  student/faculty profile, memberships, a suspend-with-reason or reactivate
+  form depending on current status, and the user's recent audit events) and
+  `src/app/admin/users/[userId]/actions.ts`
+  (`suspendUserAction`/`reactivateUserAction`). Every action re-resolves the
+  actor from the session and re-checks `PLATFORM_OWNER` independently
+  (Section 13.3) — the acting owner's ID is never taken from client form
+  data. Every mutation form requires an explicit confirmation checkbox
+  (grant/revoke) or a required reason field (suspend) before submission
+  (Section 14.3). Linked `/admin/users` row names to the new detail route;
+  added "Access" to `admin-navigation.tsx`.
+- Reused the existing `PlatformAdminError` codes (`NOT_FOUND`,
+  `VALIDATION_ERROR`, `CONFLICT`, `LAST_PLATFORM_OWNER`) for every new
+  mutation rather than inventing new ones, per Section 13.5.
+- Added `scripts/verify-access-governance.ts`: validation rejection
+  (empty/oversized reason, nonexistent user), last-owner suspension
+  refusal, successful suspend/reactivate with exact audit-detail assertions
+  (`previousStatus`/`nextStatus`/`reason`), idempotency in both directions,
+  a credential-untouched check, confirmation that a suspended account fails
+  `resolveAuthenticatedUserByEmail` and a reactivated one succeeds again,
+  and correctness checks on both new query functions
+  (`listAdminPlatformOwners`'s `grantedByName` join,
+  `getAdminUserDetail`'s field-by-field agreement with what the mutations
+  actually did).
+- Live-verified in a real browser (dev server + Playwright), signed in as a
+  temporarily CLI-granted `CAID_ADMIN_DEMO`: granted `ELAB_ADMIN_DEMO` a
+  second owner slot through the `/admin/access` form (confirmed
+  `grantedByName` rendered correctly), revoked it again through the same
+  page; suspended `JORDAN_STUDENT_DEMO` from `/admin/users/8` with a reason,
+  confirmed the status chip flipped to SUSPENDED, the form swapped to a
+  Reactivate button, and the audit table showed the new `USER_SUSPENDED`
+  row; reactivated and confirmed the same page showed both
+  `USER_REACTIVATED` and `USER_SUSPENDED` rows in order. Confirmed
+  `JORDAN_STUDENT_DEMO` (no platform role) still gets 404 on a direct URL
+  guess to both `/admin/access` and `/admin/users/8`. Cleaned up afterward:
+  deleted the CAID owner's `user_platform_roles` row directly (it was the
+  sole ACTIVE owner again, so the ordinary revoke path correctly refused
+  with `LAST_PLATFORM_OWNER`, same precedent as Checkpoints D/E); left the
+  E-Lab admin's now-REVOKED row and every `audit_logs` row from this
+  session in place — both are true records of real actions, not test
+  pollution (Section 18 security checklist: audit history is never edited).
+- Verified with `pnpm exec tsc --noEmit`, `pnpm lint`, `pnpm exec drizzle-kit
+  check`, `pnpm db:check`, `scripts/verify-role-model.ts`,
+  `scripts/verify-self-service-authentication.ts`,
+  `scripts/verify-platform-admin.ts`, `scripts/verify-admin-shell.ts`,
+  `scripts/verify-admin-audit.ts`, and `scripts/verify-access-governance.ts`
+  — all pass. No schema/migration changes were needed. No organization
+  verification, membership assignment, Phase 7 matching, or Phase 8 work
+  was added.
+
+## Checkpoint G — operational coverage (2026-09-09)
+
+- Added `listAdminAssessmentAttempts`/`listAdminOffers` to
+  `src/db/queries/admin.ts`. `assessment_attempts` (not `assessments`, the
+  challenge-owned definition/template) is the actual per-application
+  workflow entity per Section 9.5's own definition/workflow-state
+  distinction — status, `startedAt`/`submittedAt`, joined to its assessment
+  title and challenge for context. Offers join through
+  `selections → applications → challenges` for the same context. Added
+  `/admin/assessments` and `/admin/offers` (both "Recommended" priority in
+  Section 8's table); the offers page flags a `PENDING` row past its
+  `respondBy` date with an inline "Overdue" chip.
+- Added `getAdminAttentionItems()`: three bounded, set-based counts —
+  challenges awaiting review 7+ days (status SUBMITTED/UNDER_REVIEW,
+  `updatedAt` older than 7 days), challenges open past their application
+  deadline (status APPLICATIONS_OPEN, `applicationDeadline` in the past),
+  and offers overdue for a response (status PENDING, `respondBy` in the
+  past) — every definition derived from existing columns/documented
+  invariants, never an invented "health" score (Section 9.1). Added an
+  "Attention items" section to the top of `/admin` (Section 14.2: "lead
+  with workflow state and attention items"), each count linking to the
+  closest real filtered list.
+- Added `getAdminSystemStatus()` and `/admin/system`: application version
+  (from `package.json`), server time, `NODE_ENV` as the environment label,
+  a live `select 1` database connectivity check, the latest *applied*
+  migration — read from `drizzle.__drizzle_migrations` (the database's own
+  record) cross-referenced against `drizzle/meta/_journal.json` for its
+  human-readable tag, not just the on-disk journal alone, since the journal
+  reflects what's generated, not necessarily what this database instance
+  actually ran — and one non-secret feature flag
+  (`isDevelopmentAuthenticationEnabled()`). Exactly Section 9.6's allow-list;
+  no environment-variable values, connection strings, secrets, tokens, or
+  raw logs.
+- Confirmed (read-only, no code change): no `MATCHING_ENABLED` flag or
+  matching UI exists anywhere in the codebase yet (Phase 7 has not started),
+  so there is nothing to gate — the "Phase 7 matching" row on `/admin/system`
+  states this plainly rather than implying a flag exists.
+- Added "Assessments", "Offers", and "System" to `admin-navigation.tsx`
+  (positioned per Section 8's information architecture).
+- Added `scripts/verify-operational-coverage.ts`: bounded-pagination/
+  deterministic-ordering checks for both new list queries; each attention-item
+  count proven against a real seeded row temporarily mutated past its
+  threshold and restored in a `finally` block (not just inspected by eye);
+  `getAdminSystemStatus()` asserted to report a live connection, a real
+  applied-migration tag, and — serializing its full output — to never
+  contain `DATABASE_URL`, `AUTH_SECRET`, or a raw Postgres connection-string
+  prefix.
+- Live-verified in a real browser (dev server + Playwright), signed in as a
+  temporarily CLI-granted `CAID_ADMIN_DEMO`: confirmed the overview's new
+  "Attention items" tiles (all zero against current seed data, as expected),
+  real seeded assessment-attempt/offer rows rendering on their new list
+  pages, and `/admin/system` showing live values (version `0.1.0`,
+  environment `development`, `Connected`, latest migration
+  `0006_platform_owner_roles`). Confirmed `JORDAN_STUDENT_DEMO` (no platform
+  role) still gets 404 on a direct URL guess to all three new routes.
+- Verified with `pnpm exec tsc --noEmit`, `pnpm lint`, `pnpm exec drizzle-kit
+  check`, `pnpm db:check`, `scripts/verify-role-model.ts`,
+  `scripts/verify-self-service-authentication.ts`,
+  `scripts/verify-platform-admin.ts`, `scripts/verify-admin-shell.ts`,
+  `scripts/verify-admin-audit.ts`, `scripts/verify-access-governance.ts`, and
+  `scripts/verify-operational-coverage.ts` — all pass. No schema/migration
+  changes were needed. Confirmed every temporarily mutated challenge/offer
+  row was restored to its exact original value after the verifier ran.
+- **Noted, not fixed:** rerunning `scripts/verify-access-governance.ts`
+  during this checkpoint's regression sweep swept away the `REVOKED`
+  `user_platform_roles` row and its `PLATFORM_OWNER_GRANTED`/`_REVOKED`
+  audit rows for `ELAB_ADMIN_DEMO` that the Checkpoint F browser
+  verification had left in place — that script's cleanup deletes rows by
+  seeded-identity `userId`, not by "rows this specific run created," so any
+  later run against the same shared dev identity clears prior manual-test
+  history too. The Checkpoint F write-up's claim that those rows would
+  persist as "true records" no longer holds; they were verification-session
+  data on a shared, repeatedly-reused fixture identity, not real production
+  audit trail, so no actual history was lost — but the general lesson holds
+  for future checkpoints: don't rely on rows tied to `*_DEMO` identities
+  surviving a later verifier run.
+
+---
+
 # 11. Phase 7 — Skill + Semantic Matching
+
+**Status note (2026-09-09):** Phase 7 is deferred by roadmap amendment. Do not
+begin Phase 7 implementation until Phase 6.6 and Phase 8 (private staging) are
+complete and Phase 7 is explicitly reprioritized by human review. See Section
+4 and Section 10.6.
 
 ## Goal
 
@@ -1767,6 +2354,14 @@ Checklist:
 ---
 
 # 12. Phase 8 — Production Deployment
+
+**Status note (2026-09-09):** by roadmap amendment, Phase 8 now follows Phase
+6.6 (Global Platform Administration) and precedes Phase 7 (matching). The
+first deployment under this phase is classified as **private
+staging/internal demo**, not public production — self-service authentication
+lacks email verification, password recovery, MFA, and distributed rate
+limiting. See `context/admin-console-implementation-plan.md` Section 17 for
+the full rationale.
 
 ## Goal
 
@@ -1878,10 +2473,112 @@ project files
 
 **Current phase:** Phase 6.5 — COMPLETE / READY FOR HUMAN REVIEW
 **Phase 6:** COMPLETE / READY FOR FINAL HUMAN REVIEW
-**Active next checkpoint:** Phase 7.1 — Structured skill matching (after Phase 6.5 human review)
+**Phase 6.6 Checkpoint A (roadmap and governance amendment):** COMPLETE / HUMAN-APPROVED (2026-09-09)
+**Phase 6.6 Checkpoint B (canonical schema and migration):** COMPLETE, human-reviewed (2026-09-09)
+**Phase 6.6 Checkpoint C (actor capability and bootstrap CLI):** COMPLETE, human-reviewed (2026-09-09)
+**Phase 6.6 Checkpoint D (read-only `/admin` shell):** COMPLETE (2026-09-09), awaiting human review
+**Phase 6.6 Checkpoint E (audit and activity instrumentation):** COMPLETE (2026-09-09), awaiting human review
+**Phase 6.6 Checkpoint F (access governance):** COMPLETE (2026-09-09), scoped to the approved subset (second-owner grant/revoke UI, suspend/reactivate); awaiting human review
+**Phase 6.6 Checkpoint G (operational coverage):** COMPLETE (2026-09-09), awaiting human review
+**Active next checkpoint:** Phase 6.6 Checkpoint H — final verification
+**Deferred:** Phase 7.1 — Structured skill matching (deferred until Phase 6.6 and Phase 8 private staging are complete); Phase 6.6 organization verification and exact-email membership assignment (unapproved)
 
 ### Latest completed work
 
+- 2026-09-09 Phase 6.6 Checkpoint G — operational coverage:
+  `listAdminAssessmentAttempts`/`listAdminOffers` added to
+  `src/db/queries/admin.ts`; `/admin/assessments` and `/admin/offers` added
+  (Recommended priority). `getAdminAttentionItems()` added (three bounded
+  counts — stale review, expired-open, overdue-offer — derived from existing
+  columns, each proven against a real temporarily-mutated seeded row in
+  `scripts/verify-operational-coverage.ts`) and surfaced as an "Attention
+  items" section at the top of `/admin`. `getAdminSystemStatus()` and
+  `/admin/system` added (version, server time, environment, live DB
+  connectivity, latest applied migration read from
+  `drizzle.__drizzle_migrations`, one non-secret feature flag — Section
+  9.6's allow-list only, asserted secret-free by the verifier). Confirmed no
+  matching UI/flag exists yet to gate (Phase 7 hasn't started). See the
+  Section 10.6 Checkpoint G entry for full detail, including a noted (not
+  fixed) side effect where rerunning `verify-access-governance.ts` cleaned
+  up Checkpoint F's leftover demo-identity audit rows.
+- 2026-09-09 Phase 6.6 Checkpoint F — access governance (scoped to the
+  human-approved subset): obtained explicit per-category approval first
+  (second-owner grant/revoke UI and suspend/reactivate approved;
+  organization verification and membership assignment still deferred).
+  Added `suspendUserAccount`/`reactivateUserAccount` to
+  `platform-admin.service.ts` (Section 10.3 semantics: bounded reason
+  required, final-owner protection, credentials untouched, idempotent,
+  atomic audit write); `getAdminUserDetail`/`listAdminPlatformOwners` to
+  `src/db/queries/admin.ts`; `/admin/access` and `/admin/users/[userId]`
+  with their Server Actions, each re-checking `PLATFORM_OWNER`
+  independently and requiring explicit confirmation before mutating.
+  Added `scripts/verify-access-governance.ts`. Live-verified in a real
+  browser (grant/revoke via `/admin/access`, suspend/reactivate via a user
+  detail page, non-owner still 404s on both). See the Checkpoint F entry in
+  Section 10.6 for full detail. Next checkpoint: Phase 6.6 Checkpoint G
+  (operational coverage).
+- 2026-09-09 Phase 6.6 Checkpoint E — audit and activity: added
+  `src/services/audit.service.ts` (the Section 11.3 event catalog +
+  `recordAuditEvent` primitive), migrated `platform-admin.service.ts`'s
+  inline audit inserts onto it, and instrumented the full challenge lifecycle
+  in `challenge-write.service.ts` (create/submit/review-decision/publish) in
+  the same transaction as each domain write. Added `listAdminAuditEvents` to
+  `src/db/queries/admin.ts` and two new pages, `/admin/activity` (feed) and
+  `/admin/audit` (the same feed with an action/entity-type/entity-ID filter
+  form). Added `scripts/verify-admin-audit.ts` proving atomic commit/rollback
+  and that failed mutations write no audit row. Live-verified in a real
+  browser (real audit rows rendered with correct actor/action/details;
+  action filter correctly narrowed results; a non-owner still 404s on both
+  new routes via direct URL guess). See the Checkpoint E entry in
+  Section 10.6 for full detail. Next checkpoint: Phase 6.6 Checkpoint F
+  (access governance) — not yet approved beyond the CLI-only grant/revoke
+  already built in Checkpoint C.
+- 2026-09-09 Phase 6.6 Checkpoint D — read-only `/admin` shell: added
+  `src/app/admin/layout.tsx` (auth gate + navigation), the overview page, and
+  five read-only list pages (users, organizations, challenges, applications,
+  projects) backed by new bounded, set-based queries in
+  `src/db/queries/admin.ts`. Live-verified in a real browser (dev server +
+  Playwright) against the full persona matrix — anonymous redirects,
+  student/faculty/partner/CAID-admin/E-Lab-admin all 404, a temporarily
+  CLI-granted `CAID_ADMIN_DEMO` sees the console — plus status filters and
+  invalid-filter handling; row cleaned up afterward. Added
+  `scripts/verify-admin-shell.ts` as a repeatable version of the same
+  authorization matrix; see the Checkpoint D entry in Section 10.6 for full
+  detail. No mutations or audit instrumentation.
+- 2026-09-09 Phase 6.6 Checkpoint C — actor capability and bootstrap:
+  `PLATFORM_OWNER` added to `AuthenticatedActorCapability`; grant/revoke
+  service and guarded bootstrap CLI added; see the Section 10.6 Checkpoint C
+  entry for full detail.
+- 2026-09-09 Phase 6.6 Checkpoint B — canonical schema and migration: added
+  `platform_role`/`platform_role_status` enums and the `user_platform_roles`
+  table to `docs/database/schema.dbml` first, then the modular Drizzle schema
+  (`src/db/schema/enums.ts`, `src/db/schema/governance.ts`) and generated
+  migration `drizzle/0006_platform_owner_roles.sql` (renamed from
+  drizzle-kit's random tag, journal updated, matching the
+  `0005_self_service_credentials` precedent). Verified with
+  `drizzle-kit check`, a full `pnpm db:reset` migration replay from an empty
+  database, `pnpm db:check`, a direct `psql \d` structural check, `tsc
+  --noEmit`, and `pnpm lint`; see the Checkpoint B entry in Section 10.6 for
+  full detail, including one unrelated pre-existing seed-script bug
+  surfaced (not fixed) during verification. Schema/migration only — no
+  actor-resolution, policy, route, or mutation code. Next checkpoint: Phase
+  6.6 Checkpoint C (actor capability and bootstrap CLI).
+- 2026-09-09 Phase 6.6 Checkpoint A — roadmap and governance amendment
+  (Global Platform Administration): inserted Phase 6.6 into the roadmap
+  between Phase 6.5 and Phase 7.1 (new Section 10.6), recorded Phase 7
+  matching as deferred and Phase 8 private staging as the next deployment
+  phase after Phase 6.6 (Section 4, Section 12 status note), and recorded in
+  `docs/security/role-model.md` that the Phase 6.2 "no global admin role"
+  decision is superseded by an amendment section (the original Phase 6.2
+  record is preserved, not rewritten). Human-approved via explicit decision
+  gates: `PLATFORM_OWNER` as the initial global role; multiple simultaneously
+  ACTIVE owners permitted with a last-owner-protection invariant; v1 admin
+  console scope is metadata-only (no confidential content). The detailed
+  architecture, schema, checkpoints B–H, mutation policy, and verification
+  plan are recorded in `context/admin-console-implementation-plan.md`, which
+  is authoritative for implementation. No schema, migration, Drizzle, actor
+  resolution, route, or other runtime code changed. Next checkpoint: Phase
+  6.6 Checkpoint B (canonical schema and migration).
 - 2026-09-06 Post-Phase-6 internal-demo authentication extension: added an
   opt-in self-service email/password signup and sign-in path alongside the
   existing Entra and development identity providers. Signup creates only an
@@ -2108,12 +2805,46 @@ Full 45-domain-table pre-reset/post-reset/post-idempotency count equality is rec
 
 ## Immediate next task
 
-### Phase 7.1 — Structured skill matching
+### Phase 6.6 Checkpoint H — final verification
 
-Phase 6.5 (local containerized development) is complete and awaiting human
-review. After that review, the next implementation checkpoint is Phase 7.1 —
-Structured skill matching. Do not begin Phase 7.1 or any Phase 8 production
-deployment work before Phase 6.5 is reviewed.
+Phase 6.6 Checkpoints A through G are complete (2026-09-09). Checkpoint F
+was scoped to only the explicitly approved mutation categories
+(second-owner grant/revoke UI, account suspend/reactivate) — organization
+verification/rejection (Section 10.4) and exact-email membership assignment
+(Section 10.5) remain deferred and unapproved; do not implement either until
+they receive the same kind of explicit, separate approval (Section 10.6).
+
+The next checkpoint is Phase 6.6 Checkpoint H: final verification — the
+Phase 6.6 exit gate for private-staging deployment (Phase 8). Per
+`context/admin-console-implementation-plan.md` Section 15.8/16, this is a
+verification-and-review checkpoint, not a feature-building one:
+
+- run the complete persona/policy matrix from Section 16.5 live in a
+  browser (anonymous, a new self-service account, every seeded non-owner
+  identity, a temporarily granted owner, then that owner revoked again) —
+  broader than any single checkpoint's own persona spot-check;
+- verify revoke/suspend behavior against an actual live session, not just
+  the next actor resolution (Section 15.8's "against sessions" — confirm
+  whether a session already in progress is cut off immediately or only on
+  its next server-side check, and document whichever is actually true);
+- review every global query field across `src/db/queries/admin.ts` against
+  Section 12's privacy boundary (metadata-only; no CV/transcript/assessment
+  content) and every owner-mutation audit detail against Section 11.2's
+  envelope (no secrets/credentials in `details`);
+- run the full regression command list (Section 16.6) including `pnpm
+  db:reset` + `pnpm db:check` + the platform-admin verifier again (schema
+  changed across Checkpoints B/E), plus `pnpm build`;
+- complete responsive/accessibility checks (Section 14.4) across every
+  `/admin` page, not spot-checked per checkpoint.
+
+Do not begin Phase 7.1 — Structured skill matching before Phase 6.6 and
+Phase 8 private staging are complete (Section 4 execution sequence note).
+Do not implement organization verification or exact-email membership
+assignment in this checkpoint — they remain unapproved.
+
+Phase 6.5 (local containerized development) remains awaiting a separate human
+review; that review does not block Phase 6.6 work, which was explicitly
+approved to proceed via its own decision gates (Section 10.6).
 
 Immediate sequence:
 
@@ -2168,7 +2899,25 @@ Phase 6.5 local containerized development ✅
         ↓
 Phase 6.5 human review
         ↓
-Phase 7.1 structured skill matching
+Phase 6.6 Checkpoint A — roadmap and governance amendment ✅ (human-approved 2026-09-09)
+        ↓
+Phase 6.6 Checkpoint B — canonical schema and migration ✅ (2026-09-09)
+        ↓
+Phase 6.6 Checkpoint C — actor capability and bootstrap ✅ (2026-09-09)
+        ↓
+Phase 6.6 Checkpoint D — read-only admin shell ✅ (2026-09-09)
+        ↓
+Phase 6.6 Checkpoint E — audit and activity ✅ (2026-09-09)
+        ↓
+Phase 6.6 Checkpoint F — access governance ✅ (2026-09-09, scoped to approved subset)
+        ↓
+Phase 6.6 Checkpoint G — operational coverage ✅ (2026-09-09)
+        ↓
+Phase 6.6 Checkpoint H — final verification
+        ↓
+Phase 8 private staging/internal-demo deployment
+        ↓
+Phase 7.1 structured skill matching (deferred/reprioritized later)
 ```
 
 ### Phase 6.5 checklist (complete, pending human review)
@@ -2179,11 +2928,76 @@ Phase 7.1 structured skill matching
 - [x] Preserve host `pnpm dev` and all existing `db:*` script behavior unchanged.
 - [x] Do not begin Phase 7.1 matching or Phase 8 production deployment work.
 
+### Phase 6.6 Checkpoint A checklist (complete, human-approved 2026-09-09)
+
+- [x] Re-read `context/admin-console-implementation-plan.md` in full before amending the roadmap.
+- [x] Amend `PRODUCTION_TRANSFORMATION_PLAN.md` (Section 4, Section 10.6, Section 12 status note, Section 13, Section 14, Section 15).
+- [x] Amend `docs/security/role-model.md` to supersede the "no global admin role" decision without rewriting the Phase 6.2 historical record.
+- [x] Obtain explicit human approval of `PLATFORM_OWNER`, multi-owner recovery, and metadata-only v1 scope before recording them as approved.
+- [x] Make no schema, migration, Drizzle, actor-resolution, or route code changes.
+
+### Phase 6.6 Checkpoint B checklist (complete, awaiting human review, 2026-09-09)
+
+- [x] Update `docs/database/schema.dbml` first.
+- [x] Add the enum/table to a modular Drizzle file (`enums.ts`, `governance.ts`).
+- [x] Add constraints/indexes/timestamps/foreign keys.
+- [x] Generate and inspect a named migration (`0006_platform_owner_roles.sql`).
+- [x] Replay migrations from an empty database (full `pnpm db:reset`).
+- [x] Update architecture documentation (`docs/database/README.md`).
+- [x] Never seed a real person's owner email (no seeding performed in this checkpoint).
+
+### Phase 6.6 Checkpoint C checklist (complete, awaiting human review, 2026-09-09)
+
+- [x] Extend `AuthenticatedActorCapability` with `PLATFORM_OWNER`, re-read from PostgreSQL on every actor resolution.
+- [x] Add `hasPlatformOwnerCapability`/`requirePlatformOwner` policy helpers (`src/services/platform-admin-policy.ts`).
+- [x] Add the guarded bootstrap/recovery CLI (`scripts/admin-grant-owner.ts`, gated behind `ALLOW_PLATFORM_OWNER_BOOTSTRAP=true`).
+- [x] Add a synthetic development owner only if approved — not approved yet; deliberately not added (see Section 10.6 note).
+- [x] Verify grants, idempotence, revocation, final-owner protection, and recovery (`scripts/verify-platform-admin.ts`).
+- [x] Verify signup/provider claims never grant owner authority (covered in the same verifier).
+
+### Phase 6.6 Checkpoint D checklist (complete, awaiting human review, 2026-09-09)
+
+- [x] Read the installed Next.js 16 docs for layouts, Server Components, Server Actions, forms, and authorization before coding.
+- [x] Add `/admin` layout/navigation/overview.
+- [x] Add read-only user, organization, challenge, application, and project lists.
+- [x] Add metadata-only details as needed — none added; deferred (list-only scope, see Section 10.6 note).
+- [x] Add direct-route/service authorization tests (`scripts/verify-admin-shell.ts`), plus a live browser persona-matrix check.
+
+### Phase 6.6 Checkpoint E checklist (complete, awaiting human review, 2026-09-09)
+
+- [x] Define the event name/minimum `details` catalog from Section 11.3 (`src/services/audit.service.ts`).
+- [x] Add a reusable server-only audit-insert primitive (`recordAuditEvent`); migrate Checkpoint C's inline inserts onto it.
+- [x] Instrument a real, bounded set of domain mutations end-to-end, atomic with their writes — the challenge lifecycle in `challenge-write.service.ts`.
+- [x] Add `/admin/activity` and `/admin/audit` read-only routes.
+- [x] Document the coverage start date and gaps explicitly — see the Checkpoint E entry in Section 10.6 (the `CHALLENGE_REJECTED` catalog gap) and both new pages' on-page notices.
+- [x] Add rollback tests proving a failed mutation writes no audit row (`scripts/verify-admin-audit.ts`).
+
+### Phase 6.6 Checkpoint F checklist (complete, awaiting human review, 2026-09-09 — scoped to the approved subset)
+
+- [x] Obtain explicit per-category human approval before writing any Checkpoint F code (second-owner grant/revoke UI and suspend/reactivate approved; organization verification and membership assignment still deferred, unapproved).
+- [x] Add `/admin/access` with a second-owner grant form and per-owner revoke controls, wiring the existing Checkpoint C `grantPlatformOwner`/`revokePlatformOwner` service functions to an in-app Server Action.
+- [x] Add account suspension/reactivation (`suspendUserAccount`/`reactivateUserAccount`, Section 10.3 semantics) via `/admin/users/[userId]`.
+- [x] Confirm/reason/audit on every mutation (explicit confirmation checkbox or required reason field, Section 14.3; atomic `recordAuditEvent` write, Section 13.5).
+- [x] Reuse existing typed error codes rather than inventing new ones.
+- [x] Add direct-route/service authorization + validation tests (`scripts/verify-access-governance.ts`), plus a live browser check.
+- [x] Do not implement organization verification or exact-email membership assignment (still unapproved).
+
+### Phase 6.6 Checkpoint G checklist (complete, awaiting human review, 2026-09-09)
+
+- [x] Add assessment/offer state pages (`/admin/assessments`, `/admin/offers`) backed by new bounded, set-based queries.
+- [x] Add safe blocked/inconsistent-flow indicators from documented invariants (`getAdminAttentionItems`) — never an invented health score.
+- [x] Add safe system metadata (`/admin/system`) — Section 9.6's allow-list only; no secrets.
+- [x] Confirm matching UI stays disabled by default while Phase 7 remains deferred — confirmed no matching UI/flag exists yet to gate.
+- [x] Add direct-route verification (`scripts/verify-operational-coverage.ts`), plus a live browser check.
+- [x] Do not implement organization verification or exact-email membership assignment (still unapproved).
+
 ### Immediate next checkpoint
 
-- [ ] Phase 6.5 human review.
-- [ ] Phase 7.1 — Structured skill matching, after Phase 6.5 human review.
-- [ ] Do not begin Phase 7.1 before Phase 6.5 human review is complete.
+- [ ] Phase 6.5 human review (separate, non-blocking for Phase 6.6).
+- [ ] Human review of Phase 6.6 Checkpoints A–G before Checkpoint H begins.
+- [ ] Phase 6.6 Checkpoint H — final verification (the Phase 6.6 exit gate for Phase 8 private staging).
+- [ ] Explicit human approval before implementing organization verification or exact-email membership assignment, if either is wanted later.
+- [ ] Do not begin Phase 7.1 before Phase 6.6 and Phase 8 private staging are complete.
 
 ### Agent sequencing rule
 
@@ -2199,13 +3013,151 @@ Before each agent implementation task:
 
 ### Recommended next agent instruction
 
-After human review of Phase 6.5, proceed with Phase 7.1 — Structured skill matching only. Do not implement Phase 8 production deployment, schema, migration, seed, or auth changes, or unrelated runtime paths unless explicitly requested.
+Proceed with Phase 6.6 Checkpoint H only: final verification, per
+`context/admin-console-implementation-plan.md` Section 15.8/16. This is a
+review-and-verify checkpoint, not a new-feature checkpoint — resist adding
+scope. Run the complete persona/policy matrix (Section 16.5) live in a
+browser: anonymous, a freshly created self-service account, every seeded
+non-owner identity (student/faculty/partner/CAID-admin/E-Lab-admin), a
+temporarily granted owner, then that owner revoked again mid-"session" —
+check whether an already-open session is cut off immediately or only on its
+next server-side check, and record whichever is actually true (Section
+15.8's "verify revoke/suspend behavior against sessions"). Review every
+field selected across `src/db/queries/admin.ts` against Section 12's
+metadata-only privacy boundary, and every `details` payload written via
+`recordAuditEvent` across the codebase against Section 11.2's envelope (no
+credentials/secrets). Run the full Section 16.6 regression list, including
+`pnpm db:reset` + `pnpm db:check` + `scripts/verify-platform-admin.ts` again
+(schema changed in Checkpoints B and E) and `pnpm build`. Complete a
+responsive/accessibility pass (Section 14.4) across every `/admin` page, not
+spot-checked per checkpoint as before. Do not implement organization
+verification or exact-email membership assignment (Section 10.4/10.5) —
+those remain unapproved from Checkpoint F. Do not implement Phase 7.1
+matching or Phase 8 production deployment. On completion, Phase 6.6 is done
+pending human review before Phase 8 (private staging) begins.
 
 ---
 
 # 15. Work Log
 
 Use this section after each development session.
+
+## 2026-09-09
+
+### Completed
+
+- Phase 6.6 Checkpoint A — roadmap and governance amendment for Global
+  Platform Administration; see the Section 13 "Latest completed work" entry
+  for full detail.
+- Human decision gates approved (via explicit confirmation, not defaulted
+  silently): `PLATFORM_OWNER` as the initial global role and phase sequencing
+  (Phase 6.6 → Phase 8 → Phase 7 deferred); multiple ACTIVE owners for
+  recovery; metadata-only v1 admin console scope.
+- Phase 6.6 Checkpoint B — canonical schema and migration: `platform_role` /
+  `platform_role_status` enums and `user_platform_roles` added to
+  `docs/database/schema.dbml` first, then `src/db/schema/enums.ts` and
+  `src/db/schema/governance.ts`, then migration
+  `drizzle/0006_platform_owner_roles.sql`; replayed clean from an empty
+  database via a full `pnpm db:reset`; see the Section 10.6 Checkpoint B
+  entry for full detail.
+- Phase 6.6 Checkpoint C — actor capability and bootstrap: `PLATFORM_OWNER`
+  added to `AuthenticatedActorCapability`; `src/services/platform-admin-policy.ts`
+  and `src/services/platform-admin.service.ts` added; guarded bootstrap CLI
+  `scripts/admin-grant-owner.ts` (`pnpm admin:grant-owner`) added; verifier
+  `scripts/verify-platform-admin.ts` added and passing; see the Section 10.6
+  Checkpoint C entry for full detail.
+- Fixed the unrelated pre-existing seed-script bug (plain-column
+  `onConflictDoUpdate` target no longer matching the `lower(email)` unique
+  index since migration 0005) in `src/db/seed/users.ts` and
+  `src/db/seed/demo.ts` once it became a real blocker to seeding test users
+  for Checkpoint C verification; local dev database re-seeded clean.
+- Phase 6.6 Checkpoint D — read-only `/admin` shell: `src/app/admin/layout.tsx`
+  (auth gate + navigation), overview page, and five read-only list pages
+  (users, organizations, challenges, applications, projects) backed by
+  `src/db/queries/admin.ts` (bounded pagination, set-based aggregates,
+  batched-by-id lookups); status-query-param filters validated against each
+  table's actual Drizzle enum before reaching Postgres. Live-verified in a
+  real browser against the full persona matrix (anonymous/student/faculty/
+  partner/CAID-admin/E-Lab-admin denied, a temporarily CLI-granted owner
+  sees the console, row deleted afterward); see the Section 10.6 Checkpoint D
+  entry for full detail.
+- Phase 6.6 Checkpoint E — audit and activity: `src/services/audit.service.ts`
+  added (Section 11.3 event catalog + `recordAuditEvent` primitive);
+  `platform-admin.service.ts`'s Checkpoint C inline audit inserts migrated
+  onto it with no behavior change; the full challenge lifecycle in
+  `challenge-write.service.ts` instrumented (create/submit/review-decision/
+  publish), atomic with each domain write; `listAdminAuditEvents` added to
+  `src/db/queries/admin.ts`; `/admin/activity` and `/admin/audit` added
+  (the latter with an action/entity-type/entity-ID filter form); the
+  documented `CHALLENGE_REJECTED` catalog gap (falls back to
+  `CHALLENGE_REVIEWED`); see the Section 10.6 Checkpoint E entry for full
+  detail.
+- Phase 6.6 Checkpoint F — access governance (scoped to the approved
+  subset): explicit per-category approval obtained first — second-owner
+  grant/revoke UI and account suspend/reactivate approved; organization
+  verification/rejection and exact-email membership assignment still
+  deferred, unapproved. Added `suspendUserAccount`/`reactivateUserAccount`
+  to `platform-admin.service.ts` (bounded reason, final-owner protection,
+  credentials never touched, idempotent, atomic audit write reusing the
+  existing `USER_SUSPENDED`/`USER_REACTIVATED` catalog codes from
+  Checkpoint E); `getAdminUserDetail`/`listAdminPlatformOwners` added to
+  `src/db/queries/admin.ts`; `/admin/access` and `/admin/users/[userId]`
+  added with their own Server Actions, each independently re-checking
+  `PLATFORM_OWNER` and requiring explicit confirmation before mutating; see
+  the Section 10.6 Checkpoint F entry for full detail.
+- Files modified (cumulative across A–G): `PRODUCTION_TRANSFORMATION_PLAN.md`,
+  `docs/security/role-model.md`, `docs/database/schema.dbml`,
+  `docs/database/README.md`, `package.json`, `drizzle/meta/_journal.json`,
+  `src/db/schema/enums.ts`, `src/db/schema/governance.ts`,
+  `src/auth/authenticated-actor.ts`, `scripts/_actor.ts`,
+  `src/db/seed/users.ts`, `src/db/seed/demo.ts`,
+  `src/services/platform-admin.service.ts`,
+  `src/services/challenge-write.service.ts`, `src/db/queries/admin.ts`,
+  `src/components/admin/admin-navigation.tsx`, `src/app/admin/page.tsx`,
+  `src/app/admin/users/page.tsx`.
+- Files created (cumulative across A–G): `drizzle/0006_platform_owner_roles.sql`,
+  `drizzle/meta/0006_snapshot.json`, `src/services/platform-admin-policy.ts`,
+  `src/services/platform-admin.service.ts`, `scripts/admin-grant-owner.ts`,
+  `scripts/verify-platform-admin.ts`, `src/db/queries/admin.ts`,
+  `src/app/admin/` (layout + 13 pages), `src/components/admin/` (3
+  components), `scripts/verify-admin-shell.ts`, `src/services/audit.service.ts`,
+  `scripts/verify-admin-audit.ts`, `src/app/admin/access/actions.ts`,
+  `src/app/admin/users/[userId]/actions.ts`,
+  `scripts/verify-access-governance.ts`,
+  `scripts/verify-operational-coverage.ts`.
+- Human decision gates approved (via explicit confirmation, not defaulted
+  silently): `PLATFORM_OWNER` as the initial global role and phase sequencing
+  (Phase 6.6 → Phase 8 → Phase 7 deferred); multiple ACTIVE owners for
+  recovery; metadata-only v1 admin console scope; Checkpoint F's
+  second-owner grant/revoke UI and suspend/reactivate mutation categories
+  (organization verification and membership assignment still not approved).
+- Checks run and passing: `pnpm exec tsc --noEmit`, `pnpm lint`, `pnpm exec
+  drizzle-kit check`, `pnpm db:check`, `scripts/verify-role-model.ts`,
+  `scripts/verify-self-service-authentication.ts`,
+  `scripts/verify-platform-admin.ts`, `scripts/verify-admin-shell.ts`,
+  `scripts/verify-admin-audit.ts`, `scripts/verify-access-governance.ts`,
+  `scripts/verify-operational-coverage.ts`, `scripts/verify-challenge-writes.ts`,
+  `scripts/verify-partner-post-flow.ts`, plus a manual browser session (dev
+  server + Playwright) against `/admin` and all twelve
+  list/feed/audit/access/detail/system pages.
+
+### Current blocker
+
+None. Awaiting human review of Checkpoints A–G before Phase 6.6 Checkpoint H
+(final verification) begins.
+
+### Next action
+
+After review, implement Phase 6.6 Checkpoint H only: the complete
+persona/policy matrix, revoke/suspend-vs-session behavior, a full review of
+every global query field and owner-mutation audit detail, reset/migration/
+seed verification, and responsive/accessibility checks — per Section 15.8
+and Section 16 of `context/admin-console-implementation-plan.md`. See the
+Section 14 "Recommended next agent instruction" for full detail. Checkpoint H
+is Phase 6.6's exit gate for private-staging deployment (Phase 8); obtain
+review before Phase 8 begins. Organization verification and exact-email
+membership assignment (Section 10.4/10.5) remain unapproved and out of scope
+until separately approved.
 
 ## 2026-09-06
 

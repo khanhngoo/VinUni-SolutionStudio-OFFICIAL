@@ -28,7 +28,9 @@
     "db:reset": "tsx scripts/db-reset.ts",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
-    "db:studio": "drizzle-kit studio"
+    "db:studio": "drizzle-kit studio",
+
+    "admin:grant-owner": "tsx scripts/admin-grant-owner.ts"
   },
   "dependencies": {
     "clsx": "^2.1.1",

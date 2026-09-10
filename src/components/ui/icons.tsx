@@ -107,3 +107,40 @@ export function CloseIcon({ className }: IconProps) {
     </svg>
   );
 }
+
+export function EyeIcon({ className }: IconProps) {
+  return (
+    <svg
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.4"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      className={className}
+    >
+      <path d="M1.5 8S4 3.75 8 3.75 14.5 8 14.5 8 12 12.25 8 12.25 1.5 8 1.5 8Z" />
+      <circle cx="8" cy="8" r="2" />
+    </svg>
+  );
+}
+
+export function EyeOffIcon({ className }: IconProps) {
+  return (
+    <svg
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.4"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      className={className}
+    >
+      <path d="M6.6 6.6a2 2 0 0 0 2.77 2.79" />
+      <path d="M4.53 5.16C2.62 6.24 1.5 8 1.5 8s2.5 4.25 6.5 4.25c.86 0 1.66-.19 2.38-.5M6.58 4.06A7.14 7.14 0 0 1 8 3.75c4 0 6.5 4.25 6.5 4.25a12.3 12.3 0 0 1-2.44 2.9" />
+      <path d="M2 2.5l12 11" />
+    </svg>
+  );
+}
