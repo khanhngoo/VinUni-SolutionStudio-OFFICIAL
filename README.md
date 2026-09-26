@@ -41,6 +41,14 @@ record to exist and be active. Share the password only with intended demo
 visitors. This is a shared demo identity, so all visitors see the same demo
 state. Do not use it with real student or partner records.
 
+The public demo data is provisioned once after the reviewed Drizzle migrations
+have been applied to a **new, empty Supabase project**. The one-time command is
+`pnpm db:provision-public-demo`; it requires `DATABASE_URL`,
+`PUBLIC_DEMO_PROJECT_REF`, and `ALLOW_PUBLIC_DEMO_PROVISION` set to that same
+project reference. It verifies the connection target and refuses to touch a
+database with existing rows in any `public` table. Routine deployments must
+not run this command or `pnpm db:seed`.
+
 `pnpm app:up` builds and starts both the `app` service and its `db` dependency,
 so a separate `pnpm db:up` is not required. `pnpm app:logs` follows the server
 logs; press `Ctrl-C` to stop following the logs without stopping the containers.

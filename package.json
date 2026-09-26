@@ -25,6 +25,7 @@
     "db:logs": "docker compose logs -f db",
     "db:check": "tsx scripts/db-check.ts",
     "db:seed": "tsx src/db/seed.ts",
+    "db:provision-public-demo": "tsx scripts/provision-public-demo.ts",
     "db:reset": "tsx scripts/db-reset.ts",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
