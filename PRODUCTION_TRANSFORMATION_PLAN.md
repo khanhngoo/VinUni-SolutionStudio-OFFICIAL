@@ -1518,6 +1518,11 @@ Credentials are stored separately in `user_credentials` by migration 0005 and
 the feature defaults off unless `AUTH_SELF_SERVICE_ENABLED=true`. This is not
 Phase 7 work or a production-ready public authentication rollout.
 
+Post-Phase-6 deployment preparation (2026-09-26): optional Google OIDC sign-in
+is available when its client credentials are configured. It requires a verified
+Google email mapped to an existing ACTIVE `users` row and creates no user or
+role. Public account onboarding remains a separate review decision.
+
 ## 6.2 Roles
 
 Expected roles to validate against ERD/business requirements:

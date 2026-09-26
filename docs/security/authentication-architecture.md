@@ -3,9 +3,9 @@
 ## Boundary
 
 Solutions Studio uses Auth.js with JWT-backed, secure session cookies. Auth.js is
-the authentication boundary for Microsoft Entra ID, the strict seeded
-development provider, and the explicitly enabled internal-demo email/password
-provider. Server-only callers use
+the authentication boundary for Microsoft Entra ID, optional Google sign-in,
+the strict seeded development provider, and the explicitly enabled
+internal-demo email/password provider. Server-only callers use
 `getAuthenticatedUser()` or `requireAuthenticatedUser()` to resolve a session
 to the current internal `users` record. No database adapter, account table, or
 session table is used.
@@ -52,8 +52,8 @@ The issuer must be tenant-specific (for example,
 `https://login.microsoftonline.com/<tenant-id>/v2.0`), never the Entra
 `common` issuer. This prevents the platform from defaulting to arbitrary
 personal or work Microsoft accounts. A production sign-in page reports a clear
-configuration error when those values are absent, and no development provider
-is registered in production.
+configuration error when those values are absent and no other sign-in method is
+available. No development provider is registered in production.
 
 The current contract confirms that VinUni uses institutional Microsoft 365/SSO
 for existing systems, and Microsoft Entra OIDC is technically suitable for this
@@ -68,6 +68,16 @@ creates an active `EXTERNAL_PARTNER` organization membership. VinUni Entra
 B2B/guest identity remains a possible future provider if supported by
 institutional IT.
 
+## Optional Google sign-in
+
+Google OIDC is registered only when both `AUTH_GOOGLE_ID` and
+`AUTH_GOOGLE_SECRET` are configured. Its production callback URL is
+`https://<domain>/api/auth/callback/google`; the same URL must be registered
+in Google Cloud. Auth.js must receive `email_verified=true` from Google, then
+resolve that email to an ACTIVE existing `users` row. Google sign-in does not
+create a user or grant a role. New-account onboarding and persistent provider
+account linking require separate review.
+
 ## Development authentication
 
 Outside production only, Auth.js registers a credentials provider whose sole
@@ -77,7 +87,8 @@ so changing a browser form value cannot impersonate an arbitrary user.
 `NODE_ENV=production` omits the provider and its server action refuses use.
 
 The standard Auth.js route exposes sign-in, sign-out, and session endpoints.
-The local `/sign-in` page uses the same session cookie boundary as Entra.
+The local `/sign-in` page uses the same session cookie boundary as Entra and
+Google.
 
 ## Post-Phase-6 E2E presentation integration
 
@@ -92,11 +103,12 @@ unavailable state instead of another user's student profile.
 ## Identity mapping and authorization boundary
 
 Provider identity is normalized conservatively (trim + lowercase) and matched
-against the case-insensitively unique `users.email`. Entra and seeded-provider
-sign-in is denied when the email does not match an ACTIVE existing user. The
-explicit self-service signup action is the only path in this checkpoint that
-provisions a base user, and it never derives roles from an email domain or form
-input. The server primitive re-checks the database on every resolution,
+against the case-insensitively unique `users.email`. Entra, Google, and
+seeded-provider sign-in is denied when the email does not match an ACTIVE
+existing user. The explicit self-service signup action is the only path in
+this checkpoint that provisions a base user, and it never derives roles from
+an email domain or form input. The server primitive re-checks the database on
+every resolution,
 returning an unmapped/onboarding-not-configured state for unknown users.
 
 JWTs contain authentication/session data, not authoritative application roles.
@@ -106,5 +118,6 @@ Phase 6.3 will migrate domain authorization enforcement. Existing temporary
 domain actors and policies intentionally remain unchanged in Phase 6.1.
 
 `AUTH_SECRET` is required deployment configuration and must be a long random
-secret. It, Entra credentials, database credentials, and raw provider tokens
+secret. It, Entra and Google credentials, database credentials, and raw
+provider tokens
 are never exposed to client components or committed to source control.

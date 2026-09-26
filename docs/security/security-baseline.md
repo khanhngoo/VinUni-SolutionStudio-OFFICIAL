@@ -12,6 +12,8 @@
   defaults off through `AUTH_SELF_SERVICE_ENABLED=false`; email verification,
   password recovery, MFA, distributed rate limiting, and public registration
   remain required before this path can be exposed beyond a private demo.
+- Optional Google OIDC sign-in requires a verified email and an ACTIVE existing
+  `users` row. It does not create a user, profile, membership, or role.
 - Existing Auth.js HTTPS defaults are intentionally retained: session and CSRF
   cookies are `HttpOnly`, `Secure`, `SameSite=Lax`, and `Path=/`; secure cookie
   names use the `__Secure-`/`__Host-` prefixes. The default JWT session max age
@@ -34,7 +36,8 @@
   or arbitrary persisted status. Challenge, application, assessment, and offer
   services validate their respective content, membership/ownership,
   question-response shape, and permitted transition before mutation.
-- `DATABASE_URL`, `AUTH_SECRET`, and Entra client credentials are read only by
+- `DATABASE_URL`, `AUTH_SECRET`, and Entra and Google client credentials are
+  read only by
   server modules. No `NEXT_PUBLIC_*` secret configuration exists; client
   components do not import the DB/auth-secret boundary. Assessment read models
   omit answer keys and raw grading configuration.
