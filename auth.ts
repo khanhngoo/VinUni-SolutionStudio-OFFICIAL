@@ -1,5 +1,6 @@
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
+import Google from "next-auth/providers/google";
 import MicrosoftEntraID from "next-auth/providers/microsoft-entra-id";
 
 import { getDevelopmentIdentity, isDevelopmentAuthenticationEnabled } from "@/auth/development-identities";
@@ -15,6 +16,11 @@ const entraEnvironment = {
   issuer: process.env.AUTH_MICROSOFT_ENTRA_ID_ISSUER,
 };
 
+const googleEnvironment = {
+  clientId: process.env.AUTH_GOOGLE_ID,
+  clientSecret: process.env.AUTH_GOOGLE_SECRET,
+};
+
 export function getProductionEntraConfigurationError(environment = process.env.NODE_ENV): string | null {
   if (environment !== "production") return null;
   return isMicrosoftEntraAuthenticationConfigured()
@@ -24,6 +30,10 @@ export function getProductionEntraConfigurationError(environment = process.env.N
 
 export function isMicrosoftEntraAuthenticationConfigured() {
   return Object.values(entraEnvironment).every(Boolean);
+}
+
+export function isGoogleAuthenticationConfigured() {
+  return Object.values(googleEnvironment).every(Boolean);
 }
 
 const providers = [];
@@ -85,11 +95,23 @@ if (isMicrosoftEntraAuthenticationConfigured()) {
   );
 }
 
+if (isGoogleAuthenticationConfigured()) {
+  providers.push(
+    Google({
+      clientId: googleEnvironment.clientId,
+      clientSecret: googleEnvironment.clientSecret,
+    })
+  );
+}
+
 export const { auth, handlers, signIn, signOut } = NextAuth({
   providers,
   session: { strategy: "jwt" },
   callbacks: {
-    async signIn({ user }) {
+    async signIn({ user, account, profile }) {
+      if (account?.provider === "google" && profile?.email_verified !== true) {
+        return false;
+      }
       const { isAuthorizedUserEmail } = await import("@/auth/authenticated-user");
       return isAuthorizedUserEmail(user.email);
     },

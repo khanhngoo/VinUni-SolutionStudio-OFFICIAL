@@ -27,6 +27,10 @@ export async function signInWithMicrosoftEntra() {
   await signIn("microsoft-entra-id", { redirectTo: "/" });
 }
 
+export async function signInWithGoogle() {
+  await signIn("google", { redirectTo: "/" });
+}
+
 export async function signInWithSelfService(
   _previousState: AuthenticationFormState,
   formData: FormData

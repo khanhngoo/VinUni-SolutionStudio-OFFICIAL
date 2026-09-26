@@ -1,5 +1,6 @@
 import {
   getProductionEntraConfigurationError,
+  isGoogleAuthenticationConfigured,
   isMicrosoftEntraAuthenticationConfigured,
 } from "../../../auth";
 import {
@@ -10,6 +11,7 @@ import { isSelfServiceAuthenticationEnabled } from "@/auth/self-service-authenti
 import { Section } from "@/components/ui/section";
 import {
   signInWithDevelopmentIdentity,
+  signInWithGoogle,
   signInWithMicrosoftEntra,
 } from "./actions";
 import { SelfServiceAuthenticationForms } from "./self-service-forms";
@@ -25,14 +27,14 @@ export default function SignInPage() {
   const developmentEnabled = isDevelopmentAuthenticationEnabled();
   const selfServiceEnabled = isSelfServiceAuthenticationEnabled();
   const entraEnabled = isMicrosoftEntraAuthenticationConfigured();
+  const googleEnabled = isGoogleAuthenticationConfigured();
   const productionConfigurationError = getProductionEntraConfigurationError();
 
   return (
     <main className="mx-auto max-w-[920px] px-6 py-16 pb-24 sm:px-7">
       <h1>Sign in to Solutions Studio</h1>
       <p className="mt-2 max-w-2xl leading-relaxed text-ink-2">
-        Use an internal-demo account, a seeded testing persona, or institutional
-        sign-in when it is configured.
+        Choose an available account below to access Solutions Studio.
       </p>
 
       {selfServiceEnabled ? (
@@ -50,6 +52,21 @@ export default function SignInPage() {
                 type="submit"
               >
                 Sign in with VinUni Microsoft Entra ID
+              </button>
+            </form>
+          </div>
+        </Section>
+      ) : null}
+
+      {googleEnabled ? (
+        <Section title="Google account" aside="Existing users">
+          <div className="rounded-card border border-line bg-card p-5">
+            <form action={signInWithGoogle}>
+              <button
+                className="inline-flex h-10 items-center rounded-card bg-brand px-5 font-semibold text-white hover:bg-brand-deep focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                type="submit"
+              >
+                Sign in with Google
               </button>
             </form>
           </div>
@@ -80,7 +97,7 @@ export default function SignInPage() {
         </Section>
       ) : null}
 
-      {!selfServiceEnabled && !entraEnabled && productionConfigurationError ? (
+      {!selfServiceEnabled && !entraEnabled && !googleEnabled && productionConfigurationError ? (
         <div className="mt-7 rounded-card border border-l-[3px] border-warn/35 border-l-warn bg-warn-soft px-4 py-3 text-ink-2">
           {productionConfigurationError}
         </div>
