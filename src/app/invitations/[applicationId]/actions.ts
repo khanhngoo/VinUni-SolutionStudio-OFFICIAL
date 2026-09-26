@@ -30,6 +30,7 @@ async function respond(applicationPublicId: string, decision: "ACCEPT" | "DECLIN
   }
 
   revalidatePath(`/invitations/${applicationPublicId}`);
+  revalidatePath("/inbox");
   revalidatePath("/workspace");
   return null;
 }

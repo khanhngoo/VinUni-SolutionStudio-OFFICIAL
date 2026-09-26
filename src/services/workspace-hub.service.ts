@@ -58,7 +58,11 @@ const HUB_GROUP_ORDER: HubGroup[] = [
 export async function listWorkspaceHubRows(
   actor: ApplicationActorContext
 ): Promise<WorkspaceHubRow[]> {
-  const details = await listApplicationDetailsForStudent(db, actor.userId);
+  const details = (await listApplicationDetailsForStudent(db, actor.userId)).filter(
+    (detail) => detail.members.some(
+      (member) => member.student.userId === actor.userId && member.status === "ACCEPTED"
+    )
+  );
 
   // One pass for every project this student is on, rather than a lookup per
   // row — `getProjectCoreByApplicationPublicId` re-reads every core each call.

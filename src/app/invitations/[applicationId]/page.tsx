@@ -83,7 +83,7 @@ export default async function InvitationPage({
   return (
     <article className="max-w-[720px] mx-auto px-6 sm:px-7 py-7 pb-16">
       <nav className="text-meta text-ink-3">
-        <Link href="/workspace">Your work</Link>
+        <Link href="/inbox">Inbox</Link>
         <span className="mx-1.5">›</span>
         Invitations
       </nav>
@@ -172,8 +172,8 @@ export default async function InvitationPage({
         <p className="mt-7 rounded-card border border-line bg-card px-4 py-3 text-ink-2">
           You already {seat.status === "ACCEPTED" ? "accepted" : "declined"} this
           invitation.{" "}
-          <Link className="font-semibold" href="/workspace">
-            Back to your work
+          <Link className="font-semibold" href="/inbox">
+            Back to inbox
           </Link>
         </p>
       ) : (

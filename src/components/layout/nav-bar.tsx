@@ -17,8 +17,8 @@ export function NavBar({ identity }: { identity: AuthenticatedPresentation | nul
   // Authenticated users navigate to the workspace hub, which can represent
   // multiple projects without implying a personal identity to anonymous users.
   return (
-    <header className="h-[60px] shrink-0 bg-card border-b border-line">
-      <div className="h-full px-7 flex items-center justify-between gap-6">
+    <header className="shrink-0 bg-card border-b border-line">
+      <div className="h-[60px] px-7 flex items-center justify-between gap-6">
         <Link
           href="/challenges"
           className="flex items-center gap-2.5 font-bold text-[14px] tracking-[0.01em] uppercase text-brand hover:text-brand"
@@ -27,7 +27,7 @@ export function NavBar({ identity }: { identity: AuthenticatedPresentation | nul
           Solutions Studio
         </Link>
 
-        <nav className="flex items-center gap-5 sm:gap-[22px]">
+        <nav className="flex items-center gap-5 lg:gap-[22px]">
           <NavLinks
             authenticated={identity !== null}
             isFaculty={identity?.isFaculty ?? false}
@@ -62,6 +62,18 @@ export function NavBar({ identity }: { identity: AuthenticatedPresentation | nul
           )}
         </nav>
       </div>
+      {identity?.isStudent ? (
+        <nav aria-label="Student sections" className="lg:hidden flex gap-5 overflow-x-auto border-t border-line px-7">
+          <NavLinks
+            authenticated
+            isFaculty={identity.isFaculty}
+            isInternalUnitMember={identity.isInternalUnitMember}
+            isPartnerRepresentative={identity.isPartnerRepresentative}
+            isStudent
+            mobile
+          />
+        </nav>
+      ) : null}
     </header>
   );
 }

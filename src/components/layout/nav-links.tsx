@@ -14,12 +14,14 @@ export function NavLinks({
   isInternalUnitMember = false,
   isPartnerRepresentative = false,
   isStudent = false,
+  mobile = false,
 }: {
   authenticated: boolean;
   isFaculty?: boolean;
   isInternalUnitMember?: boolean;
   isPartnerRepresentative?: boolean;
   isStudent?: boolean;
+  mobile?: boolean;
 }) {
   const pathname = usePathname();
 
@@ -80,6 +82,9 @@ export function NavLinks({
     ...(isStudent
       ? [{ href: "/applications", label: "Applications", active: pathname.startsWith("/applications") }]
       : []),
+    ...(authenticated && isStudent
+      ? [{ href: "/inbox", label: "Inbox", active: pathname.startsWith("/inbox") || pathname.startsWith("/invitations/") }]
+      : []),
     // Nav visibility only — `/partner` independently re-checks
     // PARTNER_REPRESENTATIVE on every page/action regardless of this link.
     ...(isPartnerRepresentative
@@ -123,7 +128,9 @@ export function NavLinks({
           href={link.href}
           aria-current={link.active ? "page" : undefined}
           className={cn(
-            "hidden sm:inline-flex h-[60px] cursor-pointer items-center border-b-2 font-semibold transition-colors duration-150",
+            mobile
+              ? "inline-flex h-11 shrink-0 cursor-pointer items-center border-b-2 font-semibold transition-colors duration-150"
+              : "hidden lg:inline-flex h-[60px] cursor-pointer items-center border-b-2 font-semibold transition-colors duration-150",
             link.active
               ? "border-red text-brand"
               : "border-transparent text-ink-2 hover:border-ink-3 hover:text-brand",
