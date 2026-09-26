@@ -9,6 +9,9 @@ if (!process.env.DATABASE_URL) {
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
+  // Each warm Vercel function has its own pool. Keep it small when using a
+  // managed Postgres pooler so concurrent functions do not exhaust connections.
+  max: process.env.VERCEL ? 1 : 10,
 });
 
 export const db = drizzle({
