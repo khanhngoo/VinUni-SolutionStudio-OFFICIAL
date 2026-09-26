@@ -10,6 +10,22 @@ internal-demo email/password provider. Server-only callers use
 to the current internal `users` record. No database adapter, account table, or
 session table is used.
 
+## Public-site prepared student demo
+
+When `AUTH_DEMO_PASSWORD` is a unique secret of at least 24 characters,
+Auth.js exposes a separate password-only `student-demo` provider. It maps
+only to the existing seeded Jordan student email and still requires that
+ACTIVE database user to resolve in the sign-in callback. The password stays
+in server-side deployment environment configuration; it is never committed,
+rendered into the page, or persisted in the application database. The sign-in
+page asks visitors for a password supplied by the site owner. This provider
+does not create accounts or grant roles by itself. The existing student
+profile supplies student authority through the normal database checks.
+
+For a public demo-only launch, `AUTH_SELF_SERVICE_ENABLED` remains `false`.
+The shared demo identity has shared state, so site owners should avoid using
+it with real student or partner data and rotate the password when needed.
+
 ## Internal-demo self-service authentication
 
 `AUTH_SELF_SERVICE_ENABLED=true` registers a database-backed credentials

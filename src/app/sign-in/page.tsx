@@ -8,6 +8,7 @@ import {
   isDevelopmentAuthenticationEnabled,
 } from "@/auth/development-identities";
 import { isSelfServiceAuthenticationEnabled } from "@/auth/self-service-authentication";
+import { isDemoAuthenticationEnabled } from "@/auth/demo-authentication";
 import { Section } from "@/components/ui/section";
 import {
   signInWithDevelopmentIdentity,
@@ -15,6 +16,7 @@ import {
   signInWithMicrosoftEntra,
 } from "./actions";
 import { SelfServiceAuthenticationForms } from "./self-service-forms";
+import { DemoSignInForm } from "./demo-form";
 
 /**
  * The way in.
@@ -26,6 +28,7 @@ import { SelfServiceAuthenticationForms } from "./self-service-forms";
 export default function SignInPage() {
   const developmentEnabled = isDevelopmentAuthenticationEnabled();
   const selfServiceEnabled = isSelfServiceAuthenticationEnabled();
+  const demoEnabled = isDemoAuthenticationEnabled();
   const entraEnabled = isMicrosoftEntraAuthenticationConfigured();
   const googleEnabled = isGoogleAuthenticationConfigured();
   const productionConfigurationError = getProductionEntraConfigurationError();
@@ -36,6 +39,12 @@ export default function SignInPage() {
       <p className="mt-2 max-w-2xl leading-relaxed text-ink-2">
         Choose an available account below to access Solutions Studio.
       </p>
+
+      {demoEnabled ? (
+        <Section title="Student demo" aside="Prepared account">
+          <DemoSignInForm />
+        </Section>
+      ) : null}
 
       {selfServiceEnabled ? (
         <Section title="Email account" aside="Internal demo">
@@ -97,7 +106,7 @@ export default function SignInPage() {
         </Section>
       ) : null}
 
-      {!selfServiceEnabled && !entraEnabled && !googleEnabled && productionConfigurationError ? (
+      {!demoEnabled && !selfServiceEnabled && !entraEnabled && !googleEnabled && productionConfigurationError ? (
         <div className="mt-7 rounded-card border border-l-[3px] border-warn/35 border-l-warn bg-warn-soft px-4 py-3 text-ink-2">
           {productionConfigurationError}
         </div>

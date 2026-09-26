@@ -5,6 +5,12 @@ import MicrosoftEntraID from "next-auth/providers/microsoft-entra-id";
 
 import { getDevelopmentIdentity, isDevelopmentAuthenticationEnabled } from "@/auth/development-identities";
 import {
+  DEMO_PROVIDER_ID,
+  DEMO_STUDENT_EMAIL,
+  isDemoAuthenticationEnabled,
+  verifyDemoPassword,
+} from "@/auth/demo-authentication";
+import {
   authenticateSelfServiceCredentials,
   isSelfServiceAuthenticationEnabled,
   SELF_SERVICE_PROVIDER_ID,
@@ -48,6 +54,24 @@ if (isDevelopmentAuthenticationEnabled()) {
         if (!isDevelopmentAuthenticationEnabled()) return null;
         const identity = getDevelopmentIdentity(credentials?.identity);
         return identity ? { id: identity.email, email: identity.email, name: identity.name } : null;
+      },
+    })
+  );
+}
+
+if (isDemoAuthenticationEnabled()) {
+  providers.push(
+    Credentials({
+      id: DEMO_PROVIDER_ID,
+      name: "Student demo",
+      credentials: { password: { label: "Demo password", type: "password" } },
+      async authorize(credentials) {
+        if (!verifyDemoPassword(credentials?.password)) return null;
+        return {
+          id: DEMO_STUDENT_EMAIL,
+          email: DEMO_STUDENT_EMAIL,
+          name: "Jordan Lee",
+        };
       },
     })
   );

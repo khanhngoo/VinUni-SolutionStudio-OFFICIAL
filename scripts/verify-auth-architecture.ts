@@ -3,6 +3,7 @@ import "dotenv/config";
 import { NextRequest } from "next/server";
 import { getDevelopmentIdentity, isDevelopmentAuthenticationEnabled } from "@/auth/development-identities";
 import { normalizeAuthenticationEmail, resolveAuthenticatedUserByEmail } from "@/auth/authenticated-user";
+import { isDemoAuthenticationEnabled, verifyDemoPassword } from "@/auth/demo-authentication";
 
 async function main() {
   assert(isDevelopmentAuthenticationEnabled("development"), "development authentication should be enabled outside production");
@@ -10,6 +11,9 @@ async function main() {
   assert(getDevelopmentIdentity("JORDAN_STUDENT_DEMO")?.email === "student.jordan-lee.demo@example.test", "Jordan development identity missing");
   assert(getDevelopmentIdentity("ARBITRARY_EMAIL") === null, "arbitrary development identities must be rejected");
   assert(normalizeAuthenticationEmail(" Jordan.Lee@EXAMPLE.TEST ") === "jordan.lee@example.test", "email normalization mismatch");
+  assert(!isDemoAuthenticationEnabled("too-short"), "short demo secret must be refused");
+  assert(!verifyDemoPassword("wrong-demo-password", "correct-demo-password-with-adequate-length"), "wrong demo password must fail");
+  assert(verifyDemoPassword("correct-demo-password-with-adequate-length", "correct-demo-password-with-adequate-length"), "correct demo password must pass");
 
   const jordan = await resolveAuthenticatedUserByEmail("student.jordan-lee.demo@example.test");
   const bao = await resolveAuthenticatedUserByEmail("student.bao-tran.demo@example.test");
@@ -24,6 +28,7 @@ async function main() {
 
 async function verifyDevelopmentSessionLifecycle() {
   process.env.AUTH_SECRET = "phase-6-1-verification-secret-not-for-deployment";
+  process.env.AUTH_DEMO_PASSWORD = "phase-6-demo-verification-password-only";
   process.env.AUTH_TRUST_HOST = "true";
   const { getProductionEntraConfigurationError, handlers } = await import("../auth");
   assert(getProductionEntraConfigurationError("production") !== null, "missing Entra configuration must fail clearly in production");
@@ -38,6 +43,29 @@ async function verifyDevelopmentSessionLifecycle() {
     "Auth.js HTTPS CSRF cookie"
   );
   const csrfCookie = cookieHeader(csrf);
+
+  const rejectedDemo = await handlers.POST(formRequest("https://solution-studio.example.test/api/auth/callback/student-demo", {
+    csrfToken: csrfPayload.csrfToken,
+    password: "wrong-demo-password",
+  }, csrfCookie));
+  assert(rejectedDemo.status >= 300 && rejectedDemo.status < 400, "wrong demo password must redirect");
+  assert(
+    !setCookies(rejectedDemo).some((cookie) => cookie.startsWith("__Secure-authjs.session-token=")),
+    "wrong demo password must not create a session"
+  );
+
+  const demoSignIn = await handlers.POST(formRequest("https://solution-studio.example.test/api/auth/callback/student-demo", {
+    csrfToken: csrfPayload.csrfToken,
+    password: "phase-6-demo-verification-password-only",
+  }, csrfCookie));
+  assertSecureCookie(
+    setCookies(demoSignIn),
+    "__Secure-authjs.session-token",
+    "demo HTTPS session cookie"
+  );
+  const demoSession = await handlers.GET(new NextRequest("https://solution-studio.example.test/api/auth/session", { headers: { cookie: mergeCookies(csrfCookie, cookieHeader(demoSignIn)) } }));
+  const demoSessionPayload = await demoSession.json() as { user?: { email?: string } };
+  assert(demoSessionPayload.user?.email === "student.jordan-lee.demo@example.test", "demo session must identify the seeded student");
 
   const rejectedSignIn = await handlers.POST(formRequest("https://solution-studio.example.test/api/auth/callback/development-seeded-identity", {
     csrfToken: "invalid-csrf-token",

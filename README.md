@@ -33,6 +33,14 @@ student, faculty, partner, or internal-unit access. This internal-demo path has
 no email verification or password recovery and must not be enabled for an
 unrestricted public deployment.
 
+For a public site with a prepared student demo account, leave
+`AUTH_SELF_SERVICE_ENABLED=false` and set `AUTH_DEMO_PASSWORD` in the hosting
+environment to a unique random value of at least 24 characters. The demo
+provider signs in as the existing seeded Jordan student; it requires that
+record to exist and be active. Share the password only with intended demo
+visitors. This is a shared demo identity, so all visitors see the same demo
+state. Do not use it with real student or partner records.
+
 `pnpm app:up` builds and starts both the `app` service and its `db` dependency,
 so a separate `pnpm db:up` is not required. `pnpm app:logs` follows the server
 logs; press `Ctrl-C` to stop following the logs without stopping the containers.

@@ -4,6 +4,7 @@ import { AuthError } from "next-auth";
 
 import { signIn, signOut } from "../../../auth";
 import { getDevelopmentIdentity, isDevelopmentAuthenticationEnabled } from "@/auth/development-identities";
+import { DEMO_PROVIDER_ID, isDemoAuthenticationEnabled } from "@/auth/demo-authentication";
 import {
   isSelfServiceAuthenticationEnabled,
   registerSelfServiceUser,
@@ -29,6 +30,29 @@ export async function signInWithMicrosoftEntra() {
 
 export async function signInWithGoogle() {
   await signIn("google", { redirectTo: "/" });
+}
+
+export async function signInWithDemo(
+  _previousState: AuthenticationFormState,
+  formData: FormData
+): Promise<AuthenticationFormState> {
+  if (!isDemoAuthenticationEnabled()) {
+    return { message: "The student demo is unavailable." };
+  }
+
+  try {
+    await signIn(DEMO_PROVIDER_ID, {
+      password: formData.get("password"),
+      redirectTo: "/",
+    });
+  } catch (error) {
+    if (error instanceof AuthError) {
+      return { message: "The demo password is incorrect." };
+    }
+    throw error;
+  }
+
+  return {};
 }
 
 export async function signInWithSelfService(
