@@ -5,16 +5,11 @@ import { getAuthenticatedActor, hasActorCapability } from "@/auth/authenticated-
 import { Chip } from "@/components/ui/chip";
 import { AttentionList, type AttentionItem } from "@/components/partner/attention-list";
 import { Section } from "@/components/ui/section";
-import { deadlineLabel, isUrgent } from "@/lib/dates";
+import { deadlineLabel, formatNullableDate as formatDate, isUrgent } from "@/lib/dates";
 import { ProgressBar } from "@/components/workspace/progress-bar";
 import { getPartnerDashboard, PartnerError } from "@/services/partner.service";
 
 export const dynamic = "force-dynamic";
-
-function formatDate(date: Date | null) {
-  if (!date) return "—";
-  return date.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
-}
 
 /**
  * The partner's home, rebuilt on the real EXTERNAL_PARTNER organization

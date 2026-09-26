@@ -8,7 +8,7 @@ import { countdownLabel } from "@/lib/pipeline";
 import { groupIntoPipeline } from "@/lib/pipeline-columns";
 import { Section } from "@/components/ui/section";
 import { listActiveCanonicalSkills } from "@/db/queries/skills";
-import { formatDate as formatDateOnlyString } from "@/lib/dates";
+import { formatDate as formatDateOnlyString, formatNullableDate as formatDate } from "@/lib/dates";
 import { getPartnerChallengePage } from "@/services/partner.service";
 
 import { submitChallengeForReviewAction } from "./actions";
@@ -25,11 +25,6 @@ const ERROR_MESSAGES: Record<string, string> = {
   NOT_FOUND: "This challenge could not be found.",
   VALIDATION_ERROR: "Please check the challenge details and try again.",
 };
-
-function formatDate(date: Date | null) {
-  if (!date) return "—";
-  return date.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
-}
 
 /**
  * One owned challenge, read live from PostgreSQL: posted terms, applications

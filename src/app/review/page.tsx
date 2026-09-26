@@ -4,14 +4,10 @@ import { notFound, redirect } from "next/navigation";
 import { getAuthenticatedActor, hasActorCapability } from "@/auth/authenticated-actor";
 import { Chip } from "@/components/ui/chip";
 import { Section } from "@/components/ui/section";
+import { formatNullableDate as formatDate } from "@/lib/dates";
 import { getReviewQueue, ReviewError } from "@/services/review.service";
 
 export const dynamic = "force-dynamic";
-
-function formatDate(date: Date | null) {
-  if (!date) return "—";
-  return date.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
-}
 
 /**
  * The generic internal-unit review queue — the same code serves any real

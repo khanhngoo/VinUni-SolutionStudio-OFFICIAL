@@ -74,6 +74,16 @@ export function formatDate(iso: string): string {
   });
 }
 
+/** Database timestamps shown in route summaries; missing dates use an em dash. */
+export function formatNullableDate(date: Date | null): string {
+  if (!date) return "—";
+  return date.toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+}
+
 /** "14:00" — the wall-clock time a student would put in their calendar. */
 export function formatTime(isoDateTime: string): string {
   return toDate(isoDateTime).toLocaleTimeString("en-GB", {

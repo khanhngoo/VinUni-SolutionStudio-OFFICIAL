@@ -4,6 +4,7 @@ import { notFound, redirect } from "next/navigation";
 import { Chip } from "@/components/ui/chip";
 import { Section } from "@/components/ui/section";
 import { getAuthenticatedActor } from "@/auth/authenticated-actor";
+import { formatNullableDate as formatDate } from "@/lib/dates";
 import {
   ApplicationError,
   getApplicationDetail,
@@ -11,11 +12,6 @@ import {
 } from "@/services/application.service";
 
 export const dynamic = "force-dynamic";
-
-function formatDate(date: Date | null) {
-  if (!date) return "—";
-  return date.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
-}
 
 /**
  * One application, read live from PostgreSQL — the full detail

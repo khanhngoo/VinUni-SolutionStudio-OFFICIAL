@@ -3,14 +3,10 @@ import { notFound, redirect } from "next/navigation";
 
 import { Chip } from "@/components/ui/chip";
 import { getAuthenticatedActor, hasActorCapability } from "@/auth/authenticated-actor";
+import { formatNullableDate as formatDate } from "@/lib/dates";
 import { listMyApplications, toApplicationActorContext } from "@/services/application.service";
 
 export const dynamic = "force-dynamic";
-
-function formatDate(date: Date | null) {
-  if (!date) return "—";
-  return date.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
-}
 
 /**
  * The persistent home for "what's the status of my application?" — the gap

@@ -4,6 +4,7 @@ import { notFound, redirect } from "next/navigation";
 import { getAuthenticatedActor } from "@/auth/authenticated-actor";
 import { Chip } from "@/components/ui/chip";
 import { Section } from "@/components/ui/section";
+import { formatNullableDate as formatDate } from "@/lib/dates";
 
 import { DecisionPanel } from "./decision-panel";
 import {
@@ -14,11 +15,6 @@ import { getApplicationByPublicId } from "@/db/queries/applications";
 import { db } from "@/db";
 
 export const dynamic = "force-dynamic";
-
-function formatDate(date: Date | null) {
-  if (!date) return "—";
-  return date.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
-}
 
 /**
  * A confirmed project supervision relationship defers to `/workspace`, the

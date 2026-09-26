@@ -4,7 +4,7 @@ import { notFound, redirect } from "next/navigation";
 import { getAuthenticatedActor, hasActorCapability } from "@/auth/authenticated-actor";
 import { Chip } from "@/components/ui/chip";
 import { Section } from "@/components/ui/section";
-import { formatDate as formatDateOnlyString } from "@/lib/dates";
+import { formatDate as formatDateOnlyString, formatNullableDate as formatDate } from "@/lib/dates";
 import { getReviewChallengePage } from "@/services/review.service";
 
 import { publishChallengeAction, recordReviewDecisionAction } from "./actions";
@@ -20,11 +20,6 @@ const ERROR_MESSAGES: Record<string, string> = {
   NOT_FOUND: "This challenge could not be found.",
   VALIDATION_ERROR: "Please provide a valid decision.",
 };
-
-function formatDate(date: Date | null) {
-  if (!date) return "—";
-  return date.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
-}
 
 /**
  * A single challenge for the review runtime. `getReviewChallengePage`
