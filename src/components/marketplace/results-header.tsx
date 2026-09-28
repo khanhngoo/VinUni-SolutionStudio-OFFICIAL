@@ -40,7 +40,7 @@ export function ResultsHeader({
       <p className="text-ink-2 marker-triangle font-semibold">
         {marketplaceFilterCount(filters) > 0
           ? `${shown} shown of ${total} matching challenges`
-          : `${total} open challenges`}
+          : `${total} published challenges`}
         {total > shown ? ` · page ${page}` : ""}
       </p>
       <p className="text-meta text-ink-3 mt-1.5">

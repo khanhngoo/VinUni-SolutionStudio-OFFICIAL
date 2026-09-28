@@ -2,7 +2,9 @@
 
 # This is NOT the Next.js you know
 
-This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any Next.js code. Heed deprecation notices.
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
 
 <!-- END:nextjs-agent-rules -->
 
@@ -294,7 +296,151 @@ During analysis-only work:
 If the task explicitly requests an analysis document, only create/update that requested documentation artifact unless otherwise instructed.
 
 ---
+# Browser-Based QA and Playwright MCP
 
+When Playwright MCP is available, use it for tasks involving:
+
+- end-to-end application review,
+- UX/UI audits,
+- product-flow audits,
+- exploratory testing,
+- authentication/onboarding review,
+- route/redirect verification,
+- role-based behavior,
+- form behavior,
+- empty/loading/error states,
+- application lifecycle testing,
+- assessment lifecycle testing,
+- offer/project workflow testing,
+- or reproduction of user-facing bugs.
+
+Do not infer user-facing behavior only from source code when the behavior can
+reasonably be verified through the running application.
+
+## Browser-First Review Workflow
+
+For product-quality or UX review tasks:
+
+1. Inspect enough of the repository to understand the intended workflow.
+2. Use Playwright MCP to reproduce the workflow in the actual application.
+3. Record:
+   - starting URL,
+   - user role/persona,
+   - actions performed,
+   - redirects,
+   - resulting URL,
+   - visible UI state,
+   - success/error feedback,
+   - unexpected behavior.
+4. Determine whether the observed behavior is appropriate from the user's
+   perspective.
+5. Only then inspect the responsible routes, components, services, queries,
+   authorization checks, or database state to determine the likely cause.
+
+A page rendering successfully does not imply that the product behavior is
+correct.
+
+A technically valid behavior may still be reported as a UX or product-flow
+defect.
+
+## Persona Testing
+
+When relevant, test important workflows independently using personas such as:
+
+- anonymous visitor,
+- newly registered student,
+- existing student,
+- faculty member,
+- organization/contact-person user,
+- administrator, if implemented.
+
+Avoid allowing authentication/session state from one persona to invalidate
+another persona's test.
+
+For a new-user test, ensure the browser begins in an unauthenticated state.
+
+## Important User Journey
+
+For student-facing end-to-end reviews, prioritize this journey:
+
+Anonymous
+→ Register
+→ First post-registration destination
+→ Profile/onboarding
+→ Challenge discovery
+→ Challenge details
+→ Application
+→ Assessment
+→ Application status
+→ Offer
+→ Project/workspace
+
+Pay particular attention to:
+
+- first-time-user experience,
+- post-registration redirects,
+- pages with little or no data,
+- empty states,
+- unclear calls to action,
+- unexpected redirects,
+- hidden next steps,
+- role-inappropriate navigation,
+- normal lifecycle states producing server errors,
+- inconsistent status between pages,
+- dead ends.
+
+## Read-Only Browser Audits
+
+If the task is an audit, review, analysis, investigation, or exploratory test,
+follow the repository's Analysis-Only rules.
+
+Browser interaction is allowed, but do not modify application source code
+unless explicitly instructed.
+
+Do not intentionally perform destructive actions against important persistent
+data.
+
+Creating temporary test accounts or ordinary test records is acceptable only
+when needed to reproduce the requested workflow and when the environment is
+clearly a local/development environment.
+
+## Evidence Standard
+
+Do not claim that a browser behavior was reproduced unless it was actually
+observed using Playwright MCP.
+
+Distinguish findings as:
+
+- OBSERVED — reproduced in the running application
+- CODE-INSPECTION — inferred from implementation but not browser-verified
+- PRODUCT-QUESTION — behavior is implemented but intended product behavior is
+  ambiguous
+
+For observed issues, provide reproducible steps where useful.
+
+## If Playwright MCP Is Unavailable
+
+If browser tools are unavailable or fail:
+
+- report that browser verification could not be performed,
+- continue with source-code inspection where useful,
+- clearly mark findings as unverified by browser,
+- do not fabricate browser observations.
+
+## Fix Verification
+
+When explicitly instructed to implement a fix:
+
+1. reproduce the issue before modifying code when practical;
+2. implement the smallest appropriate fix;
+3. run relevant automated checks;
+4. use Playwright MCP to repeat the original user journey;
+5. verify that the original issue is resolved;
+6. check nearby states for regressions.
+
+Do not automatically proceed from audit findings to implementation unless the
+task explicitly authorizes code changes.
+---
 # Phase Boundary Rules
 
 The production transformation must proceed incrementally.

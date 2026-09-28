@@ -32,6 +32,7 @@ import {
   type DevelopmentApplicationActorKey,
 } from "@/services/application.service";
 import type { ApplicationDetailRead, ApplicationMemberRead } from "@/db/queries/applications";
+import { isPublicId } from "@/lib/public-id";
 
 export type AssessmentErrorCode =
   | "CONFLICT"
@@ -397,6 +398,8 @@ async function loadAssessmentContext(
   options: AssessmentServiceOptions
 ): Promise<AssessmentContext | null> {
   assertStudentActor(actor);
+
+  if (!isPublicId(applicationPublicId)) return null;
 
   const database = options.database ?? db;
   const application = await getApplicationByPublicId(

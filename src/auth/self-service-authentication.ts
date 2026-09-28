@@ -7,8 +7,9 @@ import {
 import { and, eq, sql } from "drizzle-orm";
 
 import { normalizeAuthenticationEmail } from "@/auth/authenticated-user";
+import { developmentPartnerOrganizations, developmentPersonas, type DevelopmentPersona } from "@/auth/development-personas";
 import { db } from "@/db";
-import { userCredentials, users } from "@/db/schema";
+import { facultyProfiles, organizationMemberships, organizations, studentProfiles, userCredentials, users } from "@/db/schema";
 
 export const SELF_SERVICE_PROVIDER_ID = "self-service-credentials";
 export const SELF_SERVICE_PASSWORD_ALGORITHM = "scrypt-v1";
@@ -47,6 +48,17 @@ export interface SelfServiceRegistrationInput {
   email: unknown;
   fullName: unknown;
   password: unknown;
+  persona?: unknown;
+  partnerOrganization?: unknown;
+}
+
+export function isDevelopmentPersonaProvisioningEnabled(
+  environment: string | undefined = process.env.NODE_ENV,
+  flag = process.env.AUTH_DEV_PERSONAS_ENABLED
+) {
+  return (environment === "development" || environment === "test") &&
+    isSelfServiceAuthenticationEnabled() &&
+    flag?.trim().toLowerCase() === "true";
 }
 
 export interface SelfServiceAuthenticatedIdentity {
@@ -63,6 +75,8 @@ interface SelfServiceAuthenticationOptions {
   database?: SelfServiceDatabase;
 }
 
+type SelfServiceTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
 export function isSelfServiceAuthenticationEnabled(
   value = process.env.AUTH_SELF_SERVICE_ENABLED
 ) {
@@ -71,7 +85,7 @@ export function isSelfServiceAuthenticationEnabled(
 
 export async function registerSelfServiceUser(
   input: SelfServiceRegistrationInput,
-  options: SelfServiceAuthenticationOptions = {}
+  options: { database?: SelfServiceTransaction } = {}
 ): Promise<SelfServiceAuthenticatedIdentity> {
   if (!isSelfServiceAuthenticationEnabled()) {
     throw new SelfServiceAuthenticationError(
@@ -81,11 +95,12 @@ export async function registerSelfServiceUser(
   }
 
   const normalized = validateRegistration(input);
+  const requestedPersona = validateDevelopmentPersona(input);
 
   try {
     return options.database
-      ? await insertSelfServiceUser(options.database, normalized)
-      : await db.transaction((tx) => insertSelfServiceUser(tx, normalized));
+      ? await insertSelfServiceUser(options.database, normalized, requestedPersona)
+      : await db.transaction((tx) => insertSelfServiceUser(tx, normalized, requestedPersona));
   } catch (error) {
     if (error instanceof SelfServiceAuthenticationError) throw error;
     if (postgresErrorCode(error) === "23505") throw emailUnavailable();
@@ -154,7 +169,8 @@ export async function authenticateSelfServiceCredentials(
 
 async function insertSelfServiceUser(
   database: SelfServiceDatabase,
-  normalized: { email: string; fullName: string; password: string }
+  normalized: { email: string; fullName: string; password: string },
+  requestedPersona: { persona: DevelopmentPersona; organizationName?: string } | null
 ) {
   const [existing] = await database
     .select({ id: users.id })
@@ -190,7 +206,83 @@ async function insertSelfServiceUser(
     userId: user.userId,
   });
 
+  if (requestedPersona) {
+    await provisionDevelopmentPersona(database, user.userId, requestedPersona);
+  }
+
   return user;
+}
+
+function validateDevelopmentPersona(input: SelfServiceRegistrationInput) {
+  if (input.persona === undefined && input.partnerOrganization === undefined) {
+    if (isDevelopmentPersonaProvisioningEnabled()) {
+      throw new SelfServiceAuthenticationError("VALIDATION_ERROR", "Choose a development account type.");
+    }
+    return null;
+  }
+  if (!isDevelopmentPersonaProvisioningEnabled()) {
+    throw new SelfServiceAuthenticationError("DISABLED", "Development account types are unavailable.");
+  }
+  if (typeof input.persona !== "string" ||
+      !developmentPersonas.includes(input.persona as DevelopmentPersona)) {
+    throw new SelfServiceAuthenticationError("VALIDATION_ERROR", "Choose a valid development account type.");
+  }
+  const persona = input.persona as DevelopmentPersona;
+  if (persona === "PARTNER") {
+    const partner = developmentPartnerOrganizations.find(
+      (item) => item.key === input.partnerOrganization
+    );
+    if (!partner) {
+      throw new SelfServiceAuthenticationError("VALIDATION_ERROR", "Choose an approved development partner organization.");
+    }
+    return { persona, organizationName: partner.name };
+  }
+  if (input.partnerOrganization !== undefined && input.partnerOrganization !== "") {
+    throw new SelfServiceAuthenticationError("VALIDATION_ERROR", "The selected organization does not match this account type.");
+  }
+  return { persona };
+}
+
+async function provisionDevelopmentPersona(
+  database: SelfServiceDatabase,
+  userId: bigint,
+  request: { persona: DevelopmentPersona; organizationName?: string }
+) {
+  // Check again immediately before the authority write. Both checks must pass.
+  if (!isDevelopmentPersonaProvisioningEnabled()) {
+    throw new SelfServiceAuthenticationError("DISABLED", "Development account types are unavailable.");
+  }
+  if (request.persona === "STUDENT") {
+    await database.insert(studentProfiles).values({ userId });
+    return;
+  }
+  if (request.persona === "FACULTY") {
+    await database.insert(facultyProfiles).values({ userId });
+    return;
+  }
+
+  const internal = request.persona !== "PARTNER";
+  const name = internal
+    ? request.persona === "CAID_ADMIN" ? "CAID" : "E-Lab"
+    : request.organizationName;
+  const rows = await database
+    .select({ id: organizations.id })
+    .from(organizations)
+    .where(and(
+      eq(organizations.name, name!),
+      eq(organizations.organizationType, internal ? "INTERNAL_UNIT" : "EXTERNAL_PARTNER"),
+      eq(organizations.verificationStatus, "VERIFIED")
+    ))
+    .limit(2);
+  if (rows.length !== 1) {
+    throw new SelfServiceAuthenticationError("VALIDATION_ERROR", "The selected development organization is unavailable.");
+  }
+  await database.insert(organizationMemberships).values({
+    organizationId: rows[0].id,
+    userId,
+    role: internal ? "ADMIN" : "CONTACT_PERSON",
+    status: "ACTIVE",
+  });
 }
 
 export async function hashPassword(password: string): Promise<string> {

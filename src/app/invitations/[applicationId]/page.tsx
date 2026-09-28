@@ -79,6 +79,12 @@ export default async function InvitationPage({
     : [];
 
   const answered = seat.status !== "INVITED";
+  const responseClosed = ![
+    "SUBMITTED",
+    "SHORTLISTED",
+    "ASSESSMENT",
+    "SELECTION_PENDING",
+  ].includes(application.status);
 
   return (
     <article className="max-w-[720px] mx-auto px-6 sm:px-7 py-7 pb-16">
@@ -168,10 +174,11 @@ export default async function InvitationPage({
         )}
       </Section>
 
-      {answered ? (
+      {answered || responseClosed ? (
         <p className="mt-7 rounded-card border border-line bg-card px-4 py-3 text-ink-2">
-          You already {seat.status === "ACCEPTED" ? "accepted" : "declined"} this
-          invitation.{" "}
+          {responseClosed && !answered
+            ? "This application has moved beyond team formation, so the invitation is now read-only."
+            : `You already ${seat.status === "ACCEPTED" ? "accepted" : "declined"} this invitation.`}{" "}
           <Link className="font-semibold" href="/inbox">
             Back to inbox
           </Link>

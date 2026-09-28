@@ -10,10 +10,12 @@ import {
   type MarketplaceChallengeDetailModel,
 } from "@/lib/challenge-marketplace";
 import { deadlineLabel, isUrgent } from "@/lib/dates";
+import type { ApplicationWindow } from "@/services/application.service";
 
 interface MarketplaceApplyPanelProps {
   actor: AuthenticatedActorResolution;
   challenge: MarketplaceChallengeDetailModel;
+  applicationWindow: ApplicationWindow | null;
   /**
    * -1 before applying, which renders every node as a preview of the process
    * rather than pretending the student has entered it.
@@ -24,10 +26,13 @@ interface MarketplaceApplyPanelProps {
 export function MarketplaceApplyPanel({
   actor,
   challenge,
+  applicationWindow,
   timelineNodeIndex = -1,
 }: MarketplaceApplyPanelProps) {
   const deadline = challengeDeadlineKey(challenge);
   const urgent = isUrgent(deadline);
+  const unavailableReason =
+    applicationWindow?.isOpen === false ? applicationWindow.reason : null;
 
   return (
     <>
@@ -53,10 +58,18 @@ export function MarketplaceApplyPanel({
               <Link href="/sign-in" className="inline-flex items-center h-10 px-5 rounded-card bg-brand text-white font-semibold hover:bg-brand-deep hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent">
                 Sign in to apply
               </Link>
-            ) : actor.status === "RESOLVED" && actor.actor.capabilities.has("STUDENT") ? (
+            ) : actor.status === "RESOLVED" && actor.actor.capabilities.has("STUDENT") && applicationWindow?.isOpen ? (
               <Link href={`/challenges/${challenge.slug}/apply`} className="inline-flex items-center h-10 px-5 rounded-card bg-brand text-white font-semibold hover:bg-brand-deep hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent">
                 Apply to this challenge
               </Link>
+            ) : actor.status === "RESOLVED" && actor.actor.capabilities.has("STUDENT") ? (
+              <p className="font-semibold text-ink-2">
+                {unavailableReason === "DEADLINE_PASSED"
+                  ? "Applications have closed."
+                  : unavailableReason === "NOT_OPEN"
+                    ? "Applications are not open for this challenge."
+                    : "Complete your student profile before applying."}
+              </p>
             ) : (
               <p className="font-semibold text-ink-2">Applications are available to student accounts.</p>
             )}

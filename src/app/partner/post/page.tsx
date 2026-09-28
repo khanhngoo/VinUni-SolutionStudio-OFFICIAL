@@ -69,8 +69,8 @@ export default async function PartnerPostPage({
 
       <h1 className="mt-3.5">Post a challenge</h1>
       <p className="text-ink-2 mt-2">
-        This saves a draft. A CAID officer reviews every posting for compliance
-        before it reaches students, and publishing is their decision.
+        This saves a draft. The managing VinUni unit you select reviews it
+        before it reaches students, and publishing is that unit&apos;s decision.
       </p>
 
       {error ? (

@@ -9,7 +9,11 @@ import { formatDate } from "@/lib/dates";
 import { offerStatusLabel } from "@/lib/labels";
 import { getAuthenticatedActor } from "@/auth/authenticated-actor";
 import { toApplicationActorContext } from "@/services/application.service";
-import { getOfferDetail, hasAcceptedChallengeNda } from "@/services/offer.service";
+import {
+  getOfferDetail,
+  hasAcceptedChallengeNda,
+  OfferError,
+} from "@/services/offer.service";
 import { getMarketplaceChallengeBySlug } from "@/services/challenge.service";
 import { marketplaceContextForActor } from "@/lib/challenge-marketplace";
 import { listRevealedResourceNames } from "@/services/workspace.service";
@@ -26,7 +30,13 @@ export default async function OfferPage({
   const resolution = await getAuthenticatedActor();
   if (resolution.status !== "RESOLVED") redirect("/sign-in");
   const actor = toApplicationActorContext(resolution.actor);
-  const detail = await getOfferDetail(applicationId, actor);
+  let detail: Awaited<ReturnType<typeof getOfferDetail>>;
+  try {
+    detail = await getOfferDetail(applicationId, actor);
+  } catch (error) {
+    if (error instanceof OfferError && error.code === "FORBIDDEN") notFound();
+    throw error;
+  }
   if (!detail) notFound();
 
   const respondAction = respondToOfferForAuthenticatedActor.bind(
@@ -58,6 +68,24 @@ export default async function OfferPage({
   const resourceNames = revealed
     ? await listRevealedResourceNames(detail.application.publicId, actor)
     : [];
+  const offerHeading = detail.offer.isExpired
+    ? "Offer expired"
+    : detail.offer.status === "ACCEPTED"
+      ? "Offer accepted"
+      : detail.offer.status === "DECLINED"
+        ? "Offer declined"
+        : detail.offer.status === "CANCELLED"
+          ? "Offer unavailable"
+          : "You've been selected";
+  const offerSummary = detail.offer.isExpired
+    ? "The response window for this offer has ended."
+    : detail.offer.status === "ACCEPTED"
+      ? `${detail.offer.respondedByName ?? "Your team leader"} accepted this offer for the team.`
+      : detail.offer.status === "DECLINED"
+        ? "Your team declined this offer."
+        : detail.offer.status === "CANCELLED"
+          ? "This offer is no longer available."
+          : `${detail.challenge.ownerOrganizationName} has chosen your team for ${detail.challenge.title}. Review the issued terms below.`;
   return (
     <article className="max-w-[820px] mx-auto px-6 sm:px-7 py-7 pb-16">
       <nav className="text-meta text-ink-3">
@@ -74,11 +102,9 @@ export default async function OfferPage({
         {detail.offer.terms.ndaRequired ? <Chip variant="warn">NDA required</Chip> : null}
       </div>
 
-      <h1>You&apos;ve been selected</h1>
+      <h1>{offerHeading}</h1>
       <p className="text-ink-2 mt-2 max-w-[62ch]">
-        {detail.challenge.ownerOrganizationName} has chosen your team for{" "}
-        <strong className="text-ink font-semibold">{detail.challenge.title}</strong>.
-        Review the issued terms below.
+        {offerSummary}
       </p>
 
       <div className="mt-6 bg-brand rounded-card px-5 py-4 flex flex-wrap items-center justify-between gap-4">

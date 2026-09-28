@@ -129,30 +129,70 @@ function applicationEntries(application: ApplicationDetailRead, userId: bigint):
   const offer = application.offerSummary;
   if (offer?.selectedAt) {
     const hasOffer = offer.offerStatus !== null;
-    entries.push({
-      id: `offer-received:${application.id}`,
-      kind: "offer",
-      title: "Your team was selected",
-      body: hasOffer ? `An offer is ready for ${challenge}.` : challenge,
-      at: offer.selectedAt,
-      href: hasOffer ? `/offer/${application.publicId}` : applicationHref,
-      actionLabel: hasOffer ? "Review offer" : "View application",
-      needsResponse: seat.memberRole === "LEADER" && offer.offerStatus === "PENDING" &&
-        (!offer.respondBy || offer.respondBy.getTime() > Date.now()),
-    });
-  }
-
-  if (offer?.respondedAt && (offer.offerStatus === "ACCEPTED" || offer.offerStatus === "DECLINED")) {
-    entries.push({
-      id: `offer-response:${application.id}`,
-      kind: "offer",
-      title: offer.offerStatus === "ACCEPTED" ? "Offer accepted" : "Offer declined",
-      body: challenge,
-      at: offer.respondedAt,
-      href: `/offer/${application.publicId}`,
-      actionLabel: "View offer",
-      needsResponse: false,
-    });
+    const offerHref = hasOffer ? `/offer/${application.publicId}` : applicationHref;
+    const isLeader = seat.memberRole === "LEADER";
+    const isLive = offer.offerStatus === "PENDING" &&
+      (!offer.respondBy || offer.respondBy.getTime() >= Date.now());
+    if (!hasOffer) {
+      entries.push({
+        id: `offer-received:${application.id}`,
+        kind: "offer",
+        title: "Your team was selected",
+        body: challenge,
+        at: offer.selectedAt,
+        href: applicationHref,
+        actionLabel: "View application",
+        needsResponse: false,
+      });
+    } else if (isLive) {
+      entries.push({
+        id: `offer-received:${application.id}`,
+        kind: "offer",
+        title: "Offer awaiting your team's response",
+        body: isLeader
+          ? `Respond to the offer for ${challenge}.`
+          : `Your team leader can respond to the offer for ${challenge}.`,
+        at: offer.selectedAt,
+        href: offerHref,
+        actionLabel: isLeader ? "Respond to offer" : "View offer",
+        needsResponse: isLeader,
+      });
+    } else if (offer.offerStatus === "PENDING") {
+      entries.push({
+        id: `offer-expired:${application.id}`,
+        kind: "offer",
+        title: "Offer expired",
+        body: `The response window for ${challenge} has ended.`,
+        at: offer.respondBy ?? offer.selectedAt,
+        href: offerHref,
+        actionLabel: "View expired offer",
+        needsResponse: false,
+      });
+    } else if (offer.offerStatus === "ACCEPTED") {
+      entries.push({
+        id: `offer-accepted:${application.id}`,
+        kind: "offer",
+        title: "Offer accepted",
+        body: `${challenge} is moving into its next stage.`,
+        at: offer.respondedAt ?? offer.selectedAt,
+        href: offerHref,
+        actionLabel: "View accepted offer",
+        needsResponse: false,
+      });
+    } else {
+      entries.push({
+        id: `offer-declined:${application.id}`,
+        kind: "offer",
+        title: offer.offerStatus === "DECLINED" ? "Offer declined" : "Offer unavailable",
+        body: offer.offerStatus === "DECLINED"
+          ? `Your team declined the offer for ${challenge}.`
+          : `The offer for ${challenge} is no longer available.`,
+        at: offer.respondedAt ?? offer.selectedAt,
+        href: offerHref,
+        actionLabel: "View offer",
+        needsResponse: false,
+      });
+    }
   }
 
   return entries;

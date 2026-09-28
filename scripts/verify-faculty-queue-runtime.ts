@@ -29,9 +29,21 @@ async function main() {
 
   // --- write paths, rolled back ---
   if (queue.invites.length > 0) {
-    const requestId = BigInt(queue.invites[0].requestId);
+    const invite = queue.invites[0];
+    const requestId = BigInt(invite.requestId);
     try {
       await db.transaction(async (tx) => {
+        if (invite.responseState === "EXPIRED") {
+          try {
+            await respondToSupervisionRequest(requestId, "ACCEPT", actor, { database: tx });
+            failures.push("an expired supervision request was accepted");
+          } catch (error) {
+            console.log("\nexpired supervision request correctly rejected server-side");
+            if (!(error instanceof Error) || !error.message.includes("deadline")) throw error;
+          }
+          throw ROLLBACK;
+        }
+
         await respondToSupervisionRequest(requestId, "ACCEPT", actor, { database: tx });
         const [row] = await tx.select({ status: supervisionRequests.status }).from(supervisionRequests).where(eq(supervisionRequests.id, requestId));
         console.log(`\naccept -> supervision_requests.status = ${row.status}`);

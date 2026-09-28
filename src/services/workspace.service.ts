@@ -15,6 +15,7 @@ import {
 import {
 } from "@/db/mutations/applications";
 import { getDevelopmentApplicationActor, type ApplicationActorContext } from "@/services/application.service";
+import { isPublicId } from "@/lib/public-id";
 
 export class WorkspaceError extends Error {
   constructor(public readonly code: "FORBIDDEN" | "NOT_FOUND", message: string) {
@@ -90,6 +91,7 @@ export async function listWorkspaceProjects(actor: ApplicationActorContext, opti
 }
 
 export async function getWorkspaceDetail(applicationPublicId: string, actor: ApplicationActorContext, options: WorkspaceServiceOptions = {}): Promise<WorkspaceDetail | null> {
+  if (!isPublicId(applicationPublicId)) return null;
   const database = options.database ?? db;
   const project = await getProjectCoreByApplicationPublicId(database, applicationPublicId.trim());
   if (!project) return null;
@@ -218,6 +220,7 @@ export async function getMeetingDetail(
   actor: ApplicationActorContext,
   options: WorkspaceServiceOptions = {}
 ): Promise<MeetingDetail | null> {
+  if (!isPublicId(meetingPublicId)) return null;
   const database = options.database ?? db;
   const found = await findMeetingByPublicId(database, meetingPublicId.trim());
   if (!found) return null;

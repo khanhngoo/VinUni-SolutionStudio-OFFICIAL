@@ -1,7 +1,10 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
-import { getAuthenticatedActor } from "@/auth/authenticated-actor";
+import {
+  getAuthenticatedActor,
+  hasActorCapability,
+} from "@/auth/authenticated-actor";
 import { CloseOutForm } from "@/components/partner/close-out-form";
 import { Section } from "@/components/ui/section";
 import { getPartnerDashboard } from "@/services/partner.service";
@@ -27,6 +30,7 @@ export default async function CloseOutPage({
 
   const resolution = await getAuthenticatedActor();
   if (resolution.status !== "RESOLVED") redirect("/sign-in");
+  if (!hasActorCapability(resolution.actor, "PARTNER_REPRESENTATIVE")) notFound();
 
   // Scoped to the actor's own organization, so another partner's project is
   // indistinguishable from one that does not exist.

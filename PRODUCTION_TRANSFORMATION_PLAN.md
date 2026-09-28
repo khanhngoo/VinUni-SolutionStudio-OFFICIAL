@@ -2,8 +2,8 @@
 
 **Repository:** `VinUni-SolutionStudio-OFFICIAL`
 **Project:** VinUniversity Solution Studio / AI-in-Action Platform
-**Last updated:** 2026-09-06
-**Current phase:** Phase 6.5 complete / ready for human review — next checkpoint: Phase 7.1 — Structured skill matching
+**Last updated:** 2026-09-28
+**Current phase:** Phase 6.6.4 complete / ready for human review — Phase 6.6.5 awaits explicit human approval
 
 ---
 
@@ -34,9 +34,14 @@ Authentication + RBAC
    ↓
 Local containerized development
    ↓
-AI matching
+Phase 6.6 — End-to-End Workflow Closure & Production-Readiness Remediation
    ↓
-Production deployment
+Human review + Playwright multi-role E2E acceptance
+   ↓
+Phase 7 skill + semantic matching (DEFERRED; optional later resumption)
+   ↓
+Phase 8 staging + production deployment (after Phase 6.6 acceptance;
+Phase 7 is not a prerequisite)
 ```
 
 The **canonical ERD stored at `docs/database/schema.dbml`** should be treated as the design source of truth for the production database schema.
@@ -147,8 +152,9 @@ VinUni-SolutionStudio-OFFICIAL/
 | Phase 5 | Applications, assessments, offers, workspace → real DB | ✅ Complete / human review complete |
 | Phase 6 | Authentication + RBAC | ✅ Complete / ready for final human review |
 | Phase 6.5 | Local containerized development | ✅ Complete / ready for human review |
-| Phase 7 | Skill + semantic matching | ⬜ Not started |
-| Phase 8 | Production deployment | ⬜ Not started |
+| Phase 6.6 | End-to-End Workflow Closure & Production-Readiness Remediation | 🟡 6.6.4 complete / ready for human review; 6.6.5 awaits approval |
+| Phase 7 | Skill + semantic matching | ⏸ Deferred / not required for initial near-production release |
+| Phase 8 | Staging + production deployment | ⬜ Not started; follows Phase 6.6 human review and E2E acceptance, independently of Phase 7 |
 
 ---
 
@@ -1585,9 +1591,9 @@ deployment/later-work boundaries documented in `docs/security/security-baseline.
 - [x] RBAC is enforced server-side
 - [x] Unauthorized operations are blocked regardless of frontend UI state
 
-Phase 6 is COMPLETE / READY FOR FINAL HUMAN REVIEW. Next checkpoint: Phase 6.5
-— Local containerized development, then human review, then Phase 7.1 —
-Structured skill matching.
+Phase 6 is COMPLETE / READY FOR FINAL HUMAN REVIEW. Historical handoff was
+Phase 6.5 — Local containerized development. The current handoff is Phase 6.6
+after human review of this roadmap amendment; Phase 7 is deferred.
 
 ---
 
@@ -1680,11 +1686,616 @@ docker compose exec -e ALLOW_DB_SEED=true app pnpm db:seed
 - [x] Host `pnpm dev` and every existing `db:*` script behave exactly as before
 - [x] No secrets are baked into image layers
 - [x] Containerized commands are documented in Section 16 and `README.md`
-- [ ] Human review is completed before Phase 7.1 — Structured skill matching begins
+- [ ] Human review of Phase 6.5 and the amended roadmap is completed before Phase 6.6.0 implementation begins
+
+---
+
+# 10.6. Phase 6.6 — End-to-End Workflow Closure & Production-Readiness Remediation
+
+## Goal and boundaries
+
+Move from a tour of seeded downstream states to a near-production, authorized
+action path: challenge draft/review/publish → legitimate student access and
+application → supervision request/response → assessment submission and grading
+→ application progression → partner selection and offer → leader acceptance →
+project/member provisioning → milestone decisions and close-out. A state shown
+as an actionable product step must be reachable and persisted through runtime
+actions, not only through `pnpm db:reset` fixtures. Historical/negative seed
+scenarios may remain when clearly labelled and internally coherent.
+
+This is a **planned** checkpoint, not approval to implement it. Proceed through
+6.6.0–6.6.9 in order, with a bounded review after each slice. Preserve Phase
+6.3: anonymous and external-partner ordinary marketplace access is
+`PUBLIC_PREVIEW` only; VinUni actors retain their established scope; private
+and confidential disclosure stays protected. Production authentication still
+follows the approved Entra/VinUniversity direction. No production privileged
+self-selection, global-admin shortcut, Phase 7 matching, or Phase 8 deployment
+is implied. Do not add arbitrary code-execution/sandbox infrastructure merely
+to complete assessment grading.
+
+Evidence and priority come from
+`context/pre-demo-product-quality-audit.md`,
+`context/browser-product-quality-audit-2026-09-27.md`, and
+`context/product-quality-audit-reconciliation-2026-09-27.md`. Focus on their
+workflow-blocking P0/P1 and pertinent F1–F9 findings; do not import every
+low-priority polish item. Use Playwright MCP after each implemented checkpoint
+and inspect persisted rows for write/integrity tests in an isolated/disposable
+development database. Do not run destructive resets against a shared database.
+For any structural change, first review `docs/database/schema.dbml` and the
+reconciliation; obtain explicit approval, then update DBML → Drizzle schema →
+reviewed migration. A proposed checklist item is not schema approval.
+
+## 6.6.0 Product-rule confirmation — first implementation checkpoint
+
+**Goal:** Freeze decisions that determine the action path before writing it.
+
+**Scope/checklist:**
+
+- [ ] Approve a representative end-to-end branch (public or scoped invitation,
+  solo/team, supervision required or optional, assessment required or optional)
+  and define which transitions are compulsory versus valid bypasses.
+- [ ] Approve development-only persona provisioning boundaries and first-use
+  destinations; decide how a tester chooses an external partner organization
+  without acquiring arbitrary production authority.
+- [ ] Decide `PRIVATE` versus `INVITE_ONLY` discovery and candidate-access
+  semantics; require verification of a VinUni student identity, an owner-scoped
+  partner operation, student-specific access, revocation/expiry, and auditability.
+- [ ] Confirm `respond_by` is a hard supervision deadline: `PENDING` with
+  `now <= respond_by` may respond; `now > respond_by` is effectively expired
+  and read-only. Define missing deadline, reissue/reroute, and timezone rules.
+- [ ] Decide grading authority, rubric/numeric score, authoritative pass
+  threshold and its owner, manual versus automatic assessment types, retry and
+  failure consequences; do not infer pass from an absent result.
+- [ ] Decide challenge rejection recovery/closing, application withdrawal and
+  valid transitions, effective milestone review versus retained review history,
+  terminal project close-out, and historical versus intentionally open demo
+  scenarios/date convention.
+
+**Dependencies/decisions:** Human product review is required; this checkpoint
+records decisions, not implementation. Existing DBML has
+`supervision_requests.respond_by` and describes derived offer expiry, but has
+no explicit candidate-specific challenge invitation/access table. It describes
+derived assessment bands from numeric scores/policy thresholds without fixing
+the threshold authority. Review these gaps against DBML before design.
+**Non-scope:** No source, data, or schema writes merely to close 6.6.0.
+**Playwright regression:** Record baseline persona journeys and the chosen
+acceptance path; do not claim a newly working flow before implementation.
+**DB/integrity verification:** Read-only model/constraint inventory; no data
+mutation. **Exit:** Signed-off rule ledger, named schema-review items, and
+approved 6.6.1 scope. **DBML/schema review:** Required for invitation/access,
+grading threshold, and any other missing model; no migration until approved.
+
+## 6.6.1 Route safety and honest action gates
+
+**Goal:** Prevent 500-class failures and misleading actions at existing entry
+points (older F-05/F-13; latest F4/F5/F7).
+
+**Scope/checklist:**
+
+- [x] Validate malformed public IDs before UUID queries; map wrong-role,
+  unrelated-resource, absent-resource, and ordinary domain failures to safe
+  route/action outcomes without leaking protected existence.
+- [x] Align Apply, offer, supervision, and assessment controls with the same
+  server-side status, deadline, ownership, and eligibility rules used on submit.
+- [x] Label marketplace counts accurately; distinguish future, due-today, and
+  expired supervision requests; make expired actions unavailable server-side.
+- [x] Make pending/lapsed/accepted offer inbox copy and CTAs state-aware.
+
+**Dependencies/decisions:** 6.6.0 supervision deadline and error-disclosure
+rules. **Non-scope:** No new lifecycle write path or broad policy change.
+**Playwright regression:** Anonymous, student, faculty, and partner direct
+navigation across malformed/absent/forbidden challenge, application,
+assessment, offer, and workspace routes; no raw 500. Test a student with no
+existing application against open, PUBLISHED, closed, and expired challenges;
+test future/today/expired requests and offer inbox states.
+**DB/integrity verification:** Read-only boundary checks and no row-count
+changes. **Exit:** Every offered CTA matches a valid server action and
+denials are controlled. **DBML/schema review:** None expected.
+
+### 6.6.1 implementation record — 2026-09-27
+
+**Implementation facts:** Added UUID validation at public-ID service boundaries
+before UUID queries; protected application, assessment, offer, workspace,
+meeting, faculty, and partner-team routes resolve malformed, absent, and
+unrelated resources through existing controlled 404/redirect policy. The Apply
+entry and direct apply page now reuse the creation service's application-window
+rule and surface deadline/status/profile/eligibility gates before offering a
+wizard. Supervision expiry is derived from `PENDING + now > respond_by`, is
+atomic in the mutation predicate, returns a controlled server error, and is
+read-only in faculty UI with future/due-today/expired state wording. Offer and
+inbox wording is state-aware; non-leaders have no response CTA. Marketplace
+counts now say `published challenges`, matching the result set rather than
+calling deadline-closed records open.
+
+**Verification:** `pnpm exec tsc --noEmit`, `pnpm lint`, and `git diff --check`
+passed. Initial Playwright coverage observed anonymous protected routes redirect
+to `/sign-in`; authenticated malformed application/assessment/offer/workspace/
+faculty and partner-project paths return controlled 404; unrelated student
+application, assessment, offer, and workspace paths return 404; the open
+no-application E-Lab scenario offers Apply; and the deadline-closed campus
+challenge has no Apply CTA and its direct apply page is unavailable.
+
+**Regression closure — 2026-09-27:** Used disposable local records only (then
+deleted) to observe future supervision (`2 days`, enabled actions), due-today
+supervision (`due today`, enabled actions), and overdue supervision (`expired`,
+read-only, both actions disabled). A deliberately stale browser action against
+a now-expired disposable request was rejected by the server with `The response
+deadline has passed. This request is now read-only.` Live pending offer UI was
+actionable for its accepted leader and non-actionable for its accepted member;
+the leader inbox used `Respond to offer`, while declined, expired, and accepted
+offers/inbox entries used terminal state-aware wording with no response action.
+A disposable `PUBLISHED` + `PUBLIC_PREVIEW` challenge with no applications was
+representable under the existing model: its detail page said `Applications are
+not open for this challenge`, and direct `/apply` rendered the same server gate.
+
+The disposable fixtures were then removed. Shared counts returned exactly to
+the pre-test baseline: `challenges=11`, `applications=8`,
+`supervision_requests=1`, `selections=5`, and `offers=5`; the targeted query
+found zero temporary challenge/application/request/offer rows.
+
+**Build classification:** The default Turbopack build still fails while its CSS
+worker attempts a prohibited port bind, including when run outside the normal
+sandbox. `pnpm exec next build --webpack` compiled, type-checked, generated all
+routes, and completed successfully. This is a Turbopack/environment runtime
+restriction, not a Phase 6.6.1 regression; it should be resolved before Phase
+8 production acceptance, but does not block this checkpoint's human review.
+
+**DB/schema impact:** None. No DBML, schema, migration, seed, or intentional
+workflow-row mutation.
+
+**Exact next checkpoint:** Human review of complete Phase 6.6.1; only then
+Phase 6.6.2 — Development personas and first-use navigation.
+
+## 6.6.2 Development personas and first-use navigation
+
+**Goal:** Let local/internal-QA testers create usable identities without
+weakening production identity or RBAC (latest F1; older F-11).
+
+**Scope/checklist:**
+
+- [x] Extend only explicitly gated non-production self-service registration to
+  provision actual domain records: Student → `student_profiles`; Faculty →
+  `faculty_profiles`; Partner → approved external-partner membership; CAID/E-Lab
+  admin → `ADMIN` membership in that exact internal organization.
+- [x] Resolve all capabilities from server-owned profile/membership rows, never
+  a client role string or session claim; prevent production activation of the
+  persona selector and arbitrary organization/admin assignment.
+- [x] Give a newly created or incomplete identity a clear next step; use
+  capability-aware post-sign-in destinations and navigation, including
+  zero-data/empty states and existing seeded identities.
+
+**Dependencies/decisions:** 6.6.0 persona/organization choices and secure dev
+gate. **Non-scope:** Public production self-registration or replacing Entra.
+**Playwright regression:** Fresh unauthenticated contexts register each dev
+persona, sign in, land on an appropriate page, and attempt both allowed and
+forbidden role routes; verify the gate is absent outside non-production mode.
+**DB/integrity verification:** Exactly one user plus only the intended profile
+or scoped membership per registration; duplicate/retry cannot grant extra
+authority; transaction rollback on partial provisioning.
+**Exit:** Each QA persona can enter its real role workflow with no privileged
+self-selection in production. **DBML/schema review:** Existing profile and
+membership model appears sufficient; review if the approved provisioning
+workflow needs new fields or constraints.
+
+### 6.6.2 implementation record — 2026-09-27
+
+**Implementation:** Added `AUTH_DEV_PERSONAS_ENABLED=true` as a second explicit
+gate requiring `NODE_ENV=development` or `test` and enabled self-service
+authentication. Signup accepts one of five development personas, then creates
+the user, credential, and exactly one profile or active scoped membership in a
+transaction. Partner keys resolve through a three-organization server allowlist;
+CAID and E-Lab resolve by exact verified internal-unit name and type. Ambiguous
+or unavailable organizations fail closed. No role is stored in the session;
+existing actor resolution continues reading database profiles and memberships.
+The authenticated home route now selects the marketplace, faculty queue,
+partner dashboard, or scoped review queue by capability. A basic account sees
+an account-setup message. Navigation follows the resolved actor on desktop and
+mobile.
+
+**Verification:** `pnpm exec tsc --noEmit`, `pnpm lint`, `git diff --check`,
+and `pnpm exec next build --webpack` passed. The rollback-only persona verifier
+confirmed all five domain records, duplicate-email retry, server allowlist
+rejections, disabled and production-mode gate rejection, and rollback after a
+controlled organization-availability failure. The existing self-service auth
+verifier passed with the persona gate disabled.
+
+**Playwright:** Fresh isolated browser contexts registered Student →
+`/challenges`, Faculty → `/faculty`, Partner → `/partner`, CAID → `/review`, and
+E-Lab → `/review`; each displayed the corresponding role navigation. Manual
+sign-in repeated these destinations. Representative allowed profile routes
+returned 200 and forbidden role routes returned 404 for all five. Four
+partner-form tampering attempts (arbitrary ID, CAID, E-Lab, malformed value)
+remained on signup with an allowlist error. With the gate disabled, the persona
+selector disappeared; a new basic account reached the actionable setup page
+and `/faculty` returned 404. Existing seeded Student, Faculty, Partner, CAID,
+and E-Lab identities retained their expected destinations and 200/404 role
+boundaries. E-Lab was denied the CAID-managed review detail route (404).
+
+**DB/integrity:** Browser-created rows showed one user/credential and exactly
+the intended profile or scoped membership per identity, with no cross-role
+records; rejected partner attempts created no users. All disposable browser
+accounts were removed. Final counts were `users=22`, `organizations=7`,
+`organization_memberships=7`, and zero `qa-662-%` users or credentials.
+No DBML, schema, migration, or seed change was needed. Temporary local QA
+configuration was restored. **Blockers:** None for 6.6.2. The existing
+Turbopack environment issue remains; the previously validated webpack build
+path passed. **Exact next checkpoint:** Human review of 6.6.2, then explicit
+approval for 6.6.3 and its private-access model review. Do not begin 6.6.3
+automatically.
+
+## 6.6.3 Challenge, private access, and supervision lifecycle
+
+**Goal:** Close the creation-to-legitimate-access path, including private
+candidate sourcing and hard supervision response (older F-01/F-12/F-14/D-12;
+latest F3/F4).
+
+**Scope/checklist:**
+
+- [x] Finish owner draft → managing-unit review → publish UI using existing
+  authorized service boundaries; use recoverable `REVISION_REQUESTED` review
+  feedback with a required reason and resubmission path, reserve `CANCELLED` for
+  intentional terminal cancellation, and derive deadline closing semantics.
+- [x] Repair partner Students default with a separate owner-scoped selection
+  path, not the ordinary external-partner marketplace query; preserve
+  `PUBLIC_PREVIEW`-only ordinary browsing and unrelated-partner denial.
+- [x] Implement approved external candidate nomination: verify the candidate
+  is an appropriate VinUni student, create scoped invitation/access, let only
+  that student view/apply to the target INVITE_ONLY challenge, and support
+  approved expiry/revocation. Do not expose other private briefs or change the
+  existing PRIVATE semantics.
+- [x] Persist the student's faculty nomination as a supervision request or
+  remove any claim of notification when none is created. Store decline reason
+  if promised. Enforce `respond_by` on the server; provide authorized
+  reroute/reissue when the deadline passes. Prefer derived effective expiry if
+  consistent with the reviewed model, not a gratuitous `EXPIRED` status.
+- [x] Preserve honest partner post-form input/errors and remove misleading
+  synthetic/internal challenge copy relevant to the stakeholder flow.
+
+**Dependencies/decisions:** 6.6.0 private-access model, notification wording,
+challenge rejection/close rules, request deadline. **Non-scope:** Ordinary
+partner VINUNI_ONLY discovery or Phase 7 ranking.
+**Playwright regression:** Partner draft → CAID/E-Lab scoped review/publish;
+rejection/recovery; private owner nominates verified candidate; invited student
+can view/apply while unrelated student/partner cannot; partner Students default
+does not 404; faculty accepts/declines before deadline, cannot respond after,
+and sees reroute/reissue result. Recheck anonymous/external ordinary catalog.
+**DB/integrity verification:** Challenge review and access/request rows match
+actors, scope and dates; no duplicate effective invitation or late response;
+unrelated organizations see no protected data; retries/partial failures roll
+back. **Exit:** A genuine challenge can become discoverable to its intended
+audience and supervision decisions are durable/truthful. **DBML/schema
+review:** Explicitly required for candidate-specific invitation/access if
+existing ERD cannot express it; review request uniqueness/history and any
+approved close/reissue design before migration.
+
+**2026-09-28 implementation record (complete — ready for human review):**
+
+- Owner authoring now preserves submitted form values on expected validation
+  errors. The browser-verified lifecycle is draft → edit → submit → scoped
+  managing-unit review → required-reason revision → owner edit/resubmit →
+  approve → publish. An unrelated internal unit receives a controlled 404.
+- Partner Students uses an owner-scoped challenge path. The owning partner can
+  use its PRIVATE challenge as the candidate-directory context while the
+  ordinary external marketplace remains `PUBLIC_PREVIEW` only; service
+  verification denies an unrelated partner. Synthetic swipe/invite behavior
+  and AI-ranking claims were removed.
+- Application submission now atomically creates a real `PENDING` supervision
+  request for an active faculty user with a required five-campus-working-day
+  `respond_by`. The server accepts only while `now <= respond_by`; effective
+  expiry is derived, no `EXPIRED` enum was added. A decline is durable and the
+  submitting leader can append a new request without mutating prior history.
+  The UI no longer promises email/notification delivery or a persisted decline
+  reason that the approved model cannot store. Database timestamp labels use
+  the campus timezone so the displayed response date matches the server cutoff.
+- Playwright verified owner PRIVATE context, ordinary-marketplace isolation,
+  scoped review/revision/resubmission/publication, student application and
+  persisted request, faculty future/due-today actions, expired read-only state,
+  decline, and student reroute with both old and new history visible. DB checks
+  confirmed the review/request actors, statuses and timestamps. Disposable QA
+  rows were removed and confirmed absent.
+- Verification passed: TypeScript, lint, webpack production build, DB health,
+  challenge writes, partner runtime authorization, application/supervision
+  transactions and rollback, faculty queue deadline enforcement, apply-flow
+  integration, and the Phase 6.3 authorization regression suite.
+- The approved `challenge_candidate_access` history model is now represented in
+  DBML and the modular Drizzle schema. Migration
+  `drizzle/0006_condemned_stardust.sql` adds challenge/student/granting-actor
+  references, required grant/expiry timestamps, optional paired revocation
+  actor/time, audit timestamps, integrity checks, and lookup indexes. Effective
+  state remains derived. One-effective-grant enforcement is serialized by a
+  challenge-row lock and a transactional recheck; no time-dependent partial
+  index or redundant lifecycle status was added.
+- Owner grant/revoke management resolves an exact active-student email without
+  exposing a student search surface. INVITE_ONLY remains absent from ordinary
+  marketplace reads. Candidate detail/application authorization is scoped to
+  the one challenge; application creation rechecks every team member under the
+  same challenge lock, and submitted application membership becomes the durable
+  downstream basis after invitation expiry. Revocation is prohibited after
+  submission, while revoked/expired/re-granted history remains inspectable.
+- Candidate-access integrity verification passed owner, unrelated-partner,
+  non-student and unknown-identity cases; deadline validation; idempotent and
+  concurrent duplicate grants; actor-stamped revocation; revoked/expired access;
+  history; post-submission durability; and rollback. Fresh migration replay,
+  deterministic seed plus repeat seed, Drizzle consistency, DB health,
+  TypeScript, lint, webpack build, challenge/partner/application/faculty/apply
+  regressions, and Phase 6.3 authorization all passed.
+- Playwright used disposable records to verify owner creation/review/publication,
+  anonymous and ordinary-marketplace isolation, exact-email grant, invited and
+  unrelated students, unrelated external partner denial, pre-submit revocation,
+  re-grant history, submission, post-expiry durable application access, expired
+  pre-application denial, PRIVATE partner-Students behavior, and the persisted
+  supervision request. The temporary challenge, application, access history,
+  supervision request, and unrelated-partner login were removed; shared seed
+  counts returned to baseline.
+- **Remaining blocker / exact next checkpoint:** None within Phase 6.6.3. Obtain
+  explicit human approval before beginning Phase 6.6.4.
+
+## 6.6.4 Application lifecycle and concurrency
+
+**Goal:** Make submitted applications move through authorized stages rather
+than remain seeded-state snapshots (older F-06c/C-02).
+
+**Scope/checklist:**
+
+- [x] Implement only approved state transitions (including withdrawal,
+  supervision/assessment gates, rejection, and partner handoff), with clear
+  reason/history display where the model supports it.
+- [x] Guarantee one effective application per student/challenge under two-tab
+  and double-submit races; respect the normalized `applications` plus
+  `application_members` model rather than adding an invalid simple index.
+- [x] Keep student, partner, and internal views consistent, with truthful
+  pending/blocked/terminal next steps and eligibility errors.
+
+**Dependencies/decisions:** 6.6.0 state machine; 6.6.3 access/supervision.
+**Non-scope:** Selection, offer issuance, or project creation.
+**Playwright regression:** Invited/public student applies, withdraws where
+permitted, sees progression; partner sees the same persisted status; duplicate
+submits and forbidden transitions receive controlled feedback.
+**DB/integrity verification:** Cross-table application/member invariants,
+single accepted leader, duplicate-race test, transition authorization, atomic
+rollback and no orphaned requests. **Exit:** Every displayed application stage
+has an authorized action path or an explicit documented external decision.
+**DBML/schema review:** Required if concurrency/history cannot be enforced
+with existing constraints/transactions; do not assume the old proposed index.
+
+**Implementation record (2026-09-28):**
+
+- Added one server-owned lifecycle policy/reconciliation boundary. Supervision
+  acceptance and the last invitation response re-evaluate the persisted gates
+  under an application row lock. A ready application advances from `SUBMITTED`
+  to `ASSESSMENT` when exactly one active assessment exists, or to
+  `SELECTION_PENDING` when none exists. An attempt, `IN_PROGRESS`/`SUBMITTED`
+  state, missing score, or unreviewed result is never treated as a pass; Phase
+  6.6.5 still owns grading and pass/fail writes. Terminal and stale transitions
+  are rejected or safely no-op on retry.
+- Whole-application withdrawal is an accepted-leader-only, pre-selection
+  transaction with a row lock plus compare-and-set status update. `WITHDRAWN`
+  and `REJECTED` remain terminal; ordinary withdrawal is unavailable after
+  selection/offer. Terminal history remains readable but does not count as an
+  effective application if the student later submits a genuinely new one.
+- Duplicate participation is serialized with transaction-scoped PostgreSQL
+  advisory locks keyed by `(challenge_id, accepted_student_id)`, acquired in
+  sorted student-id order before the conflict recheck and inserts. Only
+  accepted participants count; invited members do not gain downstream rights.
+  Application creation, member inserts and supervision request creation remain
+  one transaction, so an injected failure leaves no orphaned rows. Application
+  row locks serialize invitation acceptance, supervision progression,
+  withdrawal and stale retries.
+- Student detail, challenge/apply, invitation, faculty supervision, partner
+  pipeline and owner-scoped partner team detail now render the same persisted
+  lifecycle explanation. They expose no premature selection action. Pending,
+  declined/expired supervision, assessment pending/review, selection pending,
+  rejected and withdrawn states have explicit honest copy and gated actions.
+- Focused verification covered pending/declined/expired/accepted supervision,
+  assessment/no-assessment routing, missing/unreviewed outcomes, invalid/stale
+  and terminal transitions, leader/non-leader withdrawal, accepted/invited
+  team semantics, rapid/double-tab and competing-transaction creation, retry,
+  rollback and baseline restoration. Playwright used disposable data to verify
+  submission, cross-role state, faculty acceptance, assessment presentation,
+  leader withdrawal, terminal/read-only behavior, unrelated-student denial and
+  two pre-opened tabs producing one effective application plus a controlled
+  stale-tab conflict. The fixture was removed; baseline returned to 8
+  applications, 18 application members, 2 assessments, 11 challenges and 1
+  supervision request.
+- Verification passed: lifecycle and relevant application/assessment,
+  candidate-access, invitation, faculty, partner, persona and Phase 6.3
+  authorization verifiers; TypeScript; lint; DB health; Drizzle consistency;
+  webpack production build; and `git diff --check`.
+- **DB/schema impact:** none for Phase 6.6.4. Existing normalized tables and
+  PostgreSQL transaction/locking semantics were sufficient; no DBML, Drizzle
+  schema or migration change was required.
+- **Remaining blocker / exact next checkpoint:** None within Phase 6.6.4.
+  Obtain explicit human approval before beginning Phase 6.6.5 assessment
+  submission safety and live grading. Do not infer that approval from this
+  completion record.
+
+## 6.6.5 Assessment submission safety and live grading
+
+**Goal:** Complete a real assessment-to-authoritative-result path (older
+F-04/F-07–F-10/C-01).
+
+**Scope/checklist:**
+
+- [ ] Reconcile preflight duration with runner timer; handle nullable time
+  limits/empty question sets before attempt creation and allow intentionally
+  unanswered coding responses without poisoning submission.
+- [ ] Make response saves and submits concurrency-safe; do not allow a
+  duplicate `(attempt_id, question_id)` logical answer to make an attempt
+  permanently un-submittable. Preserve answer-key isolation.
+- [ ] Add approved reviewer/grader authorization, rubric/score write, reviewed
+  transition, threshold-based pass/fail, and the corresponding authorized
+  application transition. Unknown verdict must remain pending/unknown, never
+  default to Passed. Specify which question types use manual or automatic
+  grading; do not imply arbitrary code execution.
+- [ ] Remove internal `DEMO`/phase commentary from user-facing assessment
+  titles and feedback in the representative flow.
+
+**Dependencies/decisions:** 6.6.0 grading authority, threshold, assessment
+type, retry, and result policy; 6.6.4 transitions.
+**Non-scope:** General code sandbox or Phase 7 scoring.
+**Playwright regression:** Student starts, saves none/some/all answers,
+submits, sees pending review; authorized grader reviews and persists result;
+pass/fail/unknown render correctly; wrong student/reviewer cannot alter it;
+empty/null-limit cases fail safely; timer matches preflight.
+**DB/integrity verification:** One effective response per question, one
+authoritative reviewed outcome under concurrent saves/reviews, actor ownership,
+attempt/application consistency, rollback on failed grading transition.
+**Exit:** A fresh attempt can reach a trusted reviewed result and the correct
+application state. **DBML/schema review:** Required for threshold authority,
+score/rubric model and any response uniqueness or review-history constraint.
+
+## 6.6.6 Partner selection and offer issuance
+
+**Goal:** Let an authorized partner choose a real candidate/team and issue a
+durable pending offer (older F-02/F-06c).
+
+**Scope/checklist:**
+
+- [ ] Replace sourcing copy that claims an AI shortlist with an honest
+  deterministic/curated description while Phase 7 is deferred; give the
+  partner a persisted decision, not a browser-only deck choice.
+- [ ] Validate ownership, application readiness, eligibility/assessment gate,
+  capacity, offer terms and response deadline; atomically create selection,
+  PENDING offer, and coherent application status.
+- [ ] Show the resulting offer to the accepted team leader; keep ordinary
+  partner marketplace disclosure separate from owner-scoped candidate review.
+
+**Dependencies/decisions:** 6.6.4/6.6.5 progression and 6.6.0 offer rules.
+**Non-scope:** Matching scores or project provisioning.
+**Playwright regression:** Partner reviews eligible applicant, selects once,
+refreshes/double-clicks safely; leader sees offer, other member cannot
+respond; unrelated partner and wrong-status application cannot select.
+**DB/integrity verification:** Exactly one selection and offer per chosen
+application; actor/owner and term snapshots correct; race/rollback tests.
+**Exit:** Authorized runtime action persists selection and PENDING offer.
+**DBML/schema review:** Existing cardinality may suffice; review any needed
+capacity/audit or term change before schema work.
+
+## 6.6.7 Offer response and atomic project provisioning
+
+**Goal:** Close acceptance into an immediately usable workspace (older F-03;
+latest F2/F7).
+
+**Scope/checklist:**
+
+- [ ] Preserve accepted-leader-only, pending-unexpired offer response and
+  decline behavior; ensure accepted response atomically creates one project
+  and project members from accepted application members only.
+- [ ] Apply approved project supervisor, agreement/restricted-resource and
+  application/project state rules; never promote merely invited members.
+- [ ] Make lapsed offers and mixed challenge/offer demo dates truthful;
+  reconcile deterministic fixtures for intended open versus historical cases
+  without changing the production server clock.
+
+**Dependencies/decisions:** 6.6.0 offer/project rules and 6.6.6 issuance.
+**Non-scope:** Arbitrary agreement acceptance or project milestone actions
+unless explicitly approved in the relevant checkpoint.
+**Playwright regression:** Leader accepts a fresh offer → workspace opens
+immediately; non-leader/unrelated user denied; decline and expiry do not
+provision; offer inbox and historical offer copy reflect terminal state.
+**DB/integrity verification:** One offer response and one project/application,
+correct accepted-member roster, transaction rollback on injected failure,
+safe concurrent accepts; query challenge/application/selection/offer/project
+chronology after reset. **Exit:** Accepted offer reliably creates a usable
+project; no seed-only bridge remains. **DBML/schema review:** Review only if
+approved supervisor/agreement/capacity semantics need new persistence.
+
+## 6.6.8 Project, milestone, and close-out writes
+
+**Goal:** Let the newly provisioned project progress to a real terminal state
+(older F-15/F-17/C-03; latest F6).
+
+**Scope/checklist:**
+
+- [ ] Implement authorized milestone/deliverable submissions and faculty +
+  partner reviews, including revision and effective dual approval; preserve
+  legitimate review history without racing the quorum.
+- [ ] Implement approved project close-out/final review, durable feedback if
+  promised, completed/archived workspace links, and honest active-project
+  date/status labels (not challenge application deadlines).
+- [ ] Keep agreement-gated resources and cross-project/organization access
+  enforced throughout; remove disabled/stub close-out CTAs or make them real.
+
+**Dependencies/decisions:** 6.6.0 review-history and terminal-state rules;
+6.6.7 project provisioning. **Non-scope:** General meeting system, file
+storage, and unrelated P2/P3 polish.
+**Playwright regression:** Student submits milestone; faculty and partner
+review/revise/approve; project reaches final review and close-out; completed
+project remains reachable; wrong role and unrelated project remain denied.
+**DB/integrity verification:** Review events retained while exactly one
+effective decision/quorum is computed under concurrency; deliverable/project
+FKs, restricted-resource agreements, terminal transition and rollback checks.
+**Exit:** A fresh project can be completed through persisted authorized work.
+**DBML/schema review:** Required if effective-decision serialization,
+close-out, or feedback needs a structural change; do not blindly add a unique
+index that erases legitimate review rounds.
+
+## 6.6.9 Isolated Playwright multi-role E2E acceptance
+
+**Goal:** Demonstrate the complete path through runtime actions and database
+evidence, then obtain human review before Phase 8.
+
+**Scope/checklist:** Use a clean, isolated/disposable development database,
+not a shared or production database. Capture starting URL, persona, action,
+redirect/result URL, visible state, and persisted rows at each transaction
+boundary. Exercise with Playwright MCP:
+
+1. [ ] Create the approved development test identities with actual profiles
+   and scoped memberships.
+2. [ ] Partner creates a challenge.
+3. [ ] The correct CAID/E-Lab unit reviews and publishes it.
+4. [ ] Student gains legitimate public or candidate-scoped access.
+5. [ ] Student completes an application.
+6. [ ] Required supervision request is persisted.
+7. [ ] Faculty responds before `respond_by`; overdue response is denied.
+8. [ ] Student starts, answers, and submits an assessment.
+9. [ ] Authorized reviewer grades/reviews; score and attempt state persist.
+10. [ ] Application progresses according to the authoritative result.
+11. [ ] Partner reviews the candidate/application under owner scope.
+12. [ ] Partner selects the team.
+13. [ ] Exactly one selection and PENDING offer persist.
+14. [ ] Correct leader can respond; other members cannot.
+15. [ ] Acceptance atomically provisions one project.
+16. [ ] Correct project members immediately enter the workspace.
+17. [ ] Milestone submissions and faculty/partner reviews persist.
+18. [ ] Project reaches the approved terminal/close-out state.
+19. [ ] Wrong-role, unrelated-resource, anonymous, private and confidential
+   negative paths remain denied at every relevant boundary.
+20. [ ] Inspect persisted DB rows, FKs, state coherence, counts, and rollback/
+   idempotency at application, request, assessment, selection, offer, project,
+   and milestone boundaries.
+
+**Dependencies/decisions:** 6.6.0–6.6.8 complete and each slice reviewed; any
+valid product-path deviation is documented rather than silently skipped.
+**Non-scope:** Phase 7 matching and Phase 8 deployment. **Playwright
+regression:** The numbered flow plus existing persona/route/visibility suites;
+repeat near-boundary dates, double-submit, and expired states. **DB/integrity
+verification:** Read-only assertions on the disposable run's writes plus
+targeted concurrency/rollback verifiers; no shared-data reset. **Exit:** Human
+review accepts the browser ledger, DB evidence and documented deviations;
+only then may Phase 8 begin. **DBML/schema review:** No new design in this
+acceptance step; any uncovered model gap reopens the relevant earlier review.
+
+## Phase 6.6 exit criteria
+
+- [ ] Every required major lifecycle state is reachable through authorized
+  runtime actions, not merely seeded fixtures.
+- [ ] Phase 6.3 disclosure, production identity, and organization boundaries
+  pass negative regression tests.
+- [ ] Deadline, scoring, selection, offer, and milestone integrity withstand
+  stale requests and concurrent retries.
+- [ ] Stakeholder-facing copy, catalog counts, and demo chronology are honest.
+- [ ] The isolated Playwright multi-role scenario and DB assertions pass; a
+  human reviews the evidence and approves the Phase 8 handoff.
 
 ---
 
 # 11. Phase 7 — Skill + Semantic Matching
+
+**Status: DEFERRED / NOT STARTED.** Matching is not required for the initial
+near-production release. Preserve this section as a resumable workstream when
+the owner makes matching a product priority. Do not use unimplemented matching
+to imply an AI shortlist or to block Phase 6.6/Phase 8.
 
 ## Goal
 
@@ -1771,7 +2382,14 @@ Checklist:
 
 ---
 
-# 12. Phase 8 — Production Deployment
+# 12. Phase 8 — Staging & Production Deployment
+
+**Status: FUTURE / NOT STARTED.** Phase 8 follows successful Phase 6.6 human
+review and full Playwright multi-role E2E acceptance. Deferred Phase 7 is **not**
+a prerequisite. Phase 8 still owns the production image, environment/secrets,
+managed PostgreSQL, separately reviewed migrations, staging, HTTPS/domain,
+backups/recovery, observability, rate limiting/security, and staging E2E
+verification. This roadmap amendment authorizes none of that implementation.
 
 ## Goal
 
@@ -1817,6 +2435,9 @@ Deploy a secure, recoverable, observable production system.
 - [ ] Separate staging secrets
 - [ ] Run migrations before production
 - [ ] Run end-to-end workflow tests
+- [ ] Repeat the approved Phase 6.6 multi-role workflow and negative access
+  checks in staging, with staging-only identities/data and persisted-state
+  assertions; do not treat a seeded screen tour as E2E acceptance
 
 ## 8.5 Object storage
 
@@ -1874,6 +2495,8 @@ project files
 - [ ] Database migrations reproducible
 - [ ] Monitoring enabled
 - [ ] Recovery process documented
+- [ ] Phase 6.6 human review and isolated Playwright E2E acceptance completed
+  before deployment work begins; Phase 7 may remain deferred
 
 ---
 
@@ -1881,11 +2504,38 @@ project files
 
 ## Current status
 
-**Current phase:** Phase 6.5 — COMPLETE / READY FOR HUMAN REVIEW
+**Current phase:** Phase 6.6.4 — COMPLETE / READY FOR HUMAN REVIEW
+
 **Phase 6:** COMPLETE / READY FOR FINAL HUMAN REVIEW
-**Active next checkpoint:** Phase 7.1 — Structured skill matching (after Phase 6.5 human review)
+
+**Active next implementation checkpoint:** Phase 6.6.5 — Assessment submission
+safety and live grading, only after explicit human approval. Phase 7 is deferred; Phase
+8 follows Phase 6.6 acceptance.
 
 ### Latest completed work
+
+- 2026-09-28 Phase 6.6.4 — Application lifecycle and concurrency is COMPLETE /
+  READY FOR HUMAN REVIEW. Server-owned gate reconciliation, accepted-leader
+  withdrawal, terminal-state handling, sorted participant advisory locks,
+  application row locks, retry/rollback safety, coherent student/faculty/
+  partner presentation, focused DB verification and disposable multi-role/two-
+  tab Playwright acceptance are complete. No Phase 6.6.4 schema or migration
+  change was required. Phase 6.6.5 has not begun and requires explicit approval.
+
+- 2026-09-28 Phase 6.6.3 — Challenge, private access, and supervision
+  lifecycle is COMPLETE / READY FOR HUMAN REVIEW. Candidate-specific
+  INVITE_ONLY grant, expiry, revocation, audit history, application durability,
+  concurrency enforcement, owner UI, schema/migration replay, regression
+  verification, disposable Playwright acceptance, and cleanup are complete.
+  Phase 6.6.4 has not begun and requires explicit approval.
+
+- 2026-09-27 roadmap amendment only: approved product direction now requires a
+  near-production action path through project close-out. Planned bounded Phase
+  6.6.0–6.6.9, including development-only domain persona provisioning,
+  candidate-scoped PRIVATE/INVITE_ONLY access, hard supervision response
+  deadline, live grading, selection/offer/project writes, integrity and
+  Playwright multi-role acceptance. Phase 7 is deferred; Phase 8 follows 6.6
+  acceptance, not Phase 7. No checkpoint has been implemented by this edit.
 
 - 2026-09-06 Post-Phase-6 internal-demo authentication extension: added an
   opt-in self-service email/password signup and sign-in path alongside the
@@ -2113,12 +2763,15 @@ Full 45-domain-table pre-reset/post-reset/post-idempotency count equality is rec
 
 ## Immediate next task
 
-### Phase 7.1 — Structured skill matching
+### Phase 6.6.0 — Product-rule confirmation
 
-Phase 6.5 (local containerized development) is complete and awaiting human
-review. After that review, the next implementation checkpoint is Phase 7.1 —
-Structured skill matching. Do not begin Phase 7.1 or any Phase 8 production
-deployment work before Phase 6.5 is reviewed.
+Phase 6.5 (local containerized development) is complete and ready for human
+review. The 2026-09-27 roadmap amendment is also awaiting human approval.
+After that approval, the next implementation checkpoint is **Phase 6.6.0 —
+Product-rule confirmation**, followed by the bounded 6.6.1–6.6.9 sequence.
+Do not implement 6.6 yet on the authority of this documentation edit. Phase 7
+matching is deferred. Phase 8 can start only after Phase 6.6 human review and
+isolated Playwright multi-role E2E acceptance; it need not wait for Phase 7.
 
 Immediate sequence:
 
@@ -2171,9 +2824,19 @@ Final Phase 6 human review
         ↓
 Phase 6.5 local containerized development ✅
         ↓
-Phase 6.5 human review
+Phase 6.5 human review + human-approved roadmap amendment
         ↓
-Phase 7.1 structured skill matching
+Phase 6.6.0 product-rule confirmation
+        ↓
+Phase 6.6.1–6.6.8 bounded workflow closure and regression checkpoints
+        ↓
+Phase 6.6.9 disposable-DB Playwright multi-role E2E acceptance
+        ↓
+Phase 6.6 human review
+        ↓
+Phase 8 staging + production deployment (future, not started)
+
+Phase 7 matching: DEFERRED, resumable later; not on the critical path to Phase 8.
 ```
 
 ### Phase 6.5 checklist (complete, pending human review)
@@ -2182,13 +2845,15 @@ Phase 7.1 structured skill matching
 - [x] Read the relevant Next.js guides under `node_modules/next/dist/docs/` before writing dev-server/container configuration.
 - [x] Keep `docker-compose.yml` as the Compose filename; do not break the `scripts/db-reset.ts` guard.
 - [x] Preserve host `pnpm dev` and all existing `db:*` script behavior unchanged.
-- [x] Do not begin Phase 7.1 matching or Phase 8 production deployment work.
+- [x] No Phase 7 matching or Phase 8 production deployment work was performed
+  as part of Phase 6.5.
 
 ### Immediate next checkpoint
 
-- [ ] Phase 6.5 human review.
-- [ ] Phase 7.1 — Structured skill matching, after Phase 6.5 human review.
-- [ ] Do not begin Phase 7.1 before Phase 6.5 human review is complete.
+- [ ] Human review of Phase 6.5 and explicit approval of this amended roadmap.
+- [ ] Phase 6.6.0 — Product-rule confirmation only; record the decisions and
+  reviewed DBML/schema gaps before 6.6.1 implementation.
+- [ ] Do not begin Phase 7 matching or Phase 8 deployment as part of 6.6.0.
 
 ### Agent sequencing rule
 
@@ -2201,16 +2866,51 @@ Before each agent implementation task:
 3. Do not infer or skip to a later phase because it seems logically next.
 4. If a needed checkpoint is not represented here, update the plan through human review before implementation.
 5. After each checkpoint, update this plan with actual work completed, verification, counts, and the exact next checkpoint.
+6. For Phase 6.6, implement only the approved bounded sub-checkpoint; attach
+   Playwright regression and DB/integrity evidence before advancing. Escalate
+   product or DBML gaps instead of inventing policy, privilege, or migrations.
+7. Phase 7 is deferred; Phase 8 is sequenced after Phase 6.6 acceptance, not
+   after Phase 7. Neither is authorized by a Phase 6.6 checkpoint request.
 
 ### Recommended next agent instruction
 
-After human review of Phase 6.5, proceed with Phase 7.1 — Structured skill matching only. Do not implement Phase 8 production deployment, schema, migration, seed, or auth changes, or unrelated runtime paths unless explicitly requested.
+After human approval of this roadmap amendment, proceed with **Phase 6.6.0 —
+Product-rule confirmation only**. Record the required product decisions and
+schema-review items; do not implement 6.6.1, Phase 7, Phase 8, schema,
+migrations, seed, authentication, or unrelated runtime paths unless separately
+approved for their bounded checkpoint.
 
 ---
 
 # 15. Work Log
 
 Use this section after each development session.
+
+## 2026-09-27 — Roadmap amendment only
+
+### Completed
+
+- Recorded the approved near-production E2E direction as planned Phase 6.6,
+  with ten bounded checkpoints, explicit product/schema decisions, per-slice
+  Playwright and write-integrity verification, and final disposable-database
+  multi-role acceptance.
+- Deferred Phase 7 without deleting it; sequenced Phase 8 after Phase 6.6
+  human review and E2E acceptance, independently of matching.
+- Updated active status, sequencing, next-task guidance and Definition of Done.
+  Historical entries below retain the decisions and next actions as recorded
+  at their original dates.
+- Documentation-only change to this file; no application, schema, migration,
+  seed, authentication, database, Phase 7 or Phase 8 implementation.
+
+### Current blocker
+
+Human approval of this roadmap amendment and the unresolved 6.6.0 product/
+schema decisions. This is a planned checkpoint, not a claim of implementation.
+
+### Next action
+
+After explicit human approval, perform Phase 6.6.0 — Product-rule confirmation
+only, then seek review before the next bounded implementation slice.
 
 ## 2026-09-06
 
@@ -2662,7 +3362,7 @@ value from the bind-mounted `.env` (`localhost:5432`) without modifying it.
 20. Agents should perform analysis-only tasks when instructed and must not generate migrations until ERD v1 is frozen.
 21. `pnpm db:reset` is the canonical destructive LOCAL DEVELOPMENT reset; `pnpm db:seed` remains non-destructive/idempotent.
 22. Every Phase 3.5+ seed checkpoint must preserve reset → migrate → seed reproducibility from zero.
-23. `PRODUCTION_TRANSFORMATION_PLAN.md` is authoritative for implementation phase/checkpoint sequencing; agents must not invent, skip, or renumber checkpoints silently.
+23. `PRODUCTION_TRANSFORMATION_PLAN.md` is authoritative for implementation phase/checkpoint sequencing; agents must not invent, skip, or renumber checkpoints silently. Phase 7 is deferred; Phase 8 follows Phase 6.6 acceptance without requiring matching.
 24. After each major checkpoint, update this plan with actual completion status, verification results, counts, current blocker, and exact next checkpoint.
 
 ---
@@ -2734,7 +3434,7 @@ If these disagree, the agent should **report the discrepancy instead of guessing
 
 # 18. Definition of Done
 
-The static MVP transformation is complete when:
+The initial near-production transformation is complete when:
 
 - [ ] The approved ERD is fully represented in PostgreSQL
 - [ ] Database creation is reproducible from migrations
@@ -2747,10 +3447,22 @@ The static MVP transformation is complete when:
 - [ ] Workspace/projects are database-backed
 - [ ] Authentication is implemented
 - [ ] RBAC is enforced
-- [ ] Skill matching works
-- [ ] Semantic matching works through pgvector
+- [ ] Fresh, authorized multi-role users can perform the Phase 6.6 challenge →
+  application → supervision → assessment/review → selection/offer → accepted
+  project → milestone/close-out path with persisted state and negative access
+  checks; isolated Playwright E2E evidence is human-reviewed
+- [ ] Development-only persona provisioning cannot grant production roles;
+  candidate-scoped private access does not broaden ordinary marketplace scope
+- [ ] Stale/racing actions cannot violate deadline, grading, selection,
+  project-membership, or milestone-review integrity
 - [ ] Staging environment exists
 - [ ] Production deployment exists
 - [ ] Managed PostgreSQL is backed up and monitored
 - [ ] File/object storage is available if uploads are required
 - [ ] Deployment and recovery procedures are documented
+
+Deferred optional Phase 7 completion criteria, tracked separately and **not**
+gates for the initial release or Phase 8:
+
+- [ ] Skill matching works when separately prioritized
+- [ ] Semantic matching works through pgvector when separately prioritized

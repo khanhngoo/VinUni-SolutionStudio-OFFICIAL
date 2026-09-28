@@ -1,7 +1,10 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
-import { getAuthenticatedActor } from "@/auth/authenticated-actor";
+import {
+  getAuthenticatedActor,
+  hasActorCapability,
+} from "@/auth/authenticated-actor";
 import { GroupHeading } from "@/components/partner/group-heading";
 import { Chip } from "@/components/ui/chip";
 import { Section } from "@/components/ui/section";
@@ -33,6 +36,7 @@ export default async function PartnerProjectPage({
 
   const resolution = await getAuthenticatedActor();
   if (resolution.status !== "RESOLVED") redirect("/sign-in");
+  if (!hasActorCapability(resolution.actor, "PARTNER_REPRESENTATIVE")) notFound();
 
   // Ownership comes from the partner dashboard, which is scoped to the actor's
   // organization: a project belonging to another partner is indistinguishable

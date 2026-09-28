@@ -21,11 +21,11 @@ interface OfferFlowProps {
   fullBrief: string | null;
   ndaAccepted: boolean;
   ndaRequired: boolean;
-  ndaAction: (signature: string) => Promise<void>;
+  ndaAction: (signature: string) => Promise<string | null>;
   orgName: string;
   posterContact: { displayName: string; email: string | null; roleLabel: string | null } | null;
   resourceNames: string[];
-  respondAction: (response: OfferResponse) => Promise<void>;
+  respondAction: (response: OfferResponse) => Promise<string | null>;
   respondedByName: string | null;
   status: "PENDING" | "ACCEPTED" | "DECLINED" | "CANCELLED";
 }
@@ -76,7 +76,11 @@ export function OfferFlow({
     setError(null);
     startTransition(async () => {
       try {
-        await respondAction(response);
+        const message = await respondAction(response);
+        if (message) {
+          setError(message);
+          return;
+        }
         router.refresh();
       } catch {
         setError("We could not record that response. Refresh this page and try again.");
@@ -93,7 +97,11 @@ export function OfferFlow({
     setNdaError(null);
     startTransition(async () => {
       try {
-        await ndaAction(signature);
+        const message = await ndaAction(signature);
+        if (message) {
+          setNdaError(message);
+          return;
+        }
         router.refresh();
       } catch {
         setNdaError("We could not record your signature. Try again.");

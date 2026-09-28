@@ -13,7 +13,12 @@ import { marketplaceContextForActor } from "@/lib/challenge-marketplace";
 import { lockedBlocksFor } from "@/lib/disclosure";
 import { getStudentEligibilityProfile, listStudentSkillNames } from "@/db/queries/challenges";
 import { evaluateChallengeEligibility } from "@/services/challenge-policy";
-import { getMyApplicationForChallenge, toApplicationActorContext } from "@/services/application.service";
+import {
+  applicationWindow,
+  getMyApplicationForChallenge,
+  toApplicationActorContext,
+} from "@/services/application.service";
+import { deriveApplicationLifecycleView } from "@/services/application-lifecycle.service";
 import { deriveApplicationStage, toPipelineView } from "@/services/application-stage";
 import { timelineIndex } from "@/lib/pipeline";
 import { getAuthenticatedActor } from "@/auth/authenticated-actor";
@@ -47,15 +52,21 @@ export default async function ChallengeDetailPage({
     : null;
 
   const pipelineView = myApplication
-    ? toPipelineView(
-        myApplication,
-        deriveApplicationStage({
-          assessmentSummaries: myApplication.assessmentSummaries,
-          offerSummary: myApplication.offerSummary,
-          projectSummary: myApplication.projectSummary,
-          status: myApplication.status,
-        })
-      )
+    ? {
+        ...toPipelineView(
+          myApplication,
+          deriveApplicationStage({
+            assessmentSummaries: myApplication.assessmentSummaries,
+            offerSummary: myApplication.offerSummary,
+            projectSummary: myApplication.projectSummary,
+            status: myApplication.status,
+          })
+        ),
+        nextAction: deriveApplicationLifecycleView(myApplication).message,
+      }
+    : null;
+  const applyWindow = isStudent && evaluation?.status !== "INELIGIBLE"
+    ? applicationWindow(challenge)
     : null;
 
   return (
@@ -81,7 +92,11 @@ export default async function ChallengeDetailPage({
             />
           </>
         ) : (
-          <MarketplaceApplyPanel actor={actor} challenge={challenge} />
+          <MarketplaceApplyPanel
+            actor={actor}
+            applicationWindow={applyWindow}
+            challenge={challenge}
+          />
         )}
       </div>
 

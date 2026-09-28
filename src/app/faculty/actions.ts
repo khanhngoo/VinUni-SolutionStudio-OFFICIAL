@@ -34,8 +34,11 @@ async function respond(requestId: string, decision: "ACCEPT" | "DECLINE") {
   }
 
   try {
-    await respondToSupervisionRequest(BigInt(requestId), decision, resolution.actor);
+    const parsedRequestId = BigInt(requestId);
+    if (parsedRequestId < BigInt(1)) return "That supervision request is no longer available.";
+    await respondToSupervisionRequest(parsedRequestId, decision, resolution.actor);
   } catch (error) {
+    if (error instanceof SyntaxError) return "That supervision request is no longer available.";
     if (error instanceof SupervisionError) return error.message;
     throw error;
   }

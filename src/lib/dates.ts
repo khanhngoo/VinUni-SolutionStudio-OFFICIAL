@@ -18,6 +18,39 @@ export function now(): Date {
  */
 export const DISPLAY_TZ = "Asia/Ho_Chi_Minh";
 
+/**
+ * Supervision requests use the campus business calendar: five Monday-Friday
+ * days, ending at 23:59:59.999 in Asia/Ho_Chi_Minh. Vietnam does not observe
+ * daylight saving time, so local end-of-day is always 16:59:59.999 UTC.
+ */
+export function addCampusWorkingDays(from: Date, workingDays: number): Date {
+  if (!Number.isInteger(workingDays) || workingDays < 1) {
+    throw new RangeError("workingDays must be a positive integer.");
+  }
+
+  const [year, month, day] = dayKey(from.toISOString()).split("-").map(Number);
+  const cursor = new Date(Date.UTC(year, month - 1, day));
+  let remaining = workingDays;
+
+  while (remaining > 0) {
+    cursor.setUTCDate(cursor.getUTCDate() + 1);
+    const weekday = cursor.getUTCDay();
+    if (weekday !== 0 && weekday !== 6) remaining -= 1;
+  }
+
+  return new Date(
+    Date.UTC(
+      cursor.getUTCFullYear(),
+      cursor.getUTCMonth(),
+      cursor.getUTCDate(),
+      16,
+      59,
+      59,
+      999
+    )
+  );
+}
+
 const MS_PER_DAY = 86_400_000;
 
 /** "2026-08-03" — no time component. Datetimes always carry a `T`. */
@@ -80,6 +113,7 @@ export function formatNullableDate(date: Date | null): string {
   return date.toLocaleDateString("en-GB", {
     day: "numeric",
     month: "short",
+    timeZone: DISPLAY_TZ,
     year: "numeric",
   });
 }

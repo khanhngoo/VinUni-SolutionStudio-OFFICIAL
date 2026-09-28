@@ -747,6 +747,46 @@ Table challenges {
 
 
 //////////////////////////////////////////////////////////////
+// CANDIDATE-SPECIFIC CHALLENGE ACCESS
+//
+// INVITE_ONLY sourcing resolves one exact active student and grants access to
+// that student for one challenge. Effective state is derived from grant,
+// expiry, revocation, challenge lifecycle, and application deadline; it is
+// not stored as a redundant status. Historical rows are retained across
+// revocation, expiry, and re-grant.
+//
+// PostgreSQL checks enforce timestamp validity and paired revocation fields.
+// The service locks the challenge row while granting so concurrent requests
+// cannot create two effective grants for the same challenge/student. A
+// time-dependent partial unique index using now() is deliberately not used.
+//////////////////////////////////////////////////////////////
+
+Table challenge_candidate_access {
+  id bigint [pk, increment]
+
+  challenge_id bigint [not null]
+  student_id bigint [not null]
+
+  granted_by bigint [not null]
+  granted_at timestamptz [not null]
+  expires_at timestamptz [not null]
+
+  revoked_by bigint
+  revoked_at timestamptz
+
+  created_at timestamptz
+  updated_at timestamptz
+
+  indexes {
+    (challenge_id, student_id)
+    (student_id, expires_at)
+    granted_by
+    revoked_by
+  }
+}
+
+
+//////////////////////////////////////////////////////////////
 // CHALLENGE ELIGIBILITY RULES
 //
 // Flexible rule model for GPA, study year, school, major,
@@ -1699,6 +1739,14 @@ Ref: organizations.id < challenges.owner_organization_id
 Ref: organizations.id < challenges.managing_organization_id
 
 Ref: users.id < challenges.contact_person_id
+
+Ref: challenges.id < challenge_candidate_access.challenge_id
+
+Ref: student_profiles.user_id < challenge_candidate_access.student_id
+
+Ref: users.id < challenge_candidate_access.granted_by
+
+Ref: users.id < challenge_candidate_access.revoked_by
 
 Ref: challenges.id < challenge_eligibility_rules.challenge_id
 

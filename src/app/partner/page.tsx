@@ -8,6 +8,7 @@ import { Section } from "@/components/ui/section";
 import { deadlineLabel, formatNullableDate as formatDate, isUrgent } from "@/lib/dates";
 import { ProgressBar } from "@/components/workspace/progress-bar";
 import { getPartnerDashboard, PartnerError } from "@/services/partner.service";
+import { applicationWindow } from "@/services/application.service";
 
 export const dynamic = "force-dynamic";
 
@@ -62,19 +63,6 @@ export default async function PartnerHomePage() {
   // merely want to look at. Applications waiting on a decision, deliverables
   // waiting on a signature, finished projects waiting on a closing note.
   const attention: AttentionItem[] = [
-    ...applications
-      .filter((application) => application.status === "SUBMITTED")
-      .map((application) => ({
-        challengeTitle: application.challengeTitle,
-        detail: `${application.teamName ?? "A team"} applied and is waiting on a decision`,
-        due: application.submittedAt ? formatDate(application.submittedAt) : null,
-        href: application.challengeSlug
-          ? `/partner/challenges/${application.challengeSlug}`
-          : "/partner",
-        kind: "shortlist",
-        label: "Shortlist",
-        urgent: false,
-      })),
     ...live
       .filter((project) => project.progress.completed < project.progress.total)
       .map((project) => ({
@@ -147,7 +135,7 @@ export default async function PartnerHomePage() {
                         </p>
                       </td>
                       <td className="py-2.5 pr-3 align-middle w-[140px]">
-                        <Chip>{challenge.status.replaceAll("_", " ")}</Chip>
+                        <Chip>{challengeLifecycleLabel(challenge)}</Chip>
                       </td>
                       <td className="py-2.5 pr-3 align-middle w-[120px]">
                         <Chip variant="outline-dashed">{challenge.applicantCount} applied</Chip>
@@ -290,6 +278,17 @@ export default async function PartnerHomePage() {
       </div>
     </div>
   );
+}
+
+function challengeLifecycleLabel(challenge: {
+  applicationDeadline: Date | null;
+  status: string;
+}) {
+  const window = applicationWindow(challenge);
+  if (!window.isOpen && window.reason === "DEADLINE_PASSED") {
+    return "APPLICATIONS CLOSED";
+  }
+  return challenge.status.replaceAll("_", " ");
 }
 
 function EmptyRow({ children }: { children: React.ReactNode }) {

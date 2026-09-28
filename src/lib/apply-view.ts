@@ -1,4 +1,5 @@
 import type { DirectoryStudentRead, FacultyOptionRead, PeerRead } from "@/db/queries/students";
+import type { PartnerChallengeDetailRead } from "@/db/queries/partner";
 import {
   challengeDeliverables,
   challengeDomainTags,
@@ -238,6 +239,62 @@ export function toApplyChallenge(detail: MarketplaceChallengeDetailModel): Chall
     subType: toChallengeSubType(detail.subtype),
     // Faculty assignments carry a display name but no id on the read model,
     // so there is nothing to pre-select against; the picker lists everyone.
+    suggestedFacultyIds: [],
+    summary: detail.summary,
+    teamSizeMax: detail.teamSizeMax ?? 0,
+    teamSizeMin: detail.teamSizeMin ?? 0,
+    title: detail.title,
+    workMode: WORK_MODE_LABELS[detail.workMode ?? ""] ?? "Hybrid",
+  };
+}
+
+/**
+ * The same legacy view model, built from an owner-authorized partner read.
+ *
+ * A partner must not be forced through the student marketplace visibility
+ * boundary to inspect a team for its own VINUNI_ONLY challenge. This adapter
+ * deliberately consumes the already owner-scoped detail returned by the
+ * partner service instead of weakening marketplace disclosure rules.
+ */
+export function toPartnerOwnedApplyChallenge(
+  detail: PartnerChallengeDetailRead,
+  ownerOrganizationName: string
+): Challenge {
+  const schools = detail.eligibilitySummary.schools ?? [];
+  const eligibleColleges = schools
+    .map((school) => COLLEGES.find((college) => college === school))
+    .filter((college): college is College => Boolean(college));
+
+  return {
+    applicantCount: detail.applicantCount,
+    assessmentMinutes: 0,
+    assessmentTrack: "Cognitive",
+    colleges: eligibleColleges,
+    compensation: COMPENSATION_LABELS[detail.compensationType] ?? "Unpaid",
+    confidential: detail.visibility !== "PUBLIC_PREVIEW",
+    deadline: detail.applicationDeadline?.toISOString() ?? "",
+    domainTags: detail.domain ? [detail.domain] : [],
+    durationWeeks: detail.durationWeeks ?? 0,
+    eligibleColleges: eligibleColleges.length > 0 ? eligibleColleges : null,
+    eligibleYears: detail.eligibilitySummary.studyYears ?? [],
+    hoursPerWeek: detail.weeklyHours ?? 0,
+    id: detail.slug ?? detail.publicId,
+    interviewFormat: "",
+    lockedBlocks: [],
+    minGpa: detail.eligibilitySummary.minGpa,
+    orgCategory: "Partner",
+    orgId: "",
+    orgName: ownerOrganizationName,
+    posterKind: "Company",
+    postedAt: "",
+    responsibilities: [],
+    skills: detail.skills.map((skill) => ({
+      level: skill.requirementType === "REQUIRED" ? "must" : "nice",
+      name: skill.canonicalName,
+    })),
+    startDate: detail.startDate ?? "",
+    status: "Published",
+    subType: toChallengeSubType(detail.subtype),
     suggestedFacultyIds: [],
     summary: detail.summary,
     teamSizeMax: detail.teamSizeMax ?? 0,

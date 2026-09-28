@@ -22,6 +22,8 @@ import {
   listProjectMilestones,
   type ProjectCoreRead,
 } from "@/db/queries/projects";
+import { isPublicId } from "@/lib/public-id";
+import { dayKey } from "@/lib/dates";
 
 export interface FacultyServiceOptions {
   database?: FacultyQueryDatabase;
@@ -94,6 +96,7 @@ export async function getFacultyApplicationDetail(
   applicationPublicId: string,
   options: FacultyServiceOptions = {}
 ): Promise<FacultyApplicationDetail | null> {
+  if (!isPublicId(applicationPublicId)) return null;
   const database = options.database ?? db;
   const project = await getProjectCoreByApplicationPublicId(database, applicationPublicId);
   if (project?.facultySupervisor?.userId === facultyUserId) {
@@ -160,6 +163,7 @@ export async function getFacultyQueue(
         hoursPerWeek: application?.challenge.weeklyHours ?? null,
         kind: "invite" as const,
         requestId: String(request.id),
+        responseState: supervisionResponseState(now, request.respondBy),
         teamName: request.teamName ?? "Unnamed team",
         teamSize:
           application?.members.filter(
@@ -253,5 +257,18 @@ export async function getFacultyQueue(
 /** Whole days from `from` to `to`. Negative once past; null dates read as due now. */
 function daysBetween(from: Date, to: Date | null): number {
   if (!to) return 0;
-  return Math.round((to.getTime() - from.getTime()) / 86_400_000);
+  const fromDay = new Date(`${dayKey(from.toISOString())}T00:00:00.000Z`);
+  const toDay = new Date(`${dayKey(to.toISOString())}T00:00:00.000Z`);
+  return Math.round((toDay.getTime() - fromDay.getTime()) / 86_400_000);
+}
+
+function supervisionResponseState(
+  now: Date,
+  respondBy: Date | null
+): "DUE_TODAY" | "EXPIRED" | "FUTURE" | "MISSING_DEADLINE" {
+  if (!respondBy) return "MISSING_DEADLINE";
+  if (now > respondBy) return "EXPIRED";
+  return dayKey(now.toISOString()) === dayKey(respondBy.toISOString())
+    ? "DUE_TODAY"
+    : "FUTURE";
 }

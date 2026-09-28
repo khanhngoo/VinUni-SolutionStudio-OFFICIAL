@@ -40,6 +40,7 @@ export function ApplyWizardShell({
     const error = await submitApplicationDraft({
       challengeSlug,
       committedHoursPerWeek: draft.hoursPerWeek,
+      facultySupervisorId: draft.facultySupervisorId,
       invitedStudentIds: draft.invitedStudentIds,
       motivation: draft.motivation,
       relevantExperience: draft.relevantExperience,

@@ -10,6 +10,8 @@ import {
   getPartnerDashboard,
   resolvePartnerOrganization,
 } from "@/services/partner.service";
+import { getMarketplaceChallengeBySlug } from "@/services/challenge.service";
+import { marketplaceContextForActor } from "@/lib/challenge-marketplace";
 
 async function main() {
   const bencangUser = await resolveAuthenticatedUserByEmail(
@@ -17,6 +19,11 @@ async function main() {
   );
   if (bencangUser.status !== "RESOLVED") throw new Error("Bến Cảng dev actor not found");
   const bencangActor = await resolveAuthenticatedActor(bencangUser.user);
+  const vhfUser = await resolveAuthenticatedUserByEmail(
+    "contact.vhf.demo@example.test"
+  );
+  if (vhfUser.status !== "RESOLVED") throw new Error("VHF dev actor not found");
+  const vhfActor = await resolveAuthenticatedActor(vhfUser.user);
 
   const resolution = resolvePartnerOrganization(bencangActor);
   assert(resolution.kind === "RESOLVED", "Bến Cảng actor must resolve to exactly one EXTERNAL_PARTNER org");
@@ -101,6 +108,29 @@ async function main() {
   assert(
     crossPartnerPage === null,
     `Bến Cảng actor must not read a challenge owned by another organization (${otherOwnedChallenge!.slug})`
+  );
+
+  const privateOwnerPage = await getPartnerChallengePage(bencangActor, {
+    slug: "merchant-churn-model",
+  });
+  assert(
+    privateOwnerPage?.challenge.visibility === "PRIVATE",
+    "owning partner should resolve its PRIVATE challenge through owner scope"
+  );
+  const privateCrossPartnerPage = await getPartnerChallengePage(vhfActor, {
+    slug: "merchant-churn-model",
+  });
+  assert(
+    privateCrossPartnerPage === null,
+    "unrelated partner must not resolve another owner's PRIVATE challenge"
+  );
+  const privateOrdinaryMarketplace = await getMarketplaceChallengeBySlug(
+    "merchant-churn-model",
+    marketplaceContextForActor(bencangActor)
+  );
+  assert(
+    privateOrdinaryMarketplace === null,
+    "owner scope must not broaden an external partner's ordinary marketplace visibility"
   );
 
   console.log("Focused partner runtime verification passed.");

@@ -36,12 +36,12 @@ export async function createChallengeDraftAction(formData: FormData) {
 
   const actor = resolution.actor;
   if (!hasActorCapability(actor, "PARTNER_REPRESENTATIVE")) {
-    redirectWithError("FORBIDDEN");
+    return "Your account cannot post a challenge for this organization.";
   }
 
   const ownerResolution = resolvePartnerOrganization(actor);
   if (ownerResolution.kind !== "RESOLVED") {
-    redirectWithError("FORBIDDEN");
+    return "Your account does not resolve to exactly one partner organization.";
   }
 
   const managingOrganizationRaw = stringValue(formData, "managingOrganizationId");
@@ -49,7 +49,7 @@ export async function createChallengeDraftAction(formData: FormData) {
   try {
     managingOrganizationId = BigInt(managingOrganizationRaw);
   } catch {
-    redirectWithError("VALIDATION_ERROR", ["Select a managing organization."]);
+    return "Select a managing organization.";
   }
 
   const skills = parseSkills(formData);
@@ -71,6 +71,7 @@ export async function createChallengeDraftAction(formData: FormData) {
         teamSizeMax: optionalInteger(formData, "teamSizeMax"),
         teamSizeMin: optionalInteger(formData, "teamSizeMin"),
         title: stringValue(formData, "title"),
+        visibility: visibilityValue(formData),
         weeklyHours: optionalInteger(formData, "weeklyHours"),
         workMode: workModeValue(formData),
       },
@@ -80,29 +81,18 @@ export async function createChallengeDraftAction(formData: FormData) {
     redirect(`/partner/challenges/${created.slug}?created=1`);
   } catch (error) {
     if (error instanceof ChallengeWriteError) {
-      redirectWithError(error.code, error.details);
+      return error.details.length > 0
+        ? error.details.join(" ")
+        : "Please check the challenge details and try again.";
     }
     if (error instanceof PartnerError) {
-      redirectWithError("FORBIDDEN");
+      return "Your account cannot post a challenge for this organization.";
     }
     // Unexpected/system failures must still surface for diagnostics rather
     // than being swallowed into a friendly message (the D1 lesson, applied
     // in the other direction).
     throw error;
   }
-}
-
-/**
- * Redirects to the post form carrying both the error code (mapped to a
- * friendly headline by the page) and the specific validation detail
- * messages `ChallengeWriteError` already carries — without these, a
- * `VALIDATION_ERROR` collapsed every possible cause into one generic
- * sentence, leaving the actor unable to tell which field actually failed.
- */
-function redirectWithError(code: string, details: string[] = []): never {
-  const params = new URLSearchParams({ error: code });
-  if (details.length > 0) params.set("details", details.join("|"));
-  redirect(`/partner/post?${params.toString()}`);
 }
 
 function parseSkills(formData: FormData): ChallengeSkillWriteInput[] {
@@ -168,4 +158,17 @@ const WORK_MODES = new Set(["ONSITE", "HYBRID", "REMOTE"]);
 function workModeValue(formData: FormData) {
   const value = stringValue(formData, "workMode");
   return WORK_MODES.has(value) ? (value as "ONSITE" | "HYBRID" | "REMOTE") : null;
+}
+
+const CHALLENGE_VISIBILITIES = new Set([
+  "PUBLIC_PREVIEW",
+  "VINUNI_ONLY",
+  "INVITE_ONLY",
+  "PRIVATE",
+]);
+function visibilityValue(formData: FormData) {
+  const value = stringValue(formData, "visibility");
+  return CHALLENGE_VISIBILITIES.has(value)
+    ? (value as "PUBLIC_PREVIEW" | "VINUNI_ONLY" | "INVITE_ONLY" | "PRIVATE")
+    : undefined;
 }

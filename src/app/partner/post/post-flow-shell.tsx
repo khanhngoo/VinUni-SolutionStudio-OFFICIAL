@@ -12,7 +12,8 @@ type Step = "start" | "details";
 
 /**
  * Posting a challenge, in the shape the product was designed around: start,
- * write the brief, then CAID reviews it before students ever see it.
+ * write the brief, then the selected managing unit reviews it before students
+ * ever see it.
  *
  * The prototype opened with a document upload that parsed a brief into the
  * form. There is no parser — the prototype's was a timer over a fixed sample —
@@ -90,7 +91,7 @@ export function PostFlowShell({
 }
 
 function StepBar({ active }: { active: 1 | 2 | 3 }) {
-  const steps = ["Start", "Write the brief", "CAID review"];
+  const steps = ["Start", "Write the brief", "Managing-unit review"];
 
   return (
     <div className="flex gap-1.5 mt-4">

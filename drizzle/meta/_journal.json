@@ -43,6 +43,13 @@
       "when": 1788684218980,
       "tag": "0005_self_service_credentials",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1790558239433,
+      "tag": "0006_condemned_stardust",
+      "breakpoints": true
     }
   ]
 }

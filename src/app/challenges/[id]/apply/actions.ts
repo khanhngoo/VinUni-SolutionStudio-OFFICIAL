@@ -21,6 +21,7 @@ const ERROR_MESSAGES: Record<string, string> = {
 export interface SubmitApplicationInput {
   challengeSlug: string;
   committedHoursPerWeek: number;
+  facultySupervisorId: string;
   /** User ids picked in the wizard's first step. */
   invitedStudentIds: string[];
   motivation: string;
@@ -51,6 +52,14 @@ export async function submitApplicationDraft(
 
   const actor = toApplicationActorContext(resolution.actor);
 
+  let facultySupervisorId: bigint;
+  try {
+    facultySupervisorId = BigInt(input.facultySupervisorId);
+    if (facultySupervisorId < BigInt(1)) throw new RangeError();
+  } catch {
+    return "Choose an available faculty supervisor.";
+  }
+
   // The picker invites by id and never sees an email; the mapping happens
   // here. An id that does not resolve to an active student is rejected rather
   // than silently dropped, so a stale picker cannot quietly shrink the team.
@@ -72,6 +81,7 @@ export async function submitApplicationDraft(
     await createApplication(
       {
         challengeSlug: input.challengeSlug,
+        facultySupervisorId,
         leaderAvailabilityConfirmed: true,
         leaderCommittedHoursPerWeek: input.committedHoursPerWeek,
         members: input.invitedStudentIds.map((id) => ({
@@ -86,7 +96,13 @@ export async function submitApplicationDraft(
     );
   } catch (error) {
     if (error instanceof ApplicationError) {
-      const detail = error.details?.length ? ` ${error.details.join(" ")}` : "";
+      // Validation details are written for people. Conflict details identify
+      // locked participant/application records for verifier diagnostics and
+      // must not leak database ids into a stale-tab response.
+      const detail =
+        error.code === "VALIDATION_ERROR" && error.details?.length
+          ? ` ${error.details.join(" ")}`
+          : "";
       return `${ERROR_MESSAGES[error.code] ?? "The application could not be submitted."}${detail}`;
     }
 

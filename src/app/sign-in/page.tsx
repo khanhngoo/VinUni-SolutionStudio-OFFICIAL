@@ -7,7 +7,7 @@ import {
   developmentIdentityKeys,
   isDevelopmentAuthenticationEnabled,
 } from "@/auth/development-identities";
-import { isSelfServiceAuthenticationEnabled } from "@/auth/self-service-authentication";
+import { isDevelopmentPersonaProvisioningEnabled, isSelfServiceAuthenticationEnabled } from "@/auth/self-service-authentication";
 import { isDemoAuthenticationEnabled } from "@/auth/demo-authentication";
 import { Section } from "@/components/ui/section";
 import {
@@ -21,9 +21,7 @@ import { DemoSignInForm } from "./demo-form";
 /**
  * The way in.
  *
- * The explicitly enabled internal-demo credential path creates basic users
- * without profiles or organization authority. Seeded personas remain a
- * separate local E2E affordance; Entra remains the institutional provider.
+ * Development persona registration is separately gated from basic accounts.
  */
 export default function SignInPage() {
   const developmentEnabled = isDevelopmentAuthenticationEnabled();
@@ -48,7 +46,7 @@ export default function SignInPage() {
 
       {selfServiceEnabled ? (
         <Section title="Email account" aside="Internal demo">
-          <SelfServiceAuthenticationForms />
+          <SelfServiceAuthenticationForms developmentPersonasEnabled={isDevelopmentPersonaProvisioningEnabled()} />
         </Section>
       ) : null}
 

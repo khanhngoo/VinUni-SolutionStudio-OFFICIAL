@@ -195,7 +195,7 @@ export function FacultyQueue({
             if (item.kind === "invite") {
               return (
                 <InviteRow
-                  key={item.requestId}
+                  key={`invite-${item.requestId}`}
                   item={item}
                   atCapacity={atCapacity}
                   onAccept={async () => {
@@ -225,7 +225,7 @@ export function FacultyQueue({
             if (item.kind === "milestone") {
               return (
                 <MilestoneRow
-                  key={item.milestoneId}
+                  key={`milestone-${item.milestoneId}`}
                   item={item}
                   onApprove={async () => {
                     setError(null);
@@ -274,7 +274,7 @@ export function FacultyQueue({
             }
 
             return (
-              <FeedbackRow key={item.applicationPublicId} item={item} />
+              <FeedbackRow key={`feedback-${item.applicationPublicId}`} item={item} />
             );
           })}
 
@@ -386,7 +386,9 @@ function InviteRow({
   onAccept: () => void;
   onDecline: () => void;
 }) {
-  const { challengeTitle, daysLeft, teamName } = item;
+  const { challengeTitle, daysLeft, responseState, teamName } = item;
+  const isReadOnly =
+    responseState === "EXPIRED" || responseState === "MISSING_DEADLINE";
   const [declineOpen, setDeclineOpen] = useState(false);
 
   return (
@@ -400,10 +402,14 @@ function InviteRow({
             Team of {item.teamSize}
             {item.colleges.length > 0 ? ` · ${item.colleges.join(", ")}` : ""} ·{" "}
             {item.durationWeeks ?? "—"} wks · {item.hoursPerWeek ?? "—"} h/wk ·{" "}
-            <span className={daysLeft <= 2 ? "text-warn font-medium" : undefined}>
-              {daysLeft <= 0
-                ? "expires today"
-                : `expires in ${daysLeft} day${daysLeft === 1 ? "" : "s"}`}
+            <span className={responseState === "EXPIRED" || responseState === "DUE_TODAY" ? "text-warn font-medium" : undefined}>
+              {responseState === "EXPIRED"
+                ? "response deadline passed"
+                : responseState === "DUE_TODAY"
+                  ? "due today"
+                  : responseState === "MISSING_DEADLINE"
+                    ? "deadline unavailable · read-only"
+                    : `due in ${daysLeft} day${daysLeft === 1 ? "" : "s"}`}
             </span>
           </>
         }
@@ -412,6 +418,7 @@ function InviteRow({
             <button
               type="button"
               onClick={() => setDeclineOpen(true)}
+              disabled={isReadOnly}
               className="h-8 px-3 rounded-card border border-red text-red font-semibold hover:bg-red-soft"
             >
               Decline
@@ -419,10 +426,12 @@ function InviteRow({
             <button
               type="button"
               onClick={onAccept}
-              disabled={atCapacity}
+              disabled={atCapacity || isReadOnly}
               title={
                 atCapacity
                   ? "You are at supervision capacity"
+                  : isReadOnly
+                    ? "This request is read-only"
                   : undefined
               }
               className="h-8 px-3.5 rounded-card bg-brand text-white font-semibold hover:bg-brand-deep disabled:opacity-40 disabled:hover:bg-brand"

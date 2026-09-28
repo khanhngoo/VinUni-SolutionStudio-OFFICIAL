@@ -97,6 +97,8 @@ export async function signUpWithSelfService(
       email: formData.get("email"),
       fullName: formData.get("fullName"),
       password,
+      ...(formData.has("persona") ? { persona: formData.get("persona") } : {}),
+      ...(formData.has("partnerOrganization") ? { partnerOrganization: formData.get("partnerOrganization") } : {}),
     });
 
     await signIn(SELF_SERVICE_PROVIDER_ID, {

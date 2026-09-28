@@ -17,6 +17,7 @@ import {
   type ApplicationActorContext,
   type DevelopmentApplicationActorKey,
 } from "@/services/application.service";
+import { isPublicId } from "@/lib/public-id";
 
 export type OfferErrorCode =
   | "CONFLICT"
@@ -140,6 +141,8 @@ async function loadOfferContext(
   options: OfferServiceOptions
 ): Promise<OfferContext | null> {
   assertStudentActor(actor);
+
+  if (!isPublicId(applicationPublicId)) return null;
 
   const database = options.database ?? db;
   const offer = await getOfferByApplicationPublicId(

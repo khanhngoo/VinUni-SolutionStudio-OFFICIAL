@@ -12,6 +12,7 @@ import {
   listFacultyOptions,
   listInvitablePeers,
 } from "@/db/queries/students";
+import { getStudentEligibilityProfile } from "@/db/queries/challenges";
 import {
   soloTeamFor,
   toApplyChallenge,
@@ -23,9 +24,11 @@ import {
 } from "@/lib/apply-view";
 import { marketplaceContextForActor } from "@/lib/challenge-marketplace";
 import {
+  applicationWindow,
   getMyApplicationForChallenge,
   toApplicationActorContext,
 } from "@/services/application.service";
+import { evaluateChallengeEligibility } from "@/services/challenge-policy";
 import { getMarketplaceChallengeBySlug } from "@/services/challenge.service";
 
 import { ApplyWizardShell } from "./wizard-shell";
@@ -61,13 +64,19 @@ export default async function ApplyPage({
 
   const actor = toApplicationActorContext(resolution.actor);
   const existing = await getMyApplicationForChallenge(challenge.slug, actor);
+  const window = applicationWindow(challenge);
+  const windowReason = window.isOpen ? null : window.reason;
 
   const viewerId = resolution.actor.user.userId;
-  const [peerRows, facultyRows, teamProfile] = await Promise.all([
+  const [peerRows, facultyRows, teamProfile, eligibilityProfile] = await Promise.all([
     listInvitablePeers(db, viewerId),
     listFacultyOptions(db),
     getStudentTeamProfile(db, viewerId),
+    getStudentEligibilityProfile(viewerId),
   ]);
+  const eligibility = eligibilityProfile
+    ? evaluateChallengeEligibility(challenge.eligibilityRules, eligibilityProfile)
+    : null;
 
   const applyChallenge = toApplyChallenge(challenge);
   const leaderName = resolution.actor.user.fullName;
@@ -123,6 +132,23 @@ export default async function ApplyPage({
             </div>
           </Section>
         </>
+      ) : !window.isOpen || eligibility?.status === "INELIGIBLE" || !eligibility ? (
+        <Section title="Applications unavailable">
+          <div className="bg-card border border-line rounded-card p-5">
+            <p className="font-semibold text-ink">
+              {eligibility?.status === "INELIGIBLE"
+                ? "You do not currently meet this challenge's required eligibility rules."
+                : !eligibility
+                  ? "Complete your student profile before applying."
+                : windowReason === "DEADLINE_PASSED"
+                ? "The application deadline has passed."
+                : "This challenge is not accepting applications right now."}
+            </p>
+            <Link className="inline-block font-semibold mt-4" href={`/challenges/${challenge.slug}`}>
+              Back to challenge →
+            </Link>
+          </div>
+        </Section>
       ) : (
         <ApplyWizardShell
           baseTeam={baseTeam}

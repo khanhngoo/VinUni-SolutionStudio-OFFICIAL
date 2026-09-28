@@ -1,3 +1,5 @@
+import "dotenv/config";
+
 import { and, eq } from "drizzle-orm";
 
 import { db } from "@/db";
@@ -162,6 +164,23 @@ async function main() {
             options
           ),
         "FORBIDDEN"
+      );
+
+      await expectWriteError(
+        "review feedback cannot terminally cancel",
+        () =>
+          recordChallengeReviewDecision(
+            created.slug,
+            { comments: "This needs work, not terminal cancellation.", decision: "REJECTED" },
+            caid,
+            options
+          ),
+        "VALIDATION_ERROR"
+      );
+      const afterRejectedReview = await getChallengeWriteSubjectBySlug(tx, created.slug);
+      assert(
+        afterRejectedReview?.status === "SUBMITTED",
+        "rejected reviewer input must leave the submitted challenge recoverable"
       );
 
       const approved = await recordChallengeReviewDecision(

@@ -20,7 +20,7 @@ export function NavBar({ identity }: { identity: AuthenticatedPresentation | nul
     <header className="shrink-0 bg-card border-b border-line">
       <div className="h-[60px] px-7 flex items-center justify-between gap-6">
         <Link
-          href="/challenges"
+          href={identity ? "/" : "/challenges"}
           className="flex items-center gap-2.5 font-bold text-[14px] tracking-[0.01em] uppercase text-brand hover:text-brand"
         >
           <BrandMark className="w-6 h-[22px]" />
@@ -62,14 +62,14 @@ export function NavBar({ identity }: { identity: AuthenticatedPresentation | nul
           )}
         </nav>
       </div>
-      {identity?.isStudent ? (
-        <nav aria-label="Student sections" className="lg:hidden flex gap-5 overflow-x-auto border-t border-line px-7">
+      {identity ? (
+        <nav aria-label="Account sections" className="lg:hidden flex gap-5 overflow-x-auto border-t border-line px-7">
           <NavLinks
             authenticated
             isFaculty={identity.isFaculty}
             isInternalUnitMember={identity.isInternalUnitMember}
             isPartnerRepresentative={identity.isPartnerRepresentative}
-            isStudent
+            isStudent={identity.isStudent}
             mobile
           />
         </nav>

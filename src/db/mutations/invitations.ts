@@ -13,6 +13,39 @@ export interface InvitationResponseRead {
   status: string;
 }
 
+export interface InvitationWriteSubject {
+  applicationId: bigint;
+  applicationStatus: string;
+  challengeId: bigint;
+  memberStatus: string;
+}
+
+export async function getInvitationWriteSubject(
+  database: InvitationMutationDatabase,
+  applicationPublicId: string,
+  studentId: bigint
+): Promise<InvitationWriteSubject | null> {
+  const [subject] = await database
+    .select({
+      applicationId: applications.id,
+      applicationStatus: sql<string>`coalesce(${applications.status}, 'SUBMITTED')`,
+      challengeId: applications.challengeId,
+      memberStatus: sql<string>`coalesce(${applicationMembers.status}, 'INVITED')`,
+    })
+    .from(applications)
+    .innerJoin(
+      applicationMembers,
+      and(
+        eq(applicationMembers.applicationId, applications.id),
+        eq(applicationMembers.studentId, studentId)
+      )
+    )
+    .where(eq(applications.publicId, applicationPublicId))
+    .limit(1);
+
+  return subject ?? null;
+}
+
 /**
  * Answers a team invitation.
  *

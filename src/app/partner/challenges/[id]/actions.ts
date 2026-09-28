@@ -10,6 +10,11 @@ import {
   updateChallengeDraft,
   type ChallengeSkillWriteInput,
 } from "@/services/challenge-write.service";
+import {
+  CandidateAccessError,
+  grantCandidateAccess,
+  revokeCandidateAccess,
+} from "@/services/challenge-access.service";
 
 /**
  * Every submit re-resolves the actor and re-checks the capability
@@ -43,6 +48,7 @@ export async function updateChallengeDraftAction(formData: FormData) {
         teamSizeMax: optionalInteger(formData, "teamSizeMax"),
         teamSizeMin: optionalInteger(formData, "teamSizeMin"),
         title: stringValue(formData, "title"),
+        visibility: visibilityValue(formData),
         weeklyHours: optionalInteger(formData, "weeklyHours"),
       },
       toChallengeWriteActorContext(actor)
@@ -67,6 +73,64 @@ export async function submitChallengeForReviewAction(formData: FormData) {
   } catch (error) {
     if (error instanceof ChallengeWriteError) {
       redirectWithError(slug, error.code, error.details);
+    }
+    throw error;
+  }
+}
+
+export async function grantCandidateAccessAction(formData: FormData) {
+  const slug = stringValue(formData, "slug");
+  const candidateEmail = stringValue(formData, "candidateEmail");
+  const expiresAt = campusDateTimeValue(formData, "expiresAt");
+  const actor = await requirePartnerActor();
+
+  if (!expiresAt) redirectWithAccessResult(slug, "invalid");
+
+  try {
+    await grantCandidateAccess(
+      { candidateEmail, challengeSlug: slug, expiresAt },
+      actor
+    );
+    redirectWithAccessResult(slug, "granted");
+  } catch (error) {
+    if (error instanceof CandidateAccessError) {
+      redirectWithAccessResult(
+        slug,
+        error.code === "FORBIDDEN" || error.code === "NOT_FOUND"
+          ? "denied"
+          : error.message.includes("identity")
+            ? "candidate"
+            : error.code === "CONFLICT"
+              ? "conflict"
+              : "invalid"
+      );
+    }
+    throw error;
+  }
+}
+
+export async function revokeCandidateAccessAction(formData: FormData) {
+  const slug = stringValue(formData, "slug");
+  const accessIdRaw = stringValue(formData, "accessId");
+  const actor = await requirePartnerActor();
+
+  let accessId: bigint;
+  try {
+    accessId = BigInt(accessIdRaw);
+    if (accessId < BigInt(1)) throw new RangeError();
+  } catch {
+    redirectWithAccessResult(slug, "invalid");
+  }
+
+  try {
+    await revokeCandidateAccess({ accessId, challengeSlug: slug }, actor);
+    redirectWithAccessResult(slug, "revoked");
+  } catch (error) {
+    if (error instanceof CandidateAccessError) {
+      redirectWithAccessResult(
+        slug,
+        error.code === "CONFLICT" ? "application" : "denied"
+      );
     }
     throw error;
   }
@@ -126,4 +190,29 @@ function optionalInteger(formData: FormData, name: string) {
   if (!value) return undefined;
   const parsed = Number(value);
   return Number.isInteger(parsed) ? parsed : Number.NaN;
+}
+
+const CHALLENGE_VISIBILITIES = new Set([
+  "PUBLIC_PREVIEW",
+  "VINUNI_ONLY",
+  "INVITE_ONLY",
+  "PRIVATE",
+]);
+function visibilityValue(formData: FormData) {
+  const value = stringValue(formData, "visibility");
+  return CHALLENGE_VISIBILITIES.has(value)
+    ? (value as "PUBLIC_PREVIEW" | "VINUNI_ONLY" | "INVITE_ONLY" | "PRIVATE")
+    : undefined;
+}
+
+function campusDateTimeValue(formData: FormData, name: string) {
+  const value = stringValue(formData, name);
+  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(value)) return null;
+  const parsed = new Date(`${value}:00+07:00`);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function redirectWithAccessResult(slug: string, result: string): never {
+  const params = new URLSearchParams({ access: result });
+  redirect(`/partner/challenges/${slug}?${params.toString()}`);
 }

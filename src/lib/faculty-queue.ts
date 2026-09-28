@@ -26,6 +26,7 @@ export interface InviteQueueItem extends FacultyQueueItemBase {
   hoursPerWeek: number | null;
   kind: "invite";
   requestId: string;
+  responseState: "DUE_TODAY" | "EXPIRED" | "FUTURE" | "MISSING_DEADLINE";
   teamSize: number;
 }
 

@@ -10,8 +10,14 @@ import { Section } from "@/components/ui/section";
 import { listActiveCanonicalSkills } from "@/db/queries/skills";
 import { formatDate as formatDateOnlyString, formatNullableDate as formatDate } from "@/lib/dates";
 import { getPartnerChallengePage } from "@/services/partner.service";
+import { applicationWindow } from "@/services/application.service";
+import { listChallengeCandidateAccess } from "@/services/challenge-access.service";
 
-import { submitChallengeForReviewAction } from "./actions";
+import {
+  grantCandidateAccessAction,
+  revokeCandidateAccessAction,
+  submitChallengeForReviewAction,
+} from "./actions";
 import { ChallengeEditForm } from "./edit-form";
 
 export const dynamic = "force-dynamic";
@@ -43,6 +49,7 @@ export default async function PartnerChallengePage({
   params: Promise<{ id: string }>;
   searchParams: Promise<{
     created?: string;
+    access?: string;
     details?: string;
     error?: string;
     submitted?: string;
@@ -59,13 +66,19 @@ export default async function PartnerChallengePage({
   if (!page) notFound();
 
   const { applications, canReadApplications, challenge } = page;
+  const candidateAccess =
+    challenge.visibility === "INVITE_ONLY" && challenge.slug
+      ? await listChallengeCandidateAccess(challenge.slug, resolution.actor)
+      : [];
 
   const cards = applications.map((application) => ({
     applicationPublicId: application.publicId,
     assessmentBand: application.assessmentBand,
     challengeSlug: challenge.slug ?? "",
     confirmedCount: application.memberSummary.accepted,
-    detail: offerDetail(application.offerStatus, application.offerRespondBy),
+    detail:
+      offerDetail(application.offerStatus, application.offerRespondBy) ??
+      gateDetail(application),
     pendingCount: application.memberSummary.invited,
     status: application.status,
     teamName:
@@ -85,7 +98,7 @@ export default async function PartnerChallengePage({
       <div className="flex flex-wrap items-start justify-between gap-4 mt-3.5">
         <div className="min-w-0">
           <div className="flex flex-wrap gap-1.5 mb-2.5">
-            <Chip>{challenge.status.replaceAll("_", " ")}</Chip>
+            <Chip>{challengeLifecycleLabel(challenge)}</Chip>
             <Chip variant="outline-dashed">{challenge.visibility.replaceAll("_", " ")}</Chip>
             {challenge.subtype ? <Chip>{challenge.subtype}</Chip> : null}
           </div>
@@ -96,7 +109,7 @@ export default async function PartnerChallengePage({
           </p>
         </div>
 
-        {challenge.status !== "DRAFT" && challenge.slug ? (
+        {challenge.status !== "DRAFT" && challenge.slug && challenge.visibility !== "INVITE_ONLY" ? (
           <Link
             href={`/challenges/${challenge.slug}`}
             className="inline-flex items-center justify-center h-9 px-4 rounded-card border border-line text-ink-2 font-medium hover:border-brand hover:text-brand"
@@ -111,6 +124,11 @@ export default async function PartnerChallengePage({
       ) : null}
       {query.updated ? <Banner tone="ok">Changes saved.</Banner> : null}
       {query.submitted ? <Banner tone="ok">Submitted for review.</Banner> : null}
+      {query.access ? (
+        <Banner tone={query.access === "granted" || query.access === "revoked" ? "ok" : "error"}>
+          {candidateAccessMessage(query.access)}
+        </Banner>
+      ) : null}
       {query.error ? (
         <Banner tone="error">
           <p>{ERROR_MESSAGES[query.error] ?? "Something went wrong."}</p>
@@ -164,6 +182,7 @@ export default async function PartnerChallengePage({
               teamSizeMax: challenge.teamSizeMax,
               teamSizeMin: challenge.teamSizeMin,
               title: challenge.title,
+              visibility: challenge.visibility,
               weeklyHours: challenge.weeklyHours,
             }}
             slug={id}
@@ -182,10 +201,114 @@ export default async function PartnerChallengePage({
       ) : (
         <Section title="Lifecycle">
           <p className="text-ink-2">
-            {lifecycleMessage(challenge.status)}
+            {lifecycleMessage(
+              challenge.status,
+              challenge.applicationDeadline,
+              challenge.visibility
+            )}
           </p>
         </Section>
       )}
+
+      {challenge.visibility === "INVITE_ONLY" ? (
+        <Section
+          title="Candidate access"
+          aside={`${candidateAccess.length} historical grant${candidateAccess.length === 1 ? "" : "s"}`}
+        >
+          <p className="text-ink-2 leading-relaxed">
+            Enter an exact verified VinUni student email. This challenge stays
+            out of marketplace browsing; only students with an effective grant
+            can open it and apply.
+          </p>
+          {challenge.status === "PUBLISHED" || challenge.status === "APPLICATIONS_OPEN" ? (
+            <form action={grantCandidateAccessAction} className="mt-4 grid gap-3 sm:grid-cols-[1fr_240px_auto] sm:items-end">
+              <input type="hidden" name="slug" value={challenge.slug ?? ""} />
+              <label className="flex flex-col gap-1.5">
+                <span className="text-meta font-semibold text-ink-2 uppercase tracking-wide">
+                  Candidate institutional email
+                </span>
+                <input
+                  type="email"
+                  name="candidateEmail"
+                  required
+                  autoComplete="off"
+                  className="h-10 w-full rounded-card border border-line bg-card px-3 text-ink outline-none focus:border-brand"
+                />
+              </label>
+              <label className="flex flex-col gap-1.5">
+                <span className="text-meta font-semibold text-ink-2 uppercase tracking-wide">
+                  Access expires
+                </span>
+                <input
+                  type="datetime-local"
+                  name="expiresAt"
+                  required
+                  className="h-10 w-full rounded-card border border-line bg-card px-3 text-ink outline-none focus:border-brand"
+                />
+              </label>
+              <button
+                type="submit"
+                className="h-10 px-4 rounded-card bg-brand text-white font-semibold hover:bg-brand-deep"
+              >
+                Grant access
+              </button>
+            </form>
+          ) : (
+            <p className="text-meta text-ink-3 mt-3">
+              Candidate access can be granted after the challenge is published.
+            </p>
+          )}
+          {challenge.applicationDeadline ? (
+            <p className="text-meta text-ink-3 mt-2">
+              Expiry must not exceed the application deadline: {formatCampusDateTime(challenge.applicationDeadline)}.
+            </p>
+          ) : null}
+
+          {candidateAccess.length === 0 ? (
+            <EmptyRow>No candidate access has been granted.</EmptyRow>
+          ) : (
+            <ul className="mt-4 flex flex-col gap-2.5">
+              {candidateAccess.map((grant) => (
+                <li key={grant.id.toString()} className="bg-card border border-line rounded-card p-4">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <p className="font-semibold text-ink">{grant.studentName}</p>
+                      <p className="text-meta text-ink-3 mt-0.5">{grant.studentEmail}</p>
+                      <p className="text-meta text-ink-3 mt-2">
+                        Granted {formatCampusDateTime(grant.grantedAt)} by {grant.grantedByName}
+                        {` · Expires ${formatCampusDateTime(grant.expiresAt)}`}
+                      </p>
+                      {grant.revokedAt ? (
+                        <p className="text-meta text-ink-3 mt-1">
+                          Revoked {formatCampusDateTime(grant.revokedAt)}
+                          {grant.revokedByName ? ` by ${grant.revokedByName}` : ""}
+                        </p>
+                      ) : null}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Chip variant={grant.state === "EFFECTIVE" || grant.state === "APPLICATION_SUBMITTED" ? "ok" : undefined}>
+                        {grant.state.replaceAll("_", " ")}
+                      </Chip>
+                      {grant.canRevoke ? (
+                        <form action={revokeCandidateAccessAction}>
+                          <input type="hidden" name="slug" value={challenge.slug ?? ""} />
+                          <input type="hidden" name="accessId" value={grant.id.toString()} />
+                          <button
+                            type="submit"
+                            className="h-8 px-3 rounded-card border border-red/40 text-red text-meta font-semibold hover:bg-red/5"
+                          >
+                            Revoke
+                          </button>
+                        </form>
+                      ) : null}
+                    </div>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Section>
+      ) : null}
 
       <Section
         title="Selection pipeline"
@@ -307,7 +430,11 @@ function latestDecision(reviews: { comments: string | null; decision: string; re
   return reviews.find((review) => review.decision === "REVISION_REQUESTED") ?? null;
 }
 
-function lifecycleMessage(status: string) {
+function lifecycleMessage(
+  status: string,
+  applicationDeadline: Date | null,
+  visibility?: string
+) {
   switch (status) {
     case "SUBMITTED":
     case "UNDER_REVIEW":
@@ -315,12 +442,56 @@ function lifecycleMessage(status: string) {
     case "APPROVED":
       return "Approved by the managing unit. Only the managing unit can publish it.";
     case "APPLICATIONS_OPEN":
-      return "Published. Students can now apply.";
+      return applicationWindow({ applicationDeadline, status }).isOpen
+        ? visibility === "INVITE_ONLY"
+          ? "Published. Only students with effective candidate access can apply until the application deadline."
+          : "Published. Eligible students can apply until the application deadline."
+        : "Applications closed when the authoritative deadline passed.";
     case "CANCELLED":
-      return "This challenge was cancelled during review.";
+      return "This challenge was intentionally cancelled or withdrawn. Reviewer feedback uses Revision requested instead.";
     default:
       return `Current status: ${status.replaceAll("_", " ")}.`;
   }
+}
+
+function candidateAccessMessage(result: string) {
+  switch (result) {
+    case "granted":
+      return "Candidate access is active for this challenge.";
+    case "revoked":
+      return "Candidate access was revoked and the historical grant was retained.";
+    case "candidate":
+      return "Candidate identity could not be verified as an active VinUni student.";
+    case "application":
+      return "Access cannot be revoked after the candidate has submitted an application.";
+    case "conflict":
+      return "Candidate access conflicts with the challenge's current state.";
+    case "denied":
+      return "Your account cannot manage candidate access for this challenge.";
+    default:
+      return "Check the candidate identity and expiry, then try again.";
+  }
+}
+
+function formatCampusDateTime(value: Date) {
+  return value.toLocaleString("en-GB", {
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    month: "short",
+    timeZone: "Asia/Ho_Chi_Minh",
+    year: "numeric",
+  });
+}
+
+function challengeLifecycleLabel(challenge: {
+  applicationDeadline: Date | null;
+  status: string;
+}) {
+  const window = applicationWindow(challenge);
+  return !window.isOpen && window.reason === "DEADLINE_PASSED"
+    ? "APPLICATIONS CLOSED"
+    : challenge.status.replaceAll("_", " ");
 }
 
 function sizeLabel(min: number | null, max: number | null) {
@@ -383,4 +554,36 @@ function offerDetail(
   return left === "Expired"
     ? { label: "Offer expired", urgent: true }
     : { label: `${left} to respond`, urgent: false };
+}
+
+function gateDetail(application: {
+  assessmentAttemptStatus: string | null;
+  memberSummary: { invited: number };
+  status: string;
+  supervisionState: "ACCEPTED" | "NONE" | "PENDING" | "REROUTE_REQUIRED";
+}): { label: string; urgent: boolean } | null {
+  if (application.status === "SUBMITTED") {
+    if (application.memberSummary.invited > 0) {
+      return { label: "Team invitations pending", urgent: false };
+    }
+    if (application.supervisionState === "PENDING") {
+      return { label: "Supervision pending", urgent: false };
+    }
+    if (application.supervisionState === "REROUTE_REQUIRED") {
+      return { label: "Supervision reroute needed", urgent: true };
+    }
+  }
+  if (application.status === "ASSESSMENT") {
+    if (application.assessmentAttemptStatus === "SUBMITTED") {
+      return { label: "Assessment awaiting review", urgent: false };
+    }
+    if (application.assessmentAttemptStatus === "IN_PROGRESS") {
+      return { label: "Assessment in progress", urgent: false };
+    }
+    return { label: "Assessment not started", urgent: false };
+  }
+  if (application.status === "SELECTION_PENDING") {
+    return { label: "Ready for selection", urgent: false };
+  }
+  return null;
 }

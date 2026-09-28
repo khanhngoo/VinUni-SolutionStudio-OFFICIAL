@@ -2,15 +2,18 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
 import { getAuthenticatedActor, hasActorCapability } from "@/auth/authenticated-actor";
-import { SwipeDeck } from "@/components/partner/swipe-deck";
+import { StudentCard } from "@/components/partner/student-card";
 import { Chip } from "@/components/ui/chip";
 import { db } from "@/db";
+import type { PartnerChallengeDetailRead } from "@/db/queries/partner";
 import { listDirectoryStudents } from "@/db/queries/students";
-import { toApplyChallenge, toDirectoryStudent } from "@/lib/apply-view";
-import { marketplaceContextForActor } from "@/lib/challenge-marketplace";
+import { toCollege, toDirectoryStudent } from "@/lib/apply-view";
 import { recommendationsFor } from "@/lib/recommendations";
-import { getMarketplaceChallengeBySlug } from "@/services/challenge.service";
-import { getPartnerDashboard } from "@/services/partner.service";
+import type { Challenge } from "@/lib/types";
+import {
+  getPartnerChallengePage,
+  getPartnerDashboard,
+} from "@/services/partner.service";
 
 export const dynamic = "force-dynamic";
 
@@ -64,20 +67,17 @@ export default async function PartnerStudentsPage({
     );
   }
 
-  const [detail, directoryRows] = await Promise.all([
-    getMarketplaceChallengeBySlug(
-      selected.slug ?? "",
-      marketplaceContextForActor(resolution.actor)
-    ),
+  const [ownerPage, directoryRows] = await Promise.all([
+    getPartnerChallengePage(resolution.actor, { slug: selected.slug ?? "" }),
     listDirectoryStudents(db),
   ]);
-  if (!detail) notFound();
+  if (!ownerPage) notFound();
 
   // Scored through the partner-facing view of a student: pinned courses only,
   // no transcript, no GPA. The scope is the query's decision, not the deck's.
   const deck = recommendationsFor(
     directoryRows.map((row) => toDirectoryStudent(row)),
-    toApplyChallenge(detail)
+    toCandidateComparisonChallenge(ownerPage.challenge)
   );
 
   return (
@@ -90,7 +90,7 @@ export default async function PartnerStudentsPage({
 
       <div className="flex flex-wrap items-start justify-between gap-4 mt-3.5">
         <div>
-          <h1>Recommended students</h1>
+          <h1>Candidate directory</h1>
           <p className="text-ink-2 mt-2">
             Matched against{" "}
             <Link href={`/partner/challenges/${selected.slug}`}>
@@ -99,7 +99,7 @@ export default async function PartnerStudentsPage({
             .
           </p>
         </div>
-        <Chip variant="accent">✦ AI shortlist</Chip>
+        <Chip variant="outline-dashed">Brief-specific fit</Chip>
       </div>
 
       {open.length > 1 ? (
@@ -121,18 +121,86 @@ export default async function PartnerStudentsPage({
         </div>
       ) : null}
 
-      <div className="mt-6">
-        <SwipeDeck deck={deck} challengeTitle={selected.title} />
+      <div className="mt-6 grid gap-4 lg:grid-cols-2">
+        {deck.map((recommendation) => (
+          <div
+            key={recommendation.student.id}
+            className="bg-card border border-line rounded-card p-5"
+          >
+            <StudentCard rec={recommendation} challengeTitle={selected.title} />
+          </div>
+        ))}
       </div>
 
       <p className="text-meta text-ink-3 mt-6 pt-4 border-t border-line leading-relaxed">
-        The fit score is this student against this brief, and the reasons under
-        it are what it is made of — a weighted count of matched skills,
-        availability, assessment band and course overlap, not a learned model
-        and not a rank across challenges or against their peers. What stays
-        withheld is unchanged: no GPA, no transcript, and the courses on a card
-        are ones the student chose to showcase.
+        This owner-scoped view uses the selected challenge directly, including
+        private briefs that are absent from ordinary marketplace discovery. Fit
+        is a deterministic weighted comparison, not AI ranking. Candidate-specific
+        access for invite-only challenges is managed from the challenge page by
+        exact institutional email; this directory does not grant access. GPA and
+        full transcripts remain withheld.
       </p>
     </div>
   );
+}
+
+function toCandidateComparisonChallenge(
+  challenge: PartnerChallengeDetailRead
+): Challenge {
+  const eligibleColleges = (challenge.eligibilitySummary.schools ?? []).map(toCollege);
+  return {
+    applicantCount: challenge.applicantCount,
+    assessmentMinutes: 0,
+    assessmentTrack: "Cognitive",
+    colleges: eligibleColleges,
+    compensation:
+      challenge.compensationType === "PAID"
+        ? "Paid"
+        : challenge.compensationType === "CREDIT"
+          ? "Credit"
+          : "Unpaid",
+    confidential:
+      challenge.visibility === "PRIVATE" || challenge.visibility === "INVITE_ONLY",
+    deadline: challenge.applicationDeadline?.toISOString() ?? "",
+    domainTags: challenge.domain
+      ? challenge.domain.split(",").map((tag) => tag.trim()).filter(Boolean)
+      : [],
+    durationWeeks: challenge.durationWeeks ?? 0,
+    eligibleColleges: eligibleColleges.length > 0 ? eligibleColleges : null,
+    eligibleYears: challenge.eligibilitySummary.studyYears ?? [],
+    hoursPerWeek: challenge.weeklyHours ?? 0,
+    id: challenge.slug ?? challenge.publicId,
+    interviewFormat: "",
+    lockedBlocks: [],
+    minGpa: challenge.eligibilitySummary.minGpa,
+    orgCategory: "Challenge owner",
+    orgId: "",
+    orgName: null,
+    postedAt: "",
+    posterKind: "Company",
+    responsibilities: [],
+    skills: challenge.skills.map((skill) => ({
+      level: skill.requirementType === "REQUIRED" ? "must" : "nice",
+      name: skill.canonicalName,
+    })),
+    startDate: challenge.startDate ?? "",
+    status: "Published",
+    subType:
+      challenge.subtype === "Mini-Internship"
+        ? "Mini-Internship"
+        : challenge.subtype === "Research Internship"
+          ? "Research Internship"
+          : "Project",
+    suggestedFacultyIds: [],
+    summary: challenge.summary,
+    teamSizeMax: challenge.teamSizeMax ?? 0,
+    teamSizeMin: challenge.teamSizeMin ?? 0,
+    title: challenge.title,
+    workMode:
+      challenge.workMode === "ONSITE"
+        ? "On-site"
+        : challenge.workMode === "REMOTE"
+          ? "Remote"
+          : "Hybrid",
+  };
 }

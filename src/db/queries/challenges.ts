@@ -312,11 +312,12 @@ function textIlike(column: SQL, value: string) {
 function buildWhereClause(
   ownerOrganizationNameColumn: SQL,
   managingOrganizationNameColumn: SQL,
-  filters: ListPublishedChallengesFilters | undefined
+  filters: ListPublishedChallengesFilters | undefined,
+  baseVisibilities: readonly ChallengeVisibility[] = MARKETPLACE_VISIBILITIES
 ) {
   const conditions: SQL[] = [
     inArray(challenges.status, MARKETPLACE_STATUSES),
-    inArray(challenges.visibility, MARKETPLACE_VISIBILITIES),
+    inArray(challenges.visibility, [...baseVisibilities]),
   ];
 
   const subtype = trimmedStrings(filters?.subtype);
@@ -530,14 +531,18 @@ async function selectBaseChallengeRows(
   };
 }
 
-async function selectBaseChallengeRowBySlug(slug: string) {
+async function selectBaseChallengeRowBySlug(
+  slug: string,
+  baseVisibilities: readonly ChallengeVisibility[] = MARKETPLACE_VISIBILITIES
+) {
   const ownerOrganization = alias(organizations, "owner_organization");
   const managingOrganization = alias(organizations, "managing_organization");
   const whereClause = and(
     buildWhereClause(
       sql`${ownerOrganization.name}`,
       sql`${managingOrganization.name}`,
-      undefined
+      undefined,
+      baseVisibilities
     ),
     eq(challenges.slug, slug)
   );
@@ -935,13 +940,14 @@ export async function listPublishedChallenges(
   };
 }
 
-export async function getPublishedChallengeBySlug(
-  slug: string
+async function getPublishedChallengeBySlugForVisibilities(
+  slug: string,
+  baseVisibilities: readonly ChallengeVisibility[]
 ): Promise<ChallengeDetail | null> {
   const trimmedSlug = slug.trim();
   if (!trimmedSlug) return null;
 
-  const row = await selectBaseChallengeRowBySlug(trimmedSlug);
+  const row = await selectBaseChallengeRowBySlug(trimmedSlug, baseVisibilities);
   if (!row) return null;
 
   const [
@@ -974,6 +980,23 @@ export async function getPublishedChallengeBySlug(
     interviewFormat: row.interviewFormat,
     facultyAssignments,
   };
+}
+
+export async function getPublishedChallengeBySlug(
+  slug: string
+): Promise<ChallengeDetail | null> {
+  return getPublishedChallengeBySlugForVisibilities(slug, MARKETPLACE_VISIBILITIES);
+}
+
+/**
+ * Fetches an INVITE_ONLY detail only after its caller has established a
+ * candidate-specific or durable-application authorization basis. Ordinary
+ * marketplace code must use `getPublishedChallengeBySlug` instead.
+ */
+export async function getAuthorizedInviteOnlyChallengeBySlug(
+  slug: string
+): Promise<ChallengeDetail | null> {
+  return getPublishedChallengeBySlugForVisibilities(slug, ["INVITE_ONLY"]);
 }
 
 /**

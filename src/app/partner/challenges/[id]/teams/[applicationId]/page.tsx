@@ -9,17 +9,21 @@ import { Section } from "@/components/ui/section";
 import { db } from "@/db";
 import { getApplicationByPublicId } from "@/db/queries/applications";
 import { listDirectoryStudents, listStudentTeamProfiles } from "@/db/queries/students";
-import { toApplyChallenge, toDirectoryStudent, toTeam } from "@/lib/apply-view";
-import { marketplaceContextForActor } from "@/lib/challenge-marketplace";
+import {
+  toDirectoryStudent,
+  toPartnerOwnedApplyChallenge,
+  toTeam,
+} from "@/lib/apply-view";
 import { formatDate } from "@/lib/dates";
 import { countdownLabel } from "@/lib/pipeline";
 import { bandChipVariant } from "@/lib/score";
 import { confirmedMembers, pendingMembers } from "@/lib/teams";
 import type { ScoreBand } from "@/lib/types";
 import { getPartnerChallengePage } from "@/services/partner.service";
-import { getMarketplaceChallengeBySlug } from "@/services/challenge.service";
 import { deriveApplicationStage } from "@/services/application-stage";
+import { deriveApplicationLifecycleView } from "@/services/application-lifecycle.service";
 import { STAGE_LABELS } from "@/lib/types";
+import { isPublicId } from "@/lib/public-id";
 
 export const dynamic = "force-dynamic";
 
@@ -43,6 +47,7 @@ export default async function PartnerTeamPage({
 
   const resolution = await getAuthenticatedActor();
   if (resolution.status !== "RESOLVED") redirect("/sign-in");
+  if (!isPublicId(applicationId)) notFound();
 
   // Ownership is established by resolving the challenge through the partner
   // service, which scopes to the actor's organization. A challenge belonging
@@ -54,12 +59,6 @@ export default async function PartnerTeamPage({
   // Guard the pairing, not just the ids — a valid team under the wrong
   // challenge would otherwise render fit numbers against the wrong brief.
   if (!application || application.challenge.slug !== slug) notFound();
-
-  const detail = await getMarketplaceChallengeBySlug(
-    slug,
-    marketplaceContextForActor(resolution.actor)
-  );
-  if (!detail) notFound();
 
   const memberIds = application.members.map((member) => member.student.userId);
   const [profiles, directoryRows] = await Promise.all([
@@ -74,7 +73,10 @@ export default async function PartnerTeamPage({
     directoryRows.map((row) => [String(row.userId), toDirectoryStudent(row)])
   );
 
-  const challenge = toApplyChallenge(detail);
+  const challenge = toPartnerOwnedApplyChallenge(
+    page.challenge,
+    application.challenge.ownerOrganization.name
+  );
   const team = toTeam(application.teamName, application.members, profiles);
   const confirmed = confirmedMembers(team);
   const pending = pendingMembers(team);
@@ -85,6 +87,7 @@ export default async function PartnerTeamPage({
     projectSummary: application.projectSummary,
     status: application.status,
   });
+  const lifecycle = deriveApplicationLifecycleView(application);
 
   const offer = application.offerSummary;
   const offerLeft =
@@ -137,6 +140,12 @@ export default async function PartnerTeamPage({
 
       <Section title="Members" aside={`${team.members.length} listed`}>
         <PartnerTeamRoster challenge={challenge} directory={directory} team={team} />
+      </Section>
+
+      <Section title="Application next step">
+        <div className="bg-card border border-line rounded-card p-5">
+          <p className="text-ink-2 leading-relaxed">{lifecycle.message}</p>
+        </div>
       </Section>
 
       <Section title="Fit">

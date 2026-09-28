@@ -1,3 +1,5 @@
+import "dotenv/config";
+
 import { eq } from "drizzle-orm";
 
 import { db } from "@/db";
@@ -48,7 +50,9 @@ function verifyTableDrivenCases() {
           {
             assessmentTitle: null,
             attemptStatus: "SUBMITTED",
+            hasReviewedResult: false,
             overallBand: null,
+            passed: null,
             submittedAt: past,
           },
         ],

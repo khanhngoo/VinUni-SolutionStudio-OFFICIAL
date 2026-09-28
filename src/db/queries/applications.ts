@@ -1,4 +1,4 @@
-import { and, count, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, count, desc, eq, inArray, notInArray, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 
 import { db } from "@/db";
@@ -106,8 +106,16 @@ export interface ApplicationMemberSummary {
 export interface ApplicationAssessmentSummary {
   assessmentTitle: string | null;
   attemptStatus: string;
+  hasReviewedResult: boolean;
   overallBand: string | null;
+  passed: boolean | null;
   submittedAt: Date | null;
+}
+
+export interface ApplicationActiveAssessmentRead {
+  id: bigint;
+  scope: string;
+  title: string | null;
 }
 
 export interface ApplicationOfferSummary {
@@ -155,6 +163,7 @@ export interface ApplicationListItemRead {
 }
 
 export interface ApplicationDetailRead extends ApplicationListItemRead {
+  activeAssessment: ApplicationActiveAssessmentRead | null;
   assessmentSummaries: ApplicationAssessmentSummary[];
   members: ApplicationMemberRead[];
   motivation: string | null;
@@ -202,6 +211,7 @@ export async function listApplicationsForStudent(
   studentUserId: bigint
 ): Promise<ApplicationListItemRead[]> {
   const base = await selectBaseApplications(database, {
+    acceptedStudentOnly: true,
     studentUserId,
   });
 
@@ -218,7 +228,9 @@ export async function listApplicationDetailsForStudent(
   database: ApplicationQueryDatabase,
   studentUserId: bigint
 ): Promise<ApplicationDetailRead[]> {
-  const base = await selectBaseApplications(database, { studentUserId });
+  const base = await selectBaseApplications(database, {
+    studentUserId,
+  });
   return hydrateApplicationDetails(database, base);
 }
 
@@ -248,7 +260,9 @@ export async function getApplicationByChallengeAndStudent(
   studentUserId: bigint
 ): Promise<ApplicationDetailRead | null> {
   const base = await selectBaseApplications(database, {
+    acceptedStudentOnly: true,
     challengeSlug,
+    effectiveOnly: true,
     studentUserId,
   });
   const [detail] = await hydrateApplicationDetails(database, base);
@@ -270,7 +284,9 @@ export async function countApplicationsForChallenge(
 async function selectBaseApplications(
   database: ApplicationQueryDatabase,
   filters: {
+    acceptedStudentOnly?: boolean;
     challengeSlug?: string;
+    effectiveOnly?: boolean;
     publicId?: string;
     studentUserId?: bigint;
   }
@@ -284,8 +300,14 @@ async function selectBaseApplications(
   if (filters.challengeSlug) {
     conditions.push(eq(challenges.slug, filters.challengeSlug.trim()));
   }
+  if (filters.effectiveOnly) {
+    conditions.push(notInArray(applications.status, ["REJECTED", "WITHDRAWN"]));
+  }
   if (filters.studentUserId) {
     conditions.push(eq(applicationMembers.studentId, filters.studentUserId));
+    if (filters.acceptedStudentOnly) {
+      conditions.push(eq(applicationMembers.status, "ACCEPTED"));
+    }
   }
 
   const rows = await database
@@ -361,6 +383,10 @@ async function hydrateApplicationDetails(
     database,
     applicationIds
   );
+  const activeAssessmentsByApplication = await selectActiveAssessments(
+    database,
+    applicationIds
+  );
   const offersByApplication = await selectOfferSummaries(database, applicationIds);
   const projectsByApplication = await selectProjectSummaries(
     database,
@@ -369,6 +395,7 @@ async function hydrateApplicationDetails(
 
   return base.map((row) => ({
     ...toListItem(row, members.get(row.id) ?? []),
+    activeAssessment: activeAssessmentsByApplication.get(row.id) ?? null,
     assessmentSummaries: assessmentsByApplication.get(row.id) ?? [],
     members: members.get(row.id) ?? [],
     motivation: row.motivation,
@@ -501,6 +528,7 @@ async function selectAssessmentSummaries(
       applicationId: assessmentAttempts.applicationId,
       assessmentTitle: assessments.title,
       attemptStatus: assessmentAttempts.status,
+      scoreId: assessmentScores.id,
       rubricScores: assessmentScores.rubricScores,
       submittedAt: assessmentAttempts.submittedAt,
     })
@@ -515,12 +543,52 @@ async function selectAssessmentSummaries(
     list.push({
       assessmentTitle: row.assessmentTitle,
       attemptStatus: row.attemptStatus ?? "NOT_STARTED",
+      hasReviewedResult:
+        row.attemptStatus === "REVIEWED" && row.scoreId !== null,
       overallBand: overallBandFromRubric(row.rubricScores),
+      passed: passedFromRubric(row.rubricScores),
       submittedAt: row.submittedAt,
     });
     grouped.set(row.applicationId, list);
   }
 
+  return grouped;
+}
+
+async function selectActiveAssessments(
+  database: ApplicationQueryDatabase,
+  applicationIds: bigint[]
+) {
+  const grouped = new Map<bigint, ApplicationActiveAssessmentRead>();
+  if (applicationIds.length === 0) return grouped;
+
+  const rows = await database
+    .select({
+      applicationId: applications.id,
+      id: assessments.id,
+      scope: assessments.scope,
+      title: assessments.title,
+    })
+    .from(applications)
+    .innerJoin(
+      assessments,
+      and(
+        eq(assessments.challengeId, applications.challengeId),
+        eq(assessments.status, "ACTIVE")
+      )
+    )
+    .where(inArray(applications.id, applicationIds))
+    .orderBy(assessments.id);
+
+  for (const row of rows) {
+    if (!grouped.has(row.applicationId)) {
+      grouped.set(row.applicationId, {
+        id: row.id,
+        scope: row.scope,
+        title: row.title,
+      });
+    }
+  }
   return grouped;
 }
 
@@ -662,6 +730,12 @@ function overallBandFromRubric(value: unknown) {
   return typeof band === "string" ? band : null;
 }
 
+function passedFromRubric(value: unknown) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const passed = (value as { sourcePassed?: unknown }).sourcePassed;
+  return typeof passed === "boolean" ? passed : null;
+}
+
 export interface PendingInvitationRead {
   applicationPublicId: string;
   challengeTitle: string;
@@ -708,7 +782,13 @@ export async function listPendingTeamInvitations(
     .where(
       and(
         eq(applicationMembers.studentId, studentId),
-        eq(applicationMembers.status, "INVITED")
+        eq(applicationMembers.status, "INVITED"),
+        inArray(applications.status, [
+          "SUBMITTED",
+          "SHORTLISTED",
+          "ASSESSMENT",
+          "SELECTION_PENDING",
+        ])
       )
     )
     .orderBy(desc(applicationMembers.invitedAt));
