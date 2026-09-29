@@ -79,7 +79,8 @@ export default async function TakeAssessmentPage({
     <TechnicalRunner
       applicationId={session.application.publicId}
       challengeTitle={session.challenge.title}
-      minutes={session.assessment.timeLimitMinutes ?? 0}
+      expiresAt={session.attempt.expiresAt}
+      minutes={session.assessment.timeLimitMinutes}
       problems={questions}
       responses={session.responses}
       saveResponseAction={saveAction}
@@ -89,6 +90,8 @@ export default async function TakeAssessmentPage({
     <CognitiveRunner
       applicationId={session.application.publicId}
       challengeTitle={session.challenge.title}
+      expiresAt={session.attempt.expiresAt}
+      timeLimitMinutes={session.assessment.timeLimitMinutes}
       sections={session.sections}
       responses={session.responses}
       saveResponseAction={saveAction}

@@ -5,6 +5,7 @@ import {
   index,
   integer,
   jsonb,
+  numeric,
   pgTable,
   text,
   uniqueIndex,
@@ -36,6 +37,11 @@ export const assessments = pgTable(
     title: varchar("title", { length: 255 }),
     instructions: text("instructions"),
     timeLimitMinutes: integer("time_limit_minutes"),
+    passingScore: numeric("passing_score", {
+      precision: 5,
+      scale: 2,
+      mode: "number",
+    }),
     aiPolicy: assessmentAiPolicy("ai_policy"),
     scope: assessmentScope("scope").default("INDIVIDUAL").notNull(),
     status: assessmentStatus("status").default("DRAFT"),
@@ -51,6 +57,7 @@ export const assessments = pgTable(
     index("assessments_status_idx").on(table.status),
     index("assessments_created_by_idx").on(table.createdBy),
     check("assessments_time_limit_positive", sql`${table.timeLimitMinutes} IS NULL OR ${table.timeLimitMinutes} > 0`),
+    check("assessments_passing_score_range", sql`${table.passingScore} IS NULL OR (${table.passingScore} >= 0 AND ${table.passingScore} <= 100)`),
   ]
 );
 
@@ -170,7 +177,10 @@ export const assessmentResponses = pgTable(
     submittedAt: timestamptz("submitted_at"),
   },
   (table) => [
-    index("assessment_responses_attempt_idx").on(table.attemptId),
+    uniqueIndex("assessment_responses_attempt_question_unique").on(
+      table.attemptId,
+      table.questionId
+    ),
     index("assessment_responses_question_idx").on(table.questionId),
   ]
 );
@@ -194,8 +204,8 @@ export const assessmentScores = pgTable(
     createdAt: createdAt(),
   },
   (table) => [
-    index("assessment_scores_attempt_idx").on(table.attemptId),
+    uniqueIndex("assessment_scores_attempt_unique").on(table.attemptId),
     index("assessment_scores_reviewer_idx").on(table.reviewerId),
-    check("assessment_scores_overall_non_negative", sql`${table.overallScore} IS NULL OR ${table.overallScore} >= 0`),
+    check("assessment_scores_overall_range", sql`${table.overallScore} IS NULL OR (${table.overallScore} >= 0 AND ${table.overallScore} <= 100)`),
   ]
 );

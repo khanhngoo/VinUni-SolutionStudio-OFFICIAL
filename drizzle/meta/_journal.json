@@ -50,6 +50,20 @@
       "when": 1790558239433,
       "tag": "0006_condemned_stardust",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1790598132713,
+      "tag": "0007_green_sabra",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1790641284201,
+      "tag": "0008_milestone_rounds_final_reviews",
+      "breakpoints": true
     }
   ]
 }

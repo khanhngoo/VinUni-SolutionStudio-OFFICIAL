@@ -64,7 +64,7 @@ async function main() {
     const milestoneId = BigInt(target.milestoneId);
     try {
       await db.transaction(async (tx) => {
-        await recordFacultyMilestoneReview(milestoneId, "APPROVED", null, actor, { database: tx });
+        await recordFacultyMilestoneReview(milestoneId, BigInt(target.submissionId ?? "0"), "APPROVED", null, actor, { database: tx });
         const reviews = await tx.select({ role: milestoneReviews.reviewerRole, decision: milestoneReviews.decision }).from(milestoneReviews).where(eq(milestoneReviews.milestoneId, milestoneId));
         const [ms] = await tx.select({ status: milestones.status }).from(milestones).where(eq(milestones.id, milestoneId));
         console.log(`\nfaculty approve on "${target.milestoneTitle}":`);

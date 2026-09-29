@@ -16,14 +16,13 @@ import {
   type AssessmentSectionWithQuestionsRead,
 } from "@/db/queries/assessments";
 import { getApplicationByPublicId } from "@/db/queries/applications";
+import { lockApplicationForLifecycle } from "@/db/mutations/applications";
 import { assessmentTrackLabel } from "./assessment-track";
 import {
   getAssessmentQuestionForWrite,
   insertAssessmentAttempt,
-  insertAssessmentResponse,
-  selectAssessmentResponsesForQuestion,
   updateAssessmentAttemptStatus,
-  updateAssessmentResponse,
+  upsertAssessmentResponse,
   type AssessmentMutationDatabase,
 } from "@/db/mutations/assessments";
 import {
@@ -111,7 +110,8 @@ export interface AssessmentPreflight {
     | "NO_ASSESSMENT"
     | "NOT_OPEN"
     | "REVIEWED"
-    | "SUBMITTED";
+    | "SUBMITTED"
+    | "UNAVAILABLE";
   trackLabel: string;
 }
 
@@ -129,6 +129,10 @@ export interface AssessmentTakingSession {
   challenge: {
     slug: string;
     title: string;
+  };
+  attempt: {
+    expiresAt: string | null;
+    startedAt: Date;
   };
   responses: Record<string, AssessmentResponseInput>;
   sections: AssessmentStudentSection[];
@@ -211,6 +215,9 @@ export async function getAssessmentTakingSession(
   const context = await loadAssessmentContext(applicationPublicId, actor, options);
   if (!context) return null;
   if (!context.attempt || context.attempt.status !== "IN_PROGRESS") return null;
+  if (!context.attempt.startedAt) {
+    throw new AssessmentError("CONFLICT", "In-progress attempt has no start time.");
+  }
 
   return {
     application: { publicId: context.application.publicId },
@@ -224,6 +231,10 @@ export async function getAssessmentTakingSession(
     challenge: {
       slug: context.application.challenge.slug,
       title: context.application.challenge.title,
+    },
+    attempt: {
+      expiresAt: assessmentExpiresAt(context)?.toISOString() ?? null,
+      startedAt: context.attempt.startedAt,
     },
     responses: toResponseMap(context.responses, context.assessment),
     sections: context.assessment.sections.map(toStudentSection),
@@ -259,7 +270,9 @@ export async function getAssessmentResult(
       slug: context.application.challenge.slug,
       title: context.application.challenge.title,
     },
-    result: context.score ? toReviewedResult(context.score) : null,
+    result: context.score
+      ? toReviewedResult(context.score, context.assessment.passingScore)
+      : null,
   };
 }
 
@@ -272,13 +285,14 @@ export async function startAssessmentAttempt(
   const now = options.now ?? new Date();
 
   return withAssessmentTransaction(database, async (tx) => {
-    const context = await loadAssessmentContext(applicationPublicId, actor, {
+    const context = await loadLockedAssessmentContext(applicationPublicId, actor, {
       database: tx,
       now,
     });
     if (!context) throw notFound("Assessment was not found.");
 
     assertIndividualRuntime(context.assessment.scope);
+    assertAssessmentHasQuestions(context.assessment);
     assertApplicationCanStartAssessment(context);
 
     if (!context.attempt) {
@@ -308,6 +322,9 @@ export async function startAssessmentAttempt(
     if (!started || !started.attempt) {
       throw new AssessmentError("CONFLICT", "Started attempt could not be read.");
     }
+    if (!started.attempt.startedAt) {
+      throw new AssessmentError("CONFLICT", "In-progress attempt has no start time.");
+    }
 
     return {
       application: { publicId: started.application.publicId },
@@ -321,6 +338,10 @@ export async function startAssessmentAttempt(
       challenge: {
         slug: started.application.challenge.slug,
         title: started.application.challenge.title,
+      },
+      attempt: {
+        expiresAt: assessmentExpiresAt(started)?.toISOString() ?? null,
+        startedAt: started.attempt.startedAt,
       },
       responses: toResponseMap(started.responses, started.assessment),
       sections: started.assessment.sections.map(toStudentSection),
@@ -340,12 +361,14 @@ export async function saveAssessmentResponse(
   const now = options.now ?? new Date();
 
   await withAssessmentTransaction(database, async (tx) => {
-    const context = await loadAssessmentContext(applicationPublicId, actor, {
+    const context = await loadLockedAssessmentContext(applicationPublicId, actor, {
       database: tx,
       now,
     });
     if (!context) throw notFound("Assessment was not found.");
     if (!context.attempt) throw invalidTransition("Assessment has not started.");
+    assertAssessmentHasQuestions(context.assessment);
+    assertAttemptCanAcceptResponses(context, now);
 
     await saveResponseForContext(tx, context, questionKey, responseInput, now);
   });
@@ -362,14 +385,16 @@ export async function submitAssessmentAttempt(
   const now = options.now ?? new Date();
 
   await withAssessmentTransaction(database, async (tx) => {
-    const context = await loadAssessmentContext(applicationPublicId, actor, {
+    const context = await loadLockedAssessmentContext(applicationPublicId, actor, {
       database: tx,
       now,
     });
     if (!context) throw notFound("Assessment was not found.");
     if (!context.attempt) throw invalidTransition("Assessment has not started.");
+    assertAssessmentHasQuestions(context.assessment);
 
-    if (options.responses) {
+    const expired = isAttemptExpired(context, now);
+    if (!expired && options.responses) {
       for (const [questionKey, response] of Object.entries(options.responses)) {
         await saveResponseForContext(tx, context, questionKey, response, now);
       }
@@ -390,6 +415,53 @@ export async function submitAssessmentAttempt(
       throw invalidTransition("Assessment attempt could not be submitted.");
     }
   });
+}
+
+function assessmentExpiresAt(context: AssessmentContext) {
+  if (
+    context.assessment.timeLimitMinutes === null ||
+    !context.attempt?.startedAt
+  ) {
+    return null;
+  }
+  return new Date(
+    context.attempt.startedAt.getTime() +
+      context.assessment.timeLimitMinutes * 60_000
+  );
+}
+
+function isAttemptExpired(context: AssessmentContext, now: Date) {
+  const expiresAt = assessmentExpiresAt(context);
+  return expiresAt !== null && now > expiresAt;
+}
+
+function assertAttemptCanAcceptResponses(
+  context: AssessmentContext,
+  now: Date
+) {
+  if (
+    context.assessment.timeLimitMinutes !== null &&
+    !context.attempt?.startedAt
+  ) {
+    throw new AssessmentError("CONFLICT", "Timed attempt has no start time.");
+  }
+  if (isAttemptExpired(context, now)) {
+    throw invalidTransition(
+      "The assessment time limit has passed. Saved responses can no longer be changed."
+    );
+  }
+}
+
+async function loadLockedAssessmentContext(
+  applicationPublicId: string,
+  actor: ApplicationActorContext,
+  options: AssessmentServiceOptions & { database: AssessmentMutationDatabase }
+): Promise<AssessmentContext | null> {
+  const initial = await loadAssessmentContext(applicationPublicId, actor, options);
+  if (!initial) return null;
+
+  await lockApplicationForLifecycle(options.database, initial.application.id);
+  return loadAssessmentContext(applicationPublicId, actor, options);
 }
 
 async function loadAssessmentContext(
@@ -492,27 +564,7 @@ async function saveResponseForContext(
   }
 
   const values = validateResponseShape(question, responseInput, now);
-  const existing = await selectAssessmentResponsesForQuestion(database, {
-    attemptId: context.attempt.id,
-    questionId: question.id,
-  });
-
-  if (existing.length > 1) {
-    throw new AssessmentError(
-      "CONFLICT",
-      "Duplicate responses exist for this attempt/question."
-    );
-  }
-
-  if (existing[0]) {
-    await updateAssessmentResponse(database, {
-      responseId: existing[0].id,
-      values,
-    });
-    return;
-  }
-
-  await insertAssessmentResponse(database, {
+  await upsertAssessmentResponse(database, {
     attemptId: context.attempt.id,
     questionId: question.id,
     values,
@@ -540,6 +592,17 @@ function assertIndividualRuntime(scope: AssessmentScope) {
 function assertApplicationCanStartAssessment(context: AssessmentContext) {
   if (context.application.status !== "ASSESSMENT" && !context.attempt) {
     throw invalidTransition("Application is not currently in assessment.");
+  }
+}
+
+function assertAssessmentHasQuestions(
+  assessment: AssessmentDefinitionWithQuestionsRead
+) {
+  if (assessmentQuestionCount(assessment) === 0) {
+    throw new AssessmentError(
+      "VALIDATION_ERROR",
+      "This assessment is not available because it has no questions."
+    );
   }
 }
 
@@ -703,6 +766,7 @@ function toPreflight(context: AssessmentContext): AssessmentPreflight {
 
 function preflightState(context: AssessmentContext): AssessmentPreflight["state"] {
   if (!context.assessment) return "NO_ASSESSMENT";
+  if (assessmentQuestionCount(context.assessment) === 0) return "UNAVAILABLE";
   if (!context.attempt) {
     return context.application.status === "ASSESSMENT" ? "AVAILABLE" : "NOT_OPEN";
   }
@@ -776,7 +840,10 @@ function toResponseMap(
   return result;
 }
 
-function toReviewedResult(score: AssessmentScoreRead): NonNullable<AssessmentResult["result"]> {
+function toReviewedResult(
+  score: AssessmentScoreRead,
+  passingScore: number | null
+): NonNullable<AssessmentResult["result"]> {
   const rubric = asRecord(score.rubricScores);
   const sections = Array.isArray(rubric.sections)
     ? rubric.sections.flatMap((item) => {
@@ -788,19 +855,29 @@ function toReviewedResult(score: AssessmentScoreRead): NonNullable<AssessmentRes
       })
     : [];
 
+  const passed =
+    passingScore !== null && score.overallScore !== null
+      ? score.overallScore >= passingScore
+      : null;
+
   return {
     comments: score.comments,
     minutesTaken: numberValue(rubric.sourceMinutesTaken),
     overallBand: stringValue(rubric.sourceOverallBand),
     overallScore: score.overallScore,
-    passed: booleanValue(rubric.sourcePassed),
+    passed,
     sections,
     track: stringValue(rubric.sourceTrack) ?? "Assessment",
   };
 }
 
 function assessmentTitle(assessment: AssessmentDefinitionWithQuestionsRead) {
-  return assessment.title ?? "Assessment";
+  const title = assessment.title ?? "Assessment";
+  const technicalDemo = title.match(/^DEMO technical assessment for (.+)$/i);
+  if (technicalDemo) return `${technicalDemo[1]} technical assessment`;
+  const generalDemo = title.match(/^DEMO assessment for (.+)$/i);
+  if (generalDemo) return `${generalDemo[1]} assessment`;
+  return title;
 }
 
 function trackLabel(assessment: AssessmentDefinitionWithQuestionsRead) {
@@ -812,10 +889,7 @@ function trackLabel(assessment: AssessmentDefinitionWithQuestionsRead) {
 }
 
 function itemCountLabel(assessment: AssessmentDefinitionWithQuestionsRead) {
-  const questionCount = assessment.sections.reduce(
-    (total, section) => total + section.questions.length,
-    0
-  );
+  const questionCount = assessmentQuestionCount(assessment);
   const codingCount = assessment.sections.reduce(
     (total, section) =>
       total +
@@ -827,6 +901,15 @@ function itemCountLabel(assessment: AssessmentDefinitionWithQuestionsRead) {
     return `${questionCount} ${questionCount === 1 ? "problem" : "problems"}`;
   }
   return `${questionCount} ${questionCount === 1 ? "question" : "questions"} across ${assessment.sections.length} ${assessment.sections.length === 1 ? "section" : "sections"}`;
+}
+
+function assessmentQuestionCount(
+  assessment: AssessmentDefinitionWithQuestionsRead
+) {
+  return assessment.sections.reduce(
+    (total, section) => total + section.questions.length,
+    0
+  );
 }
 
 function safeOptions(config: unknown): string[] {
@@ -894,10 +977,6 @@ function stringValue(value: unknown) {
 
 function numberValue(value: unknown) {
   return typeof value === "number" && Number.isFinite(value) ? value : null;
-}
-
-function booleanValue(value: unknown) {
-  return typeof value === "boolean" ? value : null;
 }
 
 function notFound(message: string) {

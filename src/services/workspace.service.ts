@@ -8,14 +8,19 @@ import {
   listProjectMembers,
   listProjectMilestones,
   listProjectMeetings,
+  listProjectFinalReviews,
   listProjectResources,
+  listTeamVisibleCloseoutFeedback,
   type ProjectCoreRead,
+  type ProjectMilestoneReviewRead,
   type ProjectQueryDatabase,
 } from "@/db/queries/projects";
+import { currentFinalRound } from "@/services/milestone-review.service";
 import {
 } from "@/db/mutations/applications";
 import { getDevelopmentApplicationActor, type ApplicationActorContext } from "@/services/application.service";
 import { isPublicId } from "@/lib/public-id";
+import { getOfferByApplicationPublicId } from "@/db/queries/offers";
 
 export class WorkspaceError extends Error {
   constructor(public readonly code: "FORBIDDEN" | "NOT_FOUND", message: string) {
@@ -41,6 +46,7 @@ export interface WorkspaceDetail extends WorkspaceListItem {
   challenge: {
     durationWeeks: number | null;
     fullBrief: string | null;
+    fullBriefWithheld: boolean;
     ownerOrganizationName: string;
     subtype: string | null;
     weeklyHours: number | null;
@@ -59,17 +65,28 @@ export interface WorkspaceDetail extends WorkspaceListItem {
   members: Array<{ fullName: string; major: string | null; projectRole: string | null; studyYear: number | null }>;
   project: { endDate: string | null; startDate: string | null; supervisorName: string | null };
   milestones: Array<{
+    currentSubmission: { id: string; roundNumber: number; submittedAt: string; submittedByName: string } | null;
     deadline: string | null;
     description: string | null;
     facultyApproved: boolean;
     partnerApproved: boolean;
-    deliverables: Array<{ description: string | null; submittedAt: Date | null; submittedByName: string; title: string | null; type: string | null }>;
+    deliverables: Array<{ description: string | null; externalUrl: string | null; fileUrl: string | null; roundNumber: number; submittedAt: Date | null; submittedByName: string; title: string | null; type: string | null }>;
     id: string;
-    latestReviews: Array<{ comments: string | null; createdAt: Date | null; decision: string; reviewerName: string; reviewerRole: string }>;
+    latestReviews: ProjectMilestoneReviewRead[];
+    reviewHistory: ProjectMilestoneReviewRead[];
     status: string;
     title: string;
   }>;
   resources: Array<{ access: "AVAILABLE" | "AGREEMENT_REQUIRED"; description: string | null; resourceType: string | null; sensitivityLevel: string; title: string }>;
+  /** Formal close-out decisions; `round` is the round currently open (or last closed). */
+  finalReview: {
+    decisions: Array<{ comments: string | null; createdAt: string | null; decision: string; reviewerName: string; reviewerRole: string; roundNumber: number }>;
+    round: number;
+  };
+  /** Close-out feedback the team is allowed to read (never PRIVATE_ADMIN notes). */
+  closeoutFeedback: Array<{ authorName: string; content: string | null; createdAt: string | null; metrics: Record<string, string> | null }>;
+  /** Server-derived capabilities for this viewer; the UI only mirrors them. */
+  viewer: { isMember: boolean; isOwnerPartner: boolean; isSupervisor: boolean };
 }
 
 export async function getDevelopmentWorkspaceActor(key: DevelopmentWorkspaceActorKey, options: WorkspaceServiceOptions = {}): Promise<ApplicationActorContext> {
@@ -108,11 +125,27 @@ export async function getWorkspaceDetail(applicationPublicId: string, actor: App
   const agreementSatisfied = actor.isStudent
     ? await hasAcceptedProjectAgreement(database, project.application.id, project.challenge.id, actor.userId)
     : true;
+  // Same rule the offer page applies: an NDA-required offer keeps the full
+  // brief withheld from each student member until that member has signed.
+  const offer = await getOfferByApplicationPublicId(database, project.application.publicId);
+  const fullBriefWithheld = Boolean(offer?.terms.ndaRequired) && !agreementSatisfied;
+  const [finalReviewRows, feedbackRows, isMember] = await Promise.all([
+    listProjectFinalReviews(database, project.id),
+    listTeamVisibleCloseoutFeedback(database, project.id),
+    actor.isStudent ? isProjectMember(database, project.id, actor.userId) : Promise.resolve(false),
+  ]);
+  const isOwnerPartner = actor.memberships.some(
+    (membership) =>
+      membership.status === "ACTIVE" &&
+      membership.organizationId === project.challenge.ownerOrganizationId &&
+      ["ADMIN", "CONTACT_PERSON", "PROJECT_MANAGER"].includes(membership.role)
+  );
   return {
     ...toListItem(project, milestones), applicationStatus: project.application.status,
     challenge: {
       durationWeeks: challengeExtras?.durationWeeks ?? null,
-      fullBrief: challengeExtras?.fullBrief ?? null,
+      fullBrief: fullBriefWithheld ? null : challengeExtras?.fullBrief ?? null,
+      fullBriefWithheld,
       ownerOrganizationName: project.challenge.ownerOrganizationName,
       subtype: challengeExtras?.subtype ?? null,
       weeklyHours: project.challenge.weeklyHours,
@@ -132,9 +165,17 @@ export async function getWorkspaceDetail(applicationPublicId: string, actor: App
     project: { endDate: project.endDate, startDate: project.startDate, supervisorName: project.facultySupervisor?.fullName ?? null },
     milestones: milestones.map((milestone) => ({
       ...milestone,
-      // Fold the per-role review rows into the two booleans the UI asks about.
-      // Kept here rather than in the component so every surface that shows
-      // sign-off agrees on what "approved" means.
+      currentSubmission: milestone.currentSubmission
+        ? {
+            id: milestone.currentSubmission.id.toString(),
+            roundNumber: milestone.currentSubmission.roundNumber,
+            submittedAt: milestone.currentSubmission.submittedAt.toISOString(),
+            submittedByName: milestone.currentSubmission.submittedByName,
+          }
+        : null,
+      // Fold the current round's review rows into the two booleans the UI asks
+      // about. `latestReviews` holds only the current round, so an approval
+      // from an earlier round can never show as approved here.
       facultyApproved: hasApproval(milestone.latestReviews, "FACULTY"),
       id: milestone.id.toString(),
       partnerApproved: hasApproval(milestone.latestReviews, "PARTNER"),
@@ -143,6 +184,16 @@ export async function getWorkspaceDetail(applicationPublicId: string, actor: App
       access: resource.requiresAgreement && !agreementSatisfied ? "AGREEMENT_REQUIRED" : "AVAILABLE",
       description: resource.description, resourceType: resource.resourceType, sensitivityLevel: resource.sensitivityLevel, title: resource.title,
     })),
+    finalReview: {
+      decisions: finalReviewRows.map((row) => ({ ...row, createdAt: row.createdAt?.toISOString() ?? null })),
+      round: currentFinalRound(finalReviewRows),
+    },
+    closeoutFeedback: feedbackRows.map((row) => ({ ...row, createdAt: row.createdAt?.toISOString() ?? null })),
+    viewer: {
+      isMember,
+      isOwnerPartner,
+      isSupervisor: project.facultySupervisor?.userId === actor.userId,
+    },
   };
 }
 

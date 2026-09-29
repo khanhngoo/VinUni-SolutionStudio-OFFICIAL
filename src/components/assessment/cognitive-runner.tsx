@@ -19,6 +19,8 @@ import type {
 interface CognitiveRunnerProps {
   applicationId: string;
   challengeTitle: string;
+  expiresAt: string | null;
+  timeLimitMinutes: number | null;
   sections: AssessmentStudentSection[];
   responses: Record<string, AssessmentResponseInput>;
   submitAction: (
@@ -37,6 +39,8 @@ interface CognitiveRunnerProps {
 export function CognitiveRunner({
   applicationId,
   challengeTitle,
+  expiresAt,
+  timeLimitMinutes,
   sections,
   responses,
   submitAction,
@@ -44,11 +48,8 @@ export function CognitiveRunner({
 }: CognitiveRunnerProps) {
   const router = useRouter();
 
-  const totalSeconds = useMemo(
-    () =>
-      sections.reduce((n, s) => n + (s.timeLimitMinutes ?? 0), 0) * 60,
-    [sections],
-  );
+  const totalSeconds =
+    timeLimitMinutes === null ? null : timeLimitMinutes * 60;
   const flatCount = useMemo(
     () => sections.reduce((n, s) => n + s.questions.length, 0),
     [sections],
@@ -69,6 +70,7 @@ export function CognitiveRunner({
   const [confirmOpen, setConfirmOpen] = useState(false);
 
   const lockdown = useLockdown({
+    expiresAt,
     totalSeconds,
     onAutoSubmit: () => {
       void submit();
@@ -114,13 +116,13 @@ export function CognitiveRunner({
       .slice(0, sectionIndex)
       .reduce((n, s) => n + s.questions.length, 0) + questionIndex + 1;
 
-  function choose(optionIndex: number) {
+  async function choose(optionIndex: number) {
     setAnswers((prev) => ({ ...prev, [question.questionKey]: optionIndex }));
-    markSaved();
-    void saveResponseAction(question.questionKey, {
+    await saveResponseAction(question.questionKey, {
       kind: "MULTIPLE_CHOICE",
       selectedOptionIndex: optionIndex,
     });
+    markSaved();
   }
 
   function goNext() {
@@ -176,7 +178,9 @@ export function CognitiveRunner({
               <h1 className="mt-2">{section.title}</h1>
               <p className="text-ink-2 mt-2">
                 {section.questions.length} questions ·{" "}
-                {section.timeLimitMinutes ?? 0} minutes suggested. You can move
+                {section.timeLimitMinutes === null
+                  ? "No section time limit"
+                  : `${section.timeLimitMinutes} minutes suggested`}. You can move
                 back and forward within this section, but not return to it once
                 you move on.
               </p>
@@ -219,7 +223,7 @@ export function CognitiveRunner({
                       type="radio"
                       name={question.questionKey}
                       checked={selected}
-                      onChange={() => choose(index)}
+                      onChange={() => void choose(index)}
                       className="mt-0.5 w-[15px] h-[15px] shrink-0 accent-[var(--color-brand)]"
                     />
                     <span className="text-ink">{option}</span>

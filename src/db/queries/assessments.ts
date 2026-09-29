@@ -1,4 +1,4 @@
-import { asc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 
 import { db } from "@/db";
 import {
@@ -8,6 +8,11 @@ import {
   assessments,
   assessmentScores,
   assessmentSections,
+  applicationMembers,
+  applications,
+  challenges,
+  supervisionRequests,
+  users,
 } from "@/db/schema";
 
 export type AssessmentQueryDatabase =
@@ -28,6 +33,7 @@ export interface AssessmentDefinitionRead {
   challengeId: bigint;
   id: bigint;
   instructions: string | null;
+  passingScore: number | null;
   scope: AssessmentScope;
   status: AssessmentStatus;
   timeLimitMinutes: number | null;
@@ -101,6 +107,7 @@ export async function listActiveAssessmentsForChallenge(
       challengeId: assessments.challengeId,
       id: assessments.id,
       instructions: assessments.instructions,
+      passingScore: assessments.passingScore,
       scope: assessments.scope,
       status: sql<AssessmentStatus>`coalesce(${assessments.status}, 'DRAFT')`,
       timeLimitMinutes: assessments.timeLimitMinutes,
@@ -122,6 +129,7 @@ export async function getAssessmentDefinitionWithQuestions(
       challengeId: assessments.challengeId,
       id: assessments.id,
       instructions: assessments.instructions,
+      passingScore: assessments.passingScore,
       scope: assessments.scope,
       status: sql<AssessmentStatus>`coalesce(${assessments.status}, 'DRAFT')`,
       timeLimitMinutes: assessments.timeLimitMinutes,
@@ -244,4 +252,58 @@ export async function getLatestAssessmentScoreForAttempt(
     .orderBy(asc(assessmentScores.createdAt), asc(assessmentScores.id));
 
   return rows.at(-1) ?? null;
+}
+
+export interface AssessmentGradingQueueItemRead {
+  applicationPublicId: string;
+  assessmentTitle: string | null;
+  attemptId: bigint;
+  challengeTitle: string;
+  studentName: string;
+  submittedAt: Date | null;
+  teamName: string | null;
+}
+
+export async function listAssessmentGradingQueue(
+  database: AssessmentQueryDatabase,
+  facultyUserId: bigint
+): Promise<AssessmentGradingQueueItemRead[]> {
+  const rows = await database
+    .select({
+      applicationPublicId: applications.publicId,
+      assessmentTitle: assessments.title,
+      attemptId: assessmentAttempts.id,
+      challengeTitle: challenges.title,
+      studentName: users.fullName,
+      submittedAt: assessmentAttempts.submittedAt,
+      teamName: applications.teamName,
+    })
+    .from(assessmentAttempts)
+    .innerJoin(assessments, eq(assessments.id, assessmentAttempts.assessmentId))
+    .innerJoin(applications, eq(applications.id, assessmentAttempts.applicationId))
+    .innerJoin(challenges, eq(challenges.id, applications.challengeId))
+    .innerJoin(
+      applicationMembers,
+      eq(applicationMembers.id, assessmentAttempts.applicationMemberId)
+    )
+    .innerJoin(users, eq(users.id, applicationMembers.studentId))
+    .innerJoin(
+      supervisionRequests,
+      and(
+        eq(supervisionRequests.applicationId, applications.id),
+        eq(supervisionRequests.facultyId, facultyUserId),
+        eq(supervisionRequests.status, "ACCEPTED")
+      )
+    )
+    .where(
+      and(
+        eq(assessmentAttempts.status, "SUBMITTED"),
+        eq(assessments.scope, "INDIVIDUAL")
+      )
+    )
+    .orderBy(desc(assessmentAttempts.submittedAt), desc(assessmentAttempts.id));
+
+  return Array.from(
+    new Map(rows.map((row) => [row.attemptId.toString(), row])).values()
+  );
 }

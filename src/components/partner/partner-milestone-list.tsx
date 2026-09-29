@@ -42,8 +42,8 @@ export function PartnerMilestoneList({
   milestones: Milestone[];
   meetings?: Meeting[];
   readOnly?: boolean;
-  onApprove?: (milestoneId: string) => Promise<string | null>;
-  onRequestRevision?: (milestoneId: string, comments: string) => Promise<string | null>;
+  onApprove?: (milestoneId: string, submissionId: string) => Promise<string | null>;
+  onRequestRevision?: (milestoneId: string, submissionId: string, comments: string) => Promise<string | null>;
 }) {
   const [decisions, setDecisions] = useState<Record<string, Decision>>({});
   const [openNote, setOpenNote] = useState<string | null>(null);
@@ -155,18 +155,22 @@ export function PartnerMilestoneList({
                   <StripedPlaceholder className="w-6 h-6 rounded-[3px] shrink-0" />
                   <span className="min-w-0 flex-1">
                     <span className="block text-[12px] font-medium text-ink truncate">
-                      {fileNameFor(milestone)}
+                      {milestone.deliverable}
                     </span>
                     <span className="block text-meta text-ink-3">
-                      Submitted by the team
+                      Submitted by the team{milestone.round ? ` · round ${milestone.round}` : ""}
                     </span>
                   </span>
-                  <button
-                    type="button"
-                    className="text-meta font-semibold text-brand hover:text-brand-deep shrink-0"
-                  >
-                    Open
-                  </button>
+                  {milestone.deliverableUrl ? (
+                    <a
+                      href={milestone.deliverableUrl}
+                      target="_blank"
+                      rel="noreferrer noopener"
+                      className="text-meta font-semibold text-brand hover:text-brand-deep shrink-0"
+                    >
+                      Open
+                    </a>
+                  ) : null}
                 </div>
               ) : null}
 
@@ -185,7 +189,7 @@ export function PartnerMilestoneList({
                       type="button"
                       onClick={() =>
                         void apply(milestone.id, "approved", () =>
-                          onApprove?.(milestone.id)
+                          onApprove?.(milestone.id, milestone.submissionId ?? "")
                         )
                       }
                       className="inline-flex items-center justify-center h-8 px-3 rounded-card bg-ok text-white text-[12px] font-semibold hover:opacity-90"
@@ -222,8 +226,8 @@ export function PartnerMilestoneList({
                         <strong className="text-ink font-semibold">
                           Revision requested
                         </strong>
-                        . The supervisor is notified; their approval is not
-                        reset.
+                        . The team resubmits as a new round, and approvals
+                        from this round do not carry over to it.
                       </p>
                       <div className="flex justify-end gap-2 mt-3">
                         <button
@@ -240,7 +244,7 @@ export function PartnerMilestoneList({
                             setOpenNote(null);
                             setNote("");
                             void apply(milestone.id, "revision", () =>
-                              onRequestRevision?.(milestone.id, comments)
+                              onRequestRevision?.(milestone.id, milestone.submissionId ?? "", comments)
                             );
                           }}
                           className="inline-flex items-center justify-center h-8 px-3 rounded-card bg-red text-white text-[12px] font-semibold hover:opacity-90"
@@ -303,9 +307,4 @@ function SignoffPill({
       {label} {approved ? "approved" : "pending"}
     </span>
   );
-}
-
-/** No filename is stored on a milestone, so one is derived from the title. */
-function fileNameFor(milestone: Milestone): string {
-  return `${milestone.title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}.zip`;
 }

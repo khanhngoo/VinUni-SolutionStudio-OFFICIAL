@@ -7,11 +7,14 @@ import {
   applications,
   challenges,
   deliverables,
+  feedback,
   meetingAttendees,
   meetings,
   milestoneReviews,
+  milestoneSubmissions,
   milestones,
   organizations,
+  projectFinalReviews,
   projectMembers,
   projectResources,
   projects,
@@ -50,12 +53,26 @@ export interface ProjectMemberRead {
   studyYear: number | null;
 }
 
+export interface ProjectMilestoneReviewRead {
+  comments: string | null;
+  createdAt: Date | null;
+  decision: string;
+  reviewerName: string;
+  reviewerRole: string;
+  roundNumber: number;
+}
+
 export interface ProjectMilestoneRead {
+  /** The effective (highest-numbered) submission round, if any work was submitted. */
+  currentSubmission: { id: bigint; roundNumber: number; submittedAt: Date; submittedByName: string } | null;
   deadline: string | null;
-  deliverables: Array<{ description: string | null; submittedAt: Date | null; submittedByName: string; title: string | null; type: string | null }>;
+  deliverables: Array<{ description: string | null; externalUrl: string | null; fileUrl: string | null; roundNumber: number; submittedAt: Date | null; submittedByName: string; title: string | null; type: string | null }>;
   description: string | null;
   id: bigint;
-  latestReviews: Array<{ comments: string | null; createdAt: Date | null; decision: string; reviewerName: string; reviewerRole: string }>;
+  /** Decisions on the current round only; earlier rounds never count toward the quorum. */
+  latestReviews: ProjectMilestoneReviewRead[];
+  /** Every review ever recorded, newest first, labelled with its round. */
+  reviewHistory: ProjectMilestoneReviewRead[];
   status: "PENDING" | "IN_PROGRESS" | "SUBMITTED" | "REVISION_REQUESTED" | "COMPLETED";
   title: string;
 }
@@ -116,19 +133,52 @@ export async function listProjectMilestones(database: ProjectQueryDatabase, proj
     .from(milestones).where(eq(milestones.projectId, projectId)).orderBy(asc(milestones.deadline), asc(milestones.id));
   if (!rows.length) return [];
   const ids = rows.map((row) => row.id);
+  const roundSubmitter = alias(users, "round_submitter");
+  const submissionRows = await database.select({ id: milestoneSubmissions.id, milestoneId: milestoneSubmissions.milestoneId, roundNumber: milestoneSubmissions.roundNumber, submittedAt: milestoneSubmissions.submittedAt, submittedByName: roundSubmitter.fullName })
+    .from(milestoneSubmissions).innerJoin(roundSubmitter, eq(roundSubmitter.id, milestoneSubmissions.submittedBy)).where(inArray(milestoneSubmissions.milestoneId, ids)).orderBy(desc(milestoneSubmissions.roundNumber));
   const submitter = alias(users, "deliverable_submitter");
-  const deliverableRows = await database.select({ description: deliverables.description, milestoneId: deliverables.milestoneId, submittedAt: deliverables.submittedAt, submittedByName: submitter.fullName, title: deliverables.title, type: deliverables.deliverableType })
-    .from(deliverables).innerJoin(submitter, eq(submitter.id, deliverables.submittedBy)).where(inArray(deliverables.milestoneId, ids)).orderBy(desc(deliverables.submittedAt));
+  const deliverableRows = await database.select({ description: deliverables.description, externalUrl: deliverables.externalUrl, fileUrl: deliverables.fileUrl, milestoneId: deliverables.milestoneId, roundNumber: milestoneSubmissions.roundNumber, submittedAt: deliverables.submittedAt, submittedByName: submitter.fullName, title: deliverables.title, type: deliverables.deliverableType })
+    .from(deliverables).innerJoin(submitter, eq(submitter.id, deliverables.submittedBy)).innerJoin(milestoneSubmissions, eq(milestoneSubmissions.id, deliverables.submissionId)).where(inArray(deliverables.milestoneId, ids)).orderBy(desc(milestoneSubmissions.roundNumber), desc(deliverables.id));
   const reviewer = alias(users, "milestone_reviewer");
-  const reviewRows = await database.select({ comments: milestoneReviews.comments, createdAt: milestoneReviews.createdAt, decision: milestoneReviews.decision, milestoneId: milestoneReviews.milestoneId, reviewerName: reviewer.fullName, reviewerRole: milestoneReviews.reviewerRole })
-    .from(milestoneReviews).innerJoin(reviewer, eq(reviewer.id, milestoneReviews.reviewerId)).where(inArray(milestoneReviews.milestoneId, ids)).orderBy(desc(milestoneReviews.createdAt), desc(milestoneReviews.id));
-  return rows.map((row) => ({ ...row, deliverables: deliverableRows.filter((item) => item.milestoneId === row.id), latestReviews: latestReviews(reviewRows.filter((item) => item.milestoneId === row.id)) }));
+  const reviewRows = await database.select({ comments: milestoneReviews.comments, createdAt: milestoneReviews.createdAt, decision: milestoneReviews.decision, milestoneId: milestoneReviews.milestoneId, reviewerName: reviewer.fullName, reviewerRole: milestoneReviews.reviewerRole, roundNumber: milestoneSubmissions.roundNumber, submissionId: milestoneReviews.submissionId })
+    .from(milestoneReviews).innerJoin(reviewer, eq(reviewer.id, milestoneReviews.reviewerId)).innerJoin(milestoneSubmissions, eq(milestoneSubmissions.id, milestoneReviews.submissionId)).where(inArray(milestoneReviews.milestoneId, ids)).orderBy(desc(milestoneSubmissions.roundNumber), desc(milestoneReviews.id));
+  return rows.map((row) => {
+    const current = submissionRows.find((item) => item.milestoneId === row.id) ?? null;
+    const history = reviewRows.filter((item) => item.milestoneId === row.id);
+    const strip = ({ comments, createdAt, decision, reviewerName, reviewerRole, roundNumber }: (typeof history)[number]) => ({ comments, createdAt, decision, reviewerName, reviewerRole, roundNumber });
+    return {
+      ...row,
+      currentSubmission: current ? { id: current.id, roundNumber: current.roundNumber, submittedAt: current.submittedAt, submittedByName: current.submittedByName } : null,
+      deliverables: deliverableRows.filter((item) => item.milestoneId === row.id),
+      latestReviews: current ? history.filter((item) => item.submissionId === current.id).map(strip) : [],
+      reviewHistory: history.map(strip),
+    };
+  });
 }
 
 export async function listProjectResources(database: ProjectQueryDatabase, projectId: bigint): Promise<ProjectResourceRead[]> {
   const rows = await database.select({ description: projectResources.description, id: projectResources.id, requiresAgreement: sql<boolean>`coalesce(${projectResources.requiresAgreement}, false)`, resourceType: projectResources.resourceType, sensitivityLevel: sql<string>`coalesce(${projectResources.sensitivityLevel}, 'TEAM_ONLY')`, title: projectResources.title })
     .from(projectResources).where(eq(projectResources.projectId, projectId)).orderBy(asc(projectResources.createdAt), asc(projectResources.id));
   return rows;
+}
+
+export async function listProjectFinalReviews(database: ProjectQueryDatabase, projectId: bigint) {
+  const reviewer = alias(users, "final_reviewer");
+  return database
+    .select({ comments: projectFinalReviews.comments, createdAt: projectFinalReviews.createdAt, decision: projectFinalReviews.decision, reviewerName: reviewer.fullName, reviewerRole: projectFinalReviews.reviewerRole, roundNumber: projectFinalReviews.roundNumber })
+    .from(projectFinalReviews).innerJoin(reviewer, eq(reviewer.id, projectFinalReviews.reviewerId))
+    .where(eq(projectFinalReviews.projectId, projectId)).orderBy(desc(projectFinalReviews.roundNumber), desc(projectFinalReviews.id));
+}
+
+/** Close-out feedback shared with the team; PRIVATE_ADMIN notes are never returned here. */
+export async function listTeamVisibleCloseoutFeedback(database: ProjectQueryDatabase, projectId: bigint) {
+  const author = alias(users, "feedback_author");
+  const rows = await database
+    .select({ authorName: author.fullName, content: feedback.content, createdAt: feedback.createdAt, metrics: feedback.metrics })
+    .from(feedback).innerJoin(author, eq(author.id, feedback.authorId))
+    .where(sql`${feedback.projectId} = ${projectId} and ${feedback.feedbackType} = 'PARTNER_CLOSEOUT' and ${feedback.visibility} = 'PROJECT_TEAM'`)
+    .orderBy(asc(feedback.createdAt));
+  return rows.map((row) => ({ ...row, metrics: (row.metrics as Record<string, string> | null) ?? null }));
 }
 
 export async function isProjectMember(database: ProjectQueryDatabase, projectId: bigint, studentId: bigint) {
@@ -139,11 +189,6 @@ export async function isProjectMember(database: ProjectQueryDatabase, projectId:
 export async function hasAcceptedProjectAgreement(database: ProjectQueryDatabase, applicationId: bigint, challengeId: bigint, userId: bigint) {
   const [row] = await database.select({ id: agreements.id }).from(agreements).where(sql`${agreements.applicationId} = ${applicationId} and ${agreements.challengeId} = ${challengeId} and ${agreements.userId} = ${userId} and ${agreements.acceptedAt} is not null and ${agreements.revokedAt} is null`).limit(1);
   return Boolean(row);
-}
-
-function latestReviews<T extends { reviewerRole: string }>(reviews: T[]) {
-  const seen = new Set<string>();
-  return reviews.filter((review) => (seen.has(review.reviewerRole) ? false : (seen.add(review.reviewerRole), true)));
 }
 
 export interface ProjectMeetingRead {

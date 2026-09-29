@@ -25,7 +25,17 @@ import { deriveApplicationLifecycleView } from "@/services/application-lifecycle
 import { STAGE_LABELS } from "@/lib/types";
 import { isPublicId } from "@/lib/public-id";
 
+import { issueSelectionOfferAction } from "./actions";
+
 export const dynamic = "force-dynamic";
+
+const OFFER_ERROR_MESSAGES: Record<string, string> = {
+  CONFLICT: "This team's selection changed before it could be saved. Refresh and try again.",
+  FORBIDDEN: "Your account cannot select applications for this challenge.",
+  INVALID_TRANSITION: "This application is no longer ready for selection.",
+  NOT_FOUND: "This application could not be found.",
+  VALIDATION_ERROR: "Check the offer terms and try again.",
+};
 
 const BANDS: ScoreBand[] = ["Strong", "Proficient", "Developing", "Below threshold"];
 
@@ -40,10 +50,13 @@ const BANDS: ScoreBand[] = ["Strong", "Proficient", "Developing", "Below thresho
  */
 export default async function PartnerTeamPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string; applicationId: string }>;
+  searchParams: Promise<{ code?: string; offer?: string }>;
 }) {
   const { id: slug, applicationId } = await params;
+  const query = await searchParams;
 
   const resolution = await getAuthenticatedActor();
   if (resolution.status !== "RESOLVED") redirect("/sign-in");
@@ -138,6 +151,15 @@ export default async function PartnerTeamPage({
         </p>
       ) : null}
 
+      {query.offer === "issued" ? (
+        <Banner tone="ok">Offer issued. The accepted team leader can now respond.</Banner>
+      ) : null}
+      {query.offer === "error" ? (
+        <Banner tone="error">
+          {OFFER_ERROR_MESSAGES[query.code ?? ""] ?? "Something went wrong."}
+        </Banner>
+      ) : null}
+
       <Section title="Members" aside={`${team.members.length} listed`}>
         <PartnerTeamRoster challenge={challenge} directory={directory} team={team} />
       </Section>
@@ -147,6 +169,96 @@ export default async function PartnerTeamPage({
           <p className="text-ink-2 leading-relaxed">{lifecycle.message}</p>
         </div>
       </Section>
+
+      {application.status === "SELECTION_PENDING" ? (
+        <Section title="Selection">
+          <div className="bg-card border border-line rounded-card p-5">
+            <p className="text-ink-2 leading-relaxed">
+              This team cleared every required gate. Selecting them here is
+              your own decision — it is a direct choice from the eligible
+              applications on this challenge, not an AI-ranked or
+              AI-generated shortlist.
+            </p>
+            <form
+              action={issueSelectionOfferAction}
+              className="mt-4 grid gap-3 sm:grid-cols-2"
+            >
+              <input type="hidden" name="slug" value={slug} />
+              <input type="hidden" name="applicationId" value={applicationId} />
+              <label className="flex flex-col gap-1.5">
+                <span className="text-meta font-semibold text-ink-2 uppercase tracking-wide">
+                  Hours per week
+                </span>
+                <input
+                  type="number"
+                  name="hoursPerWeek"
+                  min={1}
+                  defaultValue={page.challenge.weeklyHours ?? undefined}
+                  className="h-10 w-full rounded-card border border-line bg-card px-3 text-ink outline-none focus:border-brand"
+                />
+              </label>
+              <label className="flex flex-col gap-1.5">
+                <span className="text-meta font-semibold text-ink-2 uppercase tracking-wide">
+                  Duration (weeks)
+                </span>
+                <input
+                  type="number"
+                  name="durationWeeks"
+                  min={1}
+                  defaultValue={page.challenge.durationWeeks ?? undefined}
+                  className="h-10 w-full rounded-card border border-line bg-card px-3 text-ink outline-none focus:border-brand"
+                />
+              </label>
+              <label className="flex flex-col gap-1.5">
+                <span className="text-meta font-semibold text-ink-2 uppercase tracking-wide">
+                  Start date
+                </span>
+                <input
+                  type="date"
+                  name="startDate"
+                  defaultValue={page.challenge.startDate ?? undefined}
+                  className="h-10 w-full rounded-card border border-line bg-card px-3 text-ink outline-none focus:border-brand"
+                />
+              </label>
+              <label className="flex flex-col gap-1.5">
+                <span className="text-meta font-semibold text-ink-2 uppercase tracking-wide">
+                  Response deadline (working days)
+                </span>
+                <input
+                  type="number"
+                  name="respondByWorkingDays"
+                  min={1}
+                  defaultValue={5}
+                  className="h-10 w-full rounded-card border border-line bg-card px-3 text-ink outline-none focus:border-brand"
+                />
+              </label>
+              <label className="flex flex-col gap-1.5 sm:col-span-2">
+                <span className="text-meta font-semibold text-ink-2 uppercase tracking-wide">
+                  Compensation note
+                </span>
+                <textarea
+                  name="compensationNote"
+                  rows={2}
+                  defaultValue={page.challenge.compensationDescription ?? ""}
+                  className="w-full rounded-card border border-line bg-card px-3 py-2 text-ink outline-none focus:border-brand"
+                />
+              </label>
+              <label className="flex items-center gap-2 sm:col-span-2">
+                <input type="checkbox" name="ndaRequired" className="h-4 w-4" />
+                <span className="text-ink-2">Require an NDA before restricted materials are released</span>
+              </label>
+              <div className="sm:col-span-2">
+                <button
+                  type="submit"
+                  className="h-10 px-5 rounded-card bg-brand text-white font-semibold hover:bg-brand-deep"
+                >
+                  Select this team and issue offer
+                </button>
+              </div>
+            </form>
+          </div>
+        </Section>
+      ) : null}
 
       <Section title="Fit">
         <TeamFit team={team} challenge={challenge} />
@@ -185,4 +297,18 @@ export default async function PartnerTeamPage({
 /** Bands come back from jsonb as free text; anything unrecognised is not a band. */
 function toBand(value: string): ScoreBand {
   return BANDS.find((band) => band === value) ?? "Developing";
+}
+
+function Banner({ children, tone }: { children: React.ReactNode; tone: "error" | "ok" }) {
+  return (
+    <div
+      className={
+        tone === "ok"
+          ? "mt-4 border border-line bg-line-2 text-ink-2 rounded-card px-4 py-3"
+          : "mt-4 border border-red/40 bg-red/5 text-red rounded-card px-4 py-3"
+      }
+    >
+      {children}
+    </div>
+  );
 }

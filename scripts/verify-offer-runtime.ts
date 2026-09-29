@@ -95,8 +95,10 @@ async function main() {
       });
       await expectOfferError("INVALID_TRANSITION", () => respondToOffer(DISPOSABLE_EXPIRED, "ACCEPT", jordan, { database: tx, now: now() }), "expired offer response");
 
+      // Phase 6.6.7: the one accepted disposable offer provisions exactly one
+      // project; the declined and expired ones provision none.
       const inside = await snapshot(tx);
-      assertCount(inside.projects, before.projects, "projects after offer acceptance");
+      assertCount(inside.projects, before.projects + 1, "projects after offer acceptance");
       throw ROLLBACK_SENTINEL;
     });
   } catch (error) {

@@ -12,7 +12,8 @@ export type LockdownWarning =
   | null;
 
 interface UseLockdownOptions {
-  totalSeconds: number;
+  expiresAt: string | null;
+  totalSeconds: number | null;
   onAutoSubmit: () => void;
 }
 
@@ -21,8 +22,14 @@ interface UseLockdownOptions {
  * counting with an auto-submit cap, the timer, autosave and the blocked-action
  * toast — in one place so both assessment tracks behave identically.
  */
-export function useLockdown({ totalSeconds, onAutoSubmit }: UseLockdownOptions) {
-  const [secondsLeft, setSecondsLeft] = useState(totalSeconds);
+export function useLockdown({
+  expiresAt,
+  totalSeconds,
+  onAutoSubmit,
+}: UseLockdownOptions) {
+  const [secondsLeft, setSecondsLeft] = useState<number | null>(() =>
+    secondsUntil(expiresAt)
+  );
   const [violations, setViolations] = useState(0);
   const [warning, setWarning] = useState<LockdownWarning>(null);
   const [toast, setToast] = useState<string | null>(null);
@@ -69,22 +76,26 @@ export function useLockdown({ totalSeconds, onAutoSubmit }: UseLockdownOptions) 
 
   // Countdown.
   useEffect(() => {
+    if (totalSeconds === null) return;
     const id = window.setInterval(() => {
-      setSecondsLeft((prev) => {
-        if (prev <= 1) {
+      setSecondsLeft(() => {
+        const next = secondsUntil(expiresAt);
+        if (next === null) return null;
+        if (next <= 0) {
           window.clearInterval(id);
           finish("time");
           return 0;
         }
-        return prev - 1;
+        return next;
       });
     }, 1000);
     return () => window.clearInterval(id);
-  }, [finish]);
+  }, [expiresAt, finish, totalSeconds]);
 
   // Time-low warning at 5 minutes (PRD §15 STU-13/14 overlay list).
   useEffect(() => {
     if (
+      secondsLeft !== null &&
       secondsLeft <= 300 &&
       secondsLeft > 0 &&
       !timeLowShownRef.current &&
@@ -114,12 +125,7 @@ export function useLockdown({ totalSeconds, onAutoSubmit }: UseLockdownOptions) 
       document.removeEventListener("fullscreenchange", onFullscreenChange);
   }, [registerViolation]);
 
-  // Autosave indicator: every 15s, plus whenever the page calls markSaved().
-  useEffect(() => {
-    const id = window.setInterval(() => setSavedAt(Date.now()), 15_000);
-    return () => window.clearInterval(id);
-  }, []);
-
+  // Updated only after a page confirms that its server save completed.
   const markSaved = useCallback(() => setSavedAt(Date.now()), []);
 
   const blockAction = useCallback((message: string) => {
@@ -167,4 +173,9 @@ export function formatClock(totalSeconds: number): string {
   const m = Math.floor(totalSeconds / 60);
   const s = totalSeconds % 60;
   return `${m}:${String(s).padStart(2, "0")}`;
+}
+
+function secondsUntil(expiresAt: string | null) {
+  if (expiresAt === null) return null;
+  return Math.max(0, Math.ceil((Date.parse(expiresAt) - Date.now()) / 1000));
 }

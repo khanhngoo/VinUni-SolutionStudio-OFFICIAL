@@ -47,7 +47,7 @@ export default async function AssessmentResultPage({
           <p className="font-semibold text-[15px] mt-3.5">
             {attempt?.status === "IN_PROGRESS"
               ? "Your attempt is still open"
-              : "Your answers are in"}
+              : "Awaiting review"}
           </p>
           <p className="text-ink-2 mt-1.5 max-w-[46ch] mx-auto">
             Results are consolidated before anyone sees them. You&apos;ll be
@@ -70,7 +70,7 @@ export default async function AssessmentResultPage({
     );
   }
 
-  const passed = result.passed ?? result.overallBand !== "Below threshold";
+  const passed = result.passed;
 
   return (
     <article className="max-w-[820px] mx-auto px-6 sm:px-7 py-7 pb-16">
@@ -78,8 +78,12 @@ export default async function AssessmentResultPage({
 
       <div className="flex flex-wrap gap-1.5 mt-3.5 mb-2.5">
         <Chip>{result.track}</Chip>
-        <Chip variant={passed ? "ok" : "outline-dashed"}>
-          {passed ? "Passed" : "Below threshold"}
+        <Chip variant={passed === true ? "ok" : "outline-dashed"}>
+          {passed === true
+            ? "Passed"
+            : passed === false
+              ? "Below threshold"
+              : "Result unavailable"}
         </Chip>
       </div>
 
@@ -95,15 +99,17 @@ export default async function AssessmentResultPage({
           <span
             className={cn(
               "text-h1 font-bold",
-              passed ? "text-ok" : "text-warn",
+              passed === true ? "text-ok" : "text-warn",
             )}
           >
-            {result.overallBand ?? "Reviewed"}
+            {result.overallBand ?? (passed === null ? "Result unavailable" : "Reviewed")}
           </span>
           <span className="text-ink-2">
-            {passed
+            {passed === true
               ? "above the threshold for this challenge"
-              : "below the threshold for this challenge"}
+              : passed === false
+                ? "below the threshold for this challenge"
+                : "no authoritative pass or fail result is available"}
           </span>
         </div>
       </div>
@@ -134,7 +140,7 @@ export default async function AssessmentResultPage({
 
       <Section title="What happens next">
         <div className="bg-card border border-line rounded-card p-5">
-          {passed ? (
+          {passed === true ? (
             <>
               <p className="text-ink">
                 Your result goes to the partner with the rest of the shortlist.
@@ -145,7 +151,7 @@ export default async function AssessmentResultPage({
                 Decisions typically follow within five working days.
               </p>
             </>
-          ) : (
+          ) : passed === false ? (
             <>
               <p className="text-ink">
                 This challenge is closed to you. A result below the threshold is
@@ -156,6 +162,12 @@ export default async function AssessmentResultPage({
                 assessment track. Your other applications are unaffected.
               </p>
             </>
+          ) : (
+            <p className="text-ink">
+              This review does not contain an authoritative pass or fail result
+              because no numeric threshold is configured. Your application
+              status is currently {assessment.application.status.replaceAll("_", " ").toLowerCase()}.
+            </p>
           )}
           <div className="flex flex-wrap items-center gap-2.5 mt-5">
             <Link

@@ -6,6 +6,8 @@ import { db } from "@/db";
 import {
   applicationMembers,
   applications,
+  assessmentQuestions,
+  assessmentSections,
   assessments,
   challenges,
   organizations,
@@ -74,12 +76,24 @@ async function main() {
       managing.id,
       owner.user.userId
     );
-    await db.insert(assessments).values({
+    const [assessment] = await db.insert(assessments).values({
       challengeId: assessmentChallenge.id,
       createdBy: owner.user.userId,
       scope: "INDIVIDUAL",
       status: "ACTIVE",
       title: "Disposable lifecycle assessment",
+    }).returning({ id: assessments.id });
+    const [section] = await db.insert(assessmentSections).values({
+      assessmentId: assessment.id,
+      sequence: 1,
+      title: "Lifecycle verification",
+    }).returning({ id: assessmentSections.id });
+    await db.insert(assessmentQuestions).values({
+      config: { options: ["Continue", "Stop"], correctIndex: 0 },
+      prompt: "Disposable lifecycle question",
+      questionType: "MULTIPLE_CHOICE",
+      sectionId: section.id,
+      sequence: 1,
     });
 
     const pending = await createApplication(

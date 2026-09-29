@@ -314,6 +314,54 @@ export async function progressApplicationAfterGateChange(
   });
 }
 
+/**
+ * Applies only an authoritative reviewed assessment outcome. The caller owns
+ * the grading transaction and passes its transaction so score, attempt, and
+ * application state commit or roll back together.
+ */
+export async function progressApplicationAfterAssessmentReview(
+  applicationId: bigint,
+  outcome: "FAIL" | "PASS",
+  options: LifecycleOptions = {}
+): Promise<{ progressed: boolean; status: string }> {
+  return withLifecycleTransaction(options.database ?? db, async (tx) => {
+    await lockApplicationForLifecycle(tx, applicationId);
+    const application = await getApplicationWriteSubjectById(tx, applicationId);
+    if (!application) {
+      throw new ApplicationLifecycleError(
+        "NOT_FOUND",
+        "Application was not found."
+      );
+    }
+
+    const nextStatus = outcome === "PASS" ? "SELECTION_PENDING" : "REJECTED";
+    if (application.status === nextStatus) {
+      return { progressed: false, status: application.status };
+    }
+    if (application.status !== "ASSESSMENT") {
+      throw new ApplicationLifecycleError(
+        "INVALID_TRANSITION",
+        "Application is no longer awaiting an assessment result."
+      );
+    }
+
+    const updated = await updateApplicationStatus(
+      tx,
+      application.id,
+      ["ASSESSMENT"],
+      nextStatus,
+      options.now
+    );
+    if (!updated) {
+      throw new ApplicationLifecycleError(
+        "CONFLICT",
+        "Application changed while the assessment result was being applied."
+      );
+    }
+    return { progressed: true, status: nextStatus };
+  });
+}
+
 /** Leader-only, whole-application withdrawal while the application is pre-selection. */
 export async function withdrawApplication(
   applicationPublicId: string,

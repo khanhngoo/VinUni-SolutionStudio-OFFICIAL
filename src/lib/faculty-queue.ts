@@ -38,6 +38,8 @@ export interface MilestoneQueueItem extends FacultyQueueItemBase {
   kind: "milestone";
   milestoneId: string;
   milestoneTitle: string;
+  /** The round this row's decision applies to; a stale round is refused server-side. */
+  submissionId: string | null;
   partnerApproved: boolean;
 }
 

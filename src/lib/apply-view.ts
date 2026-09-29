@@ -390,8 +390,9 @@ const MEETING_KIND_LABELS: Record<string, MeetingKind> = {
  * legible without the component having to reason about review rows.
  */
 export function toMilestone(row: {
+  currentSubmission?: { id: string; roundNumber: number } | null;
   deadline: string | null;
-  deliverables: Array<{ title: string | null }>;
+  deliverables: Array<{ externalUrl?: string | null; fileUrl?: string | null; roundNumber?: number; title: string | null }>;
   description: string | null;
   facultyApproved: boolean;
   id: string;
@@ -399,12 +400,17 @@ export function toMilestone(row: {
   status: string;
   title: string;
 }): Milestone {
+  const round = row.currentSubmission?.roundNumber ?? null;
+  const current = row.deliverables.find((item) => item.roundNumber === round) ?? row.deliverables[0];
   return {
-    deliverable: row.deliverables[0]?.title ?? row.description ?? "Deliverable",
+    deliverable: current?.title ?? row.description ?? "Deliverable",
+    deliverableUrl: current?.externalUrl ?? current?.fileUrl ?? null,
     dueDate: row.deadline ?? "",
     facultyApproved: row.facultyApproved,
     id: row.id,
     posterApproved: row.partnerApproved,
+    round,
+    submissionId: row.currentSubmission?.id ?? null,
     status: MILESTONE_STATUS_LABELS[row.status] ?? "Not started",
     title: row.title,
   };

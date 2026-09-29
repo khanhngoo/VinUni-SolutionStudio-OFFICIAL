@@ -5,7 +5,12 @@ import {
   assessmentAttempts,
   assessmentQuestions,
   assessmentResponses,
+  assessmentScores,
   assessmentSections,
+  applications,
+  assessments,
+  challenges,
+  supervisionRequests,
 } from "@/db/schema";
 import type {
   AssessmentAttemptStatus,
@@ -56,6 +61,30 @@ export interface AssessmentResponseWriteValues {
   submittedAt: Date;
 }
 
+export interface AssessmentGradingSubjectMutationRead {
+  applicationChallengeId: bigint;
+  applicationId: bigint;
+  applicationPublicId: string;
+  applicationStatus: string;
+  challengeTitle: string;
+  assessmentChallengeId: bigint;
+  assessmentId: bigint;
+  assessmentScope: string;
+  attemptId: bigint;
+  attemptStatus: AssessmentAttemptStatus;
+  passingScore: number | null;
+  submittedAt: Date | null;
+  teamName: string | null;
+}
+
+export interface AssessmentScoreMutationRead {
+  comments: string | null;
+  id: bigint;
+  overallScore: number | null;
+  reviewerId: bigint;
+  rubricScores: unknown;
+}
+
 export async function insertAssessmentAttempt(
   database: AssessmentMutationDatabase,
   values: AssessmentAttemptInsertValues
@@ -87,7 +116,10 @@ export async function updateAssessmentAttemptStatus(
   input: {
     attemptId: bigint;
     expectedStatuses: AssessmentAttemptStatus[];
-    nextStatus: Extract<AssessmentAttemptStatus, "IN_PROGRESS" | "SUBMITTED">;
+    nextStatus: Extract<
+      AssessmentAttemptStatus,
+      "IN_PROGRESS" | "REVIEWED" | "SUBMITTED"
+    >;
     now: Date;
   }
 ): Promise<AssessmentAttemptMutationRead | null> {
@@ -193,6 +225,43 @@ export async function insertAssessmentResponse(
   return response;
 }
 
+export async function upsertAssessmentResponse(
+  database: AssessmentMutationDatabase,
+  input: {
+    attemptId: bigint;
+    questionId: bigint;
+    values: AssessmentResponseWriteValues;
+  }
+): Promise<AssessmentResponseMutationRead> {
+  const [response] = await database
+    .insert(assessmentResponses)
+    .values({
+      attachmentUrl: input.values.attachmentUrl ?? null,
+      attemptId: input.attemptId,
+      questionId: input.questionId,
+      response: input.values.response ?? null,
+      responseData: input.values.responseData,
+      submittedAt: input.values.submittedAt,
+    })
+    .onConflictDoUpdate({
+      target: [assessmentResponses.attemptId, assessmentResponses.questionId],
+      set: {
+        attachmentUrl: input.values.attachmentUrl ?? null,
+        response: input.values.response ?? null,
+        responseData: input.values.responseData,
+        submittedAt: input.values.submittedAt,
+      },
+    })
+    .returning({
+      id: assessmentResponses.id,
+      questionId: assessmentResponses.questionId,
+      response: assessmentResponses.response,
+      responseData: assessmentResponses.responseData,
+    });
+
+  return response;
+}
+
 export async function updateAssessmentResponse(
   database: AssessmentMutationDatabase,
   input: {
@@ -217,4 +286,102 @@ export async function updateAssessmentResponse(
     });
 
   return response;
+}
+
+export async function lockAssessmentAttempt(
+  database: AssessmentMutationDatabase,
+  attemptId: bigint
+) {
+  await database.execute(
+    sql`select ${assessmentAttempts.id} from ${assessmentAttempts} where ${assessmentAttempts.id} = ${attemptId} for update`
+  );
+}
+
+export async function getAssessmentGradingSubjectForWrite(
+  database: AssessmentMutationDatabase,
+  attemptId: bigint
+): Promise<AssessmentGradingSubjectMutationRead | null> {
+  const [subject] = await database
+    .select({
+      applicationChallengeId: applications.challengeId,
+      applicationId: applications.id,
+      applicationPublicId: applications.publicId,
+      applicationStatus: sql<string>`coalesce(${applications.status}, 'SUBMITTED')`,
+      challengeTitle: challenges.title,
+      assessmentChallengeId: assessments.challengeId,
+      assessmentId: assessments.id,
+      assessmentScope: assessments.scope,
+      attemptId: assessmentAttempts.id,
+      attemptStatus: sql<AssessmentAttemptStatus>`coalesce(${assessmentAttempts.status}, 'NOT_STARTED')`,
+      passingScore: assessments.passingScore,
+      submittedAt: assessmentAttempts.submittedAt,
+      teamName: applications.teamName,
+    })
+    .from(assessmentAttempts)
+    .innerJoin(assessments, eq(assessments.id, assessmentAttempts.assessmentId))
+    .innerJoin(applications, eq(applications.id, assessmentAttempts.applicationId))
+    .innerJoin(challenges, eq(challenges.id, applications.challengeId))
+    .where(eq(assessmentAttempts.id, attemptId))
+    .limit(1);
+
+  return subject ?? null;
+}
+
+export async function listAcceptedAssessmentGraderIds(
+  database: AssessmentMutationDatabase,
+  applicationId: bigint
+) {
+  const rows = await database
+    .select({ facultyId: supervisionRequests.facultyId })
+    .from(supervisionRequests)
+    .where(
+      and(
+        eq(supervisionRequests.applicationId, applicationId),
+        eq(supervisionRequests.status, "ACCEPTED")
+      )
+    );
+  return Array.from(new Set(rows.map((row) => row.facultyId.toString()))).map(
+    (value) => BigInt(value)
+  );
+}
+
+export async function getAssessmentScoreForWrite(
+  database: AssessmentMutationDatabase,
+  attemptId: bigint
+): Promise<AssessmentScoreMutationRead | null> {
+  const [score] = await database
+    .select({
+      comments: assessmentScores.comments,
+      id: assessmentScores.id,
+      overallScore: assessmentScores.overallScore,
+      reviewerId: assessmentScores.reviewerId,
+      rubricScores: assessmentScores.rubricScores,
+    })
+    .from(assessmentScores)
+    .where(eq(assessmentScores.attemptId, attemptId))
+    .limit(1);
+  return score ?? null;
+}
+
+export async function insertAssessmentScore(
+  database: AssessmentMutationDatabase,
+  input: {
+    attemptId: bigint;
+    comments: string | null;
+    overallScore: number;
+    reviewerId: bigint;
+    rubricScores: unknown;
+  }
+): Promise<AssessmentScoreMutationRead> {
+  const [score] = await database
+    .insert(assessmentScores)
+    .values(input)
+    .returning({
+      comments: assessmentScores.comments,
+      id: assessmentScores.id,
+      overallScore: assessmentScores.overallScore,
+      reviewerId: assessmentScores.reviewerId,
+      rubricScores: assessmentScores.rubricScores,
+    });
+  return score;
 }

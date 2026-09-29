@@ -26,8 +26,8 @@ interface FacultyQueueProps {
   settled: SettledSupervision[];
   onAcceptInvite?: (requestId: string) => Promise<string | null>;
   onDeclineInvite?: (requestId: string) => Promise<string | null>;
-  onApproveMilestone?: (milestoneId: string) => Promise<string | null>;
-  onRequestChanges?: (milestoneId: string, comments: string) => Promise<string | null>;
+  onApproveMilestone?: (milestoneId: string, submissionId: string) => Promise<string | null>;
+  onRequestChanges?: (milestoneId: string, submissionId: string, comments: string) => Promise<string | null>;
 }
 
 /**
@@ -122,7 +122,7 @@ export function FacultyQueue({
               onChange={(v) => setTypeFilter((p) => ({ ...p, milestone: v }))}
             />
             <TypeCheckbox
-              label="Feedback due"
+              label="Final reviews"
               count={feedback.length}
               checked={typeFilter.feedback}
               onChange={(v) => setTypeFilter((p) => ({ ...p, feedback: v }))}
@@ -236,7 +236,7 @@ export function FacultyQueue({
                           : m,
                       ),
                     );
-                    const message = await onApproveMilestone?.(item.milestoneId);
+                    const message = await onApproveMilestone?.(item.milestoneId, item.submissionId ?? "");
                     if (message) {
                       setError(message);
                       setMilestones((prev) =>
@@ -257,7 +257,7 @@ export function FacultyQueue({
                           : m,
                       ),
                     );
-                    const message = await onRequestChanges?.(item.milestoneId, comments);
+                    const message = await onRequestChanges?.(item.milestoneId, item.submissionId ?? "", comments);
                     if (message) {
                       setError(message);
                       setMilestones((prev) =>
@@ -527,26 +527,21 @@ function MilestoneRow({
 }
 
 function FeedbackRow({ item }: { item: FeedbackQueueItem }) {
-  const { challengeTitle, daysLeft } = item;
+  const { challengeTitle } = item;
 
   return (
     <QueueCard
-      chip={<Chip variant="accent">Feedback due</Chip>}
+      chip={<Chip variant="accent">Final review</Chip>}
       title={challengeTitle}
       href={`/faculty/${item.applicationPublicId}`}
-      meta={`${item.teamName} · ${Math.abs(daysLeft)} days without a closing review`}
+      meta={`${item.teamName} · every milestone is approved — your final sign-off is needed`}
       actions={
-        // Closing feedback has no mutation behind it yet. The row still earns
-        // its place -- it is a real obligation -- but the button is disabled
-        // rather than accepting a note it would silently drop.
-        <button
-          type="button"
-          disabled
-          title="Written feedback is not yet stored"
-          className="h-8 px-3.5 rounded-card border border-line text-ink-3 font-semibold disabled:opacity-60"
+        <Link
+          href={`/workspace/${item.applicationPublicId}`}
+          className="h-8 px-3.5 rounded-card bg-brand text-white font-semibold grid place-items-center hover:bg-brand-deep hover:text-white"
         >
-          Write feedback
-        </button>
+          Open final review
+        </Link>
       }
     />
   );

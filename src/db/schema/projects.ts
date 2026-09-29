@@ -4,6 +4,7 @@ import {
   check,
   date,
   index,
+  integer,
   jsonb,
   pgTable,
   text,
@@ -110,6 +111,34 @@ export const milestones = pgTable(
   ]
 );
 
+/** One row per submission round; the effective round is the highest number. */
+export const milestoneSubmissions = pgTable(
+  "milestone_submissions",
+  {
+    id: id(),
+    milestoneId: fk("milestone_id")
+      .notNull()
+      .references(() => milestones.id, {
+        onDelete: "cascade",
+        onUpdate: "cascade",
+      }),
+    roundNumber: integer("round_number").notNull(),
+    submittedBy: fk("submitted_by")
+      .notNull()
+      .references(() => users.id, { onDelete: "restrict", onUpdate: "cascade" }),
+    submittedAt: timestamptz("submitted_at").notNull(),
+    createdAt: createdAt(),
+  },
+  (table) => [
+    uniqueIndex("milestone_submissions_milestone_round_unique").on(
+      table.milestoneId,
+      table.roundNumber
+    ),
+    index("milestone_submissions_submitted_by_idx").on(table.submittedBy),
+    check("milestone_submissions_round_positive", sql`${table.roundNumber} > 0`),
+  ]
+);
+
 export const deliverables = pgTable(
   "deliverables",
   {
@@ -117,6 +146,12 @@ export const deliverables = pgTable(
     milestoneId: fk("milestone_id")
       .notNull()
       .references(() => milestones.id, {
+        onDelete: "cascade",
+        onUpdate: "cascade",
+      }),
+    submissionId: fk("submission_id")
+      .notNull()
+      .references(() => milestoneSubmissions.id, {
         onDelete: "cascade",
         onUpdate: "cascade",
       }),
@@ -132,6 +167,7 @@ export const deliverables = pgTable(
   },
   (table) => [
     index("deliverables_milestone_idx").on(table.milestoneId),
+    index("deliverables_submission_idx").on(table.submissionId),
     index("deliverables_submitted_by_idx").on(table.submittedBy),
   ]
 );
@@ -143,6 +179,12 @@ export const milestoneReviews = pgTable(
     milestoneId: fk("milestone_id")
       .notNull()
       .references(() => milestones.id, {
+        onDelete: "cascade",
+        onUpdate: "cascade",
+      }),
+    submissionId: fk("submission_id")
+      .notNull()
+      .references(() => milestoneSubmissions.id, {
         onDelete: "cascade",
         onUpdate: "cascade",
       }),
@@ -160,6 +202,10 @@ export const milestoneReviews = pgTable(
     updatedAt: updatedAt(),
   },
   (table) => [
+    uniqueIndex("milestone_reviews_submission_role_unique").on(
+      table.submissionId,
+      table.reviewerRole
+    ),
     index("milestone_reviews_milestone_idx").on(table.milestoneId),
     index("milestone_reviews_reviewer_idx").on(table.reviewerId),
     index("milestone_reviews_reviewer_role_idx").on(table.reviewerRole),
@@ -168,6 +214,41 @@ export const milestoneReviews = pgTable(
       table.reviewerRole,
       table.createdAt
     ),
+  ]
+);
+
+/** Formal project close-out decisions; separate from milestone reviews and feedback. */
+export const projectFinalReviews = pgTable(
+  "project_final_reviews",
+  {
+    id: id(),
+    projectId: fk("project_id")
+      .notNull()
+      .references(() => projects.id, {
+        onDelete: "cascade",
+        onUpdate: "cascade",
+      }),
+    roundNumber: integer("round_number").notNull(),
+    reviewerId: fk("reviewer_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "restrict", onUpdate: "cascade" }),
+    reviewerOrganizationId: fk("reviewer_organization_id").references(
+      () => organizations.id,
+      { onDelete: "set null", onUpdate: "cascade" }
+    ),
+    reviewerRole: milestoneReviewRole("reviewer_role").notNull(),
+    decision: milestoneReviewDecision("decision").notNull(),
+    comments: text("comments"),
+    createdAt: createdAt(),
+  },
+  (table) => [
+    uniqueIndex("project_final_reviews_project_round_role_unique").on(
+      table.projectId,
+      table.roundNumber,
+      table.reviewerRole
+    ),
+    index("project_final_reviews_reviewer_idx").on(table.reviewerId),
+    check("project_final_reviews_round_positive", sql`${table.roundNumber} > 0`),
   ]
 );
 
