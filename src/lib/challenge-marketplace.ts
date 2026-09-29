@@ -10,6 +10,7 @@ import type {
   EligibilityEvaluation,
 } from "@/services/challenge-policy";
 import type { AuthenticatedActor } from "@/auth/authenticated-actor";
+import { applicationDeadlineCampusDate } from "@/lib/dates";
 
 export type MarketplaceSortKey =
   | "deadline"
@@ -346,7 +347,7 @@ function splitList(value: string | null) {
 
 function dateKey(value: Date | null) {
   if (!value) return "9999-12-31";
-  return value.toISOString().slice(0, 10);
+  return applicationDeadlineCampusDate(value);
 }
 
 function sanitizeSearch(value: string | undefined) {

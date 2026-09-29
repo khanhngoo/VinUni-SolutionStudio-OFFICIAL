@@ -51,11 +51,22 @@ export function FacultyQueue({
 }: FacultyQueueProps) {
   const [invites, setInvites] = useState(initialInvites);
   const [milestones, setMilestones] = useState(initialMilestones);
+  // Server actions revalidate /faculty; when fresh rows arrive, they replace
+  // the optimistic local copies so no stale row survives an action.
+  const [serverRows, setServerRows] = useState({ initialInvites, initialMilestones });
+  if (
+    serverRows.initialInvites !== initialInvites ||
+    serverRows.initialMilestones !== initialMilestones
+  ) {
+    setServerRows({ initialInvites, initialMilestones });
+    setInvites(initialInvites);
+    setMilestones(initialMilestones);
+  }
   // Feedback rows cannot be resolved from here yet, so this list never changes.
   const feedback = initialFeedback;
-  // Accepting a supervision consumes a slot, so the load bar has to move with
-  // it — otherwise it keeps reporting the seeded number all session.
-  const [slotsUsed, setSlotsUsed] = useState(faculty.slotsUsed);
+  // Load counts unfinished supervised projects (server-derived). Accepting a
+  // supervision request creates no project, so nothing is added locally.
+  const slotsUsed = faculty.slotsUsed;
   const [error, setError] = useState<string | null>(null);
 
   const [typeFilter, setTypeFilter] = useState<Record<ItemKind, boolean>>({
@@ -154,15 +165,24 @@ export function FacultyQueue({
 
         <div className="bg-card border border-line rounded-card p-3.5">
           <h3 className="mb-2">Supervision load</h3>
-          <p className="text-body text-ink-2 mb-1.5">
-            {slotsUsed} of {faculty.slotsTotal} slots
-          </p>
-          <div className="h-1.5 rounded-full bg-line-2 overflow-hidden">
-            <div
-              className={cn("h-full", atCapacity ? "bg-warn" : "bg-brand")}
-              style={{ width: `${slotsPct}%` }}
-            />
-          </div>
+          {faculty.slotsTotal > 0 ? (
+            <>
+              <p className="text-body text-ink-2 mb-1.5">
+                {slotsUsed} of {faculty.slotsTotal} slots
+              </p>
+              <div className="h-1.5 rounded-full bg-line-2 overflow-hidden">
+                <div
+                  className={cn("h-full", atCapacity ? "bg-warn" : "bg-brand")}
+                  style={{ width: `${slotsPct}%` }}
+                />
+              </div>
+            </>
+          ) : (
+            <p className="text-body text-ink-2">
+              {slotsUsed} active project{slotsUsed === 1 ? "" : "s"} · no
+              capacity limit set
+            </p>
+          )}
           {atCapacity ? (
             <p className="text-meta text-warn mt-2">
               At capacity — you cannot take on another team.
@@ -200,12 +220,10 @@ export function FacultyQueue({
                   atCapacity={atCapacity}
                   onAccept={async () => {
                     setError(null);
-                    setSlotsUsed((n) => n + 1);
                     setInvites((prev) => prev.filter((i) => i.requestId !== item.requestId));
                     const message = await onAcceptInvite?.(item.requestId);
                     if (message) {
                       setError(message);
-                      setSlotsUsed((n) => Math.max(n - 1, 0));
                       setInvites((prev) => [...prev, item]);
                     }
                   }}
@@ -401,7 +419,8 @@ function InviteRow({
           <>
             Team of {item.teamSize}
             {item.colleges.length > 0 ? ` · ${item.colleges.join(", ")}` : ""} ·{" "}
-            {item.durationWeeks ?? "—"} wks · {item.hoursPerWeek ?? "—"} h/wk ·{" "}
+            {item.durationWeeks !== null ? `${item.durationWeeks} wks · ` : ""}
+            {item.hoursPerWeek !== null ? `${item.hoursPerWeek} h/wk · ` : ""}
             <span className={responseState === "EXPIRED" || responseState === "DUE_TODAY" ? "text-warn font-medium" : undefined}>
               {responseState === "EXPIRED"
                 ? "response deadline passed"

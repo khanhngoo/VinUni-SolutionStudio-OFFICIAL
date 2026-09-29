@@ -68,7 +68,7 @@ export function DetailHeader({ challenge }: DetailHeaderProps) {
           }
         />
         <Stat
-          label="Starts"
+          label="Planned start"
           value={challenge.startDate ? formatDate(challenge.startDate) : "TBD"}
         />
         <Stat

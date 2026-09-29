@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 
 import { getAuthenticatedActor, hasActorCapability } from "@/auth/authenticated-actor";
+import { endOfCampusDate } from "@/lib/dates";
 import {
   ChallengeWriteError,
   createChallengeDraft,
@@ -57,7 +58,7 @@ export async function createChallengeDraftAction(formData: FormData) {
   try {
     const created = await createChallengeDraft(
       {
-        applicationDeadline: dateValue(formData, "applicationDeadline"),
+        applicationDeadline: applicationDeadlineValue(formData),
         compensationType: compensationTypeValue(formData),
         description: stringValue(formData, "description"),
         domain: optionalString(formData, "domain"),
@@ -139,10 +140,12 @@ function optionalInteger(formData: FormData, name: string) {
   return Number.isInteger(parsed) ? parsed : Number.NaN;
 }
 
-function dateValue(formData: FormData, name: string) {
-  const value = stringValue(formData, name);
-  if (!value) return null;
-  const parsed = new Date(value);
+// The form's date input is a campus calendar date; applications stay open
+// through the end of that date (see effectiveApplicationDeadline).
+function applicationDeadlineValue(formData: FormData) {
+  const value = stringValue(formData, "applicationDeadline");
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
+  const parsed = endOfCampusDate(value);
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 

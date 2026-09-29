@@ -36,7 +36,7 @@ import {
 } from "@/db/mutations/challenge-access";
 import { evaluateChallengeEligibility } from "@/services/challenge-policy";
 import { isPublicId } from "@/lib/public-id";
-import { addCampusWorkingDays } from "@/lib/dates";
+import { addCampusWorkingDays, effectiveApplicationDeadline } from "@/lib/dates";
 import {
   canAccessApplicationDetail,
   canAccessChallengeApplications,
@@ -214,7 +214,10 @@ export function applicationWindow(
   if (!APPLICATION_OPEN_STATUSES.includes(challenge.status)) {
     return { isOpen: false, reason: "NOT_OPEN" };
   }
-  if (challenge.applicationDeadline && now > challenge.applicationDeadline) {
+  if (
+    challenge.applicationDeadline &&
+    now > effectiveApplicationDeadline(challenge.applicationDeadline)
+  ) {
     return { isOpen: false, reason: "DEADLINE_PASSED" };
   }
   return { isOpen: true };
@@ -644,7 +647,7 @@ function validateChallengeAcceptsApplications(
     throw new ApplicationError(
       "INVALID_TRANSITION",
       "Application deadline has passed.",
-      [`Deadline: ${challenge.applicationDeadline!.toISOString()}`]
+      [`Deadline: ${effectiveApplicationDeadline(challenge.applicationDeadline!).toISOString()}`]
     );
   }
 }

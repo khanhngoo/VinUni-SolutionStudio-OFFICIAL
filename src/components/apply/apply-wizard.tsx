@@ -261,12 +261,7 @@ export function ApplyWizard({
             Back
           </button>
         ) : (
-          <Link
-            href={`/challenges/${challenge.id}`}
-            className="inline-flex items-center h-10 px-5 rounded-card border border-line text-brand font-semibold hover:border-brand hover:text-brand"
-          >
-            Save draft
-          </Link>
+          <span />
         )}
 
         <button

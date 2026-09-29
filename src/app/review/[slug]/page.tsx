@@ -115,7 +115,7 @@ export default async function ReviewChallengeDetailPage({
             value={challenge.applicationDeadline ? formatDate(challenge.applicationDeadline) : "None set"}
           />
           <Row
-            label="Starts"
+            label="Planned start"
             value={challenge.startDate ? formatDateOnlyString(challenge.startDate) : "Not set"}
           />
           <Row

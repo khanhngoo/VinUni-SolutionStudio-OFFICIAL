@@ -5,6 +5,11 @@ interface AssessmentSectionProps {
   challenge: MarketplaceChallengeDetailModel;
 }
 
+/**
+ * Describes only what is configured: an active assessment (if any) reviewed by
+ * the team's faculty supervisor, then a direct partner decision. The Studio
+ * schedules no interview and runs no proctoring service.
+ */
 export function AssessmentSection({ challenge }: AssessmentSectionProps) {
   const assessment = challenge.assessmentSummary;
 
@@ -14,21 +19,24 @@ export function AssessmentSection({ challenge }: AssessmentSectionProps) {
         <div className="bg-card border border-line rounded-card px-4 py-3.5">
           <h3 className="mb-1.5">Assessment</h3>
           <p className="font-semibold text-[13.5px]">
-            {assessment?.trackLabel ?? "Set before applications close"}
+            {assessment?.trackLabel ?? "No assessment configured"}
           </p>
           <p className="text-meta text-ink-3 mt-1">
-            {assessment?.timeLimitMinutes
-              ? `${assessment.timeLimitMinutes} minutes · proctored and lockdown · 7-day window`
-              : "Proctored and lockdown · 7-day window"}
+            {assessment
+              ? `${
+                  assessment.timeLimitMinutes
+                    ? `${assessment.timeLimitMinutes} minutes · `
+                    : ""
+                }single attempt in fullscreen · reviewed by your faculty supervisor`
+              : "Applications go to partner selection once your supervisor confirms."}
           </p>
         </div>
         <div className="bg-card border border-line rounded-card px-4 py-3.5">
-          <h3 className="mb-1.5">Interview</h3>
-          <p className="font-semibold text-[13.5px]">
-            {challenge.interviewFormat ?? "Scheduled after assessment review"}
-          </p>
+          <h3 className="mb-1.5">Partner selection</h3>
+          <p className="font-semibold text-[13.5px]">Direct decision by the partner</p>
           <p className="text-meta text-ink-3 mt-1">
-            Scheduled after your assessment passes.
+            The partner reviews eligible applications. A selected team&apos;s
+            leader receives an offer to accept.
           </p>
         </div>
       </div>

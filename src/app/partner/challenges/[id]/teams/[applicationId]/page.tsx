@@ -108,9 +108,10 @@ export default async function PartnerTeamPage({
       ? countdownLabel(offer.respondBy.toISOString())
       : null;
 
-  const assessment = application.assessmentSummaries.find(
-    (summary) => summary.overallBand !== null
-  );
+  const stageLabel =
+    application.status === "SELECTION_PENDING"
+      ? "Ready for selection"
+      : STAGE_LABELS[stage];
 
   return (
     <div className="max-w-[900px] mx-auto px-6 sm:px-7 py-7 pb-16">
@@ -134,7 +135,7 @@ export default async function PartnerTeamPage({
             {application.submittedAt ? ` · applied ${formatDate(application.submittedAt.toISOString())}` : ""}
           </p>
         </div>
-        <Chip variant="solid">{STAGE_LABELS[stage]}</Chip>
+        <Chip variant="solid">{stageLabel}</Chip>
       </div>
 
       {offerLeft ? (
@@ -160,7 +161,7 @@ export default async function PartnerTeamPage({
         </Banner>
       ) : null}
 
-      <Section title="Members" aside={`${team.members.length} listed`}>
+      <Section title="Members" aside={`${confirmed.length} confirmed`}>
         <PartnerTeamRoster challenge={challenge} directory={directory} team={team} />
       </Section>
 
@@ -264,22 +265,34 @@ export default async function PartnerTeamPage({
         <TeamFit team={team} challenge={challenge} />
       </Section>
 
-      {assessment?.overallBand ? (
-        <Section title="Assessment">
-          <div className="bg-card border border-line rounded-card p-5">
-            <div className="flex flex-wrap items-center gap-2">
-              <Chip variant={bandChipVariant(toBand(assessment.overallBand))}>
-                {assessment.overallBand} overall
-              </Chip>
-              {assessment.submittedAt ? (
-                <span className="text-meta text-ink-3">
-                  Submitted {formatDate(assessment.submittedAt.toISOString())}
-                </span>
-              ) : null}
-            </div>
-            <p className="text-meta text-ink-3 mt-3 leading-relaxed">
-              Bands only. The platform does not show a partner a numeric score
-              or a rank against other applicants.
+      {application.assessmentSummaries.length > 0 ? (
+        <Section title="Assessment on this challenge">
+          <div className="bg-card border border-line rounded-card p-5 flex flex-col gap-3">
+            {application.assessmentSummaries.map((assessment, index) => {
+              const result = assessmentResult(assessment);
+              return (
+                <div key={index} className="flex flex-wrap items-center gap-2">
+                  <span className="font-medium text-ink">
+                    {assessment.assessmentTitle ?? "Assessment"}
+                  </span>
+                  <Chip variant={result.variant}>{result.label}</Chip>
+                  {assessment.overallBand ? (
+                    <Chip variant={bandChipVariant(toBand(assessment.overallBand))}>
+                      {assessment.overallBand} overall
+                    </Chip>
+                  ) : null}
+                  {assessment.submittedAt ? (
+                    <span className="text-meta text-ink-3">
+                      Submitted {formatDate(assessment.submittedAt.toISOString())}
+                    </span>
+                  ) : null}
+                </div>
+              );
+            })}
+            <p className="text-meta text-ink-3 leading-relaxed">
+              The team&apos;s faculty supervisor records the authoritative
+              result. The platform does not show a partner a numeric score or a
+              rank against other applicants.
             </p>
           </div>
         </Section>
@@ -292,6 +305,27 @@ export default async function PartnerTeamPage({
       </p>
     </div>
   );
+}
+
+function assessmentResult(assessment: {
+  attemptStatus: string;
+  hasReviewedResult: boolean;
+  passed: boolean | null;
+}): { label: string; variant: "ok" | "warn" | "default" } {
+  if (assessment.hasReviewedResult) {
+    if (assessment.passed === true) return { label: "Passed", variant: "ok" };
+    if (assessment.passed === false) {
+      return { label: "Below the pass threshold", variant: "warn" };
+    }
+    return { label: "Reviewed · no pass threshold configured", variant: "default" };
+  }
+  if (assessment.attemptStatus === "SUBMITTED") {
+    return { label: "Submitted · awaiting review", variant: "default" };
+  }
+  if (assessment.attemptStatus === "IN_PROGRESS") {
+    return { label: "In progress", variant: "default" };
+  }
+  return { label: "Not started", variant: "default" };
 }
 
 /** Bands come back from jsonb as free text; anything unrecognised is not a band. */

@@ -1,5 +1,6 @@
 import type { DirectoryStudentRead, FacultyOptionRead, PeerRead } from "@/db/queries/students";
 import type { PartnerChallengeDetailRead } from "@/db/queries/partner";
+import { applicationDeadlineCampusDate } from "@/lib/dates";
 import {
   challengeDeliverables,
   challengeDomainTags,
@@ -206,7 +207,7 @@ export function toApplyChallenge(detail: MarketplaceChallengeDetailModel): Chall
     compensation: COMPENSATION_LABELS[detail.compensationType] ?? "Unpaid",
     confidential: !detail.ownerOrganization.nameIsPublic,
     deadline: detail.applicationDeadline
-      ? new Date(detail.applicationDeadline).toISOString()
+      ? applicationDeadlineCampusDate(new Date(detail.applicationDeadline))
       : "",
     domainTags: challengeDomainTags(detail),
     durationWeeks: detail.durationWeeks ?? 0,
@@ -272,7 +273,9 @@ export function toPartnerOwnedApplyChallenge(
     colleges: eligibleColleges,
     compensation: COMPENSATION_LABELS[detail.compensationType] ?? "Unpaid",
     confidential: detail.visibility !== "PUBLIC_PREVIEW",
-    deadline: detail.applicationDeadline?.toISOString() ?? "",
+    deadline: detail.applicationDeadline
+      ? applicationDeadlineCampusDate(detail.applicationDeadline)
+      : "",
     domainTags: detail.domain ? [detail.domain] : [],
     durationWeeks: detail.durationWeeks ?? 0,
     eligibleColleges: eligibleColleges.length > 0 ? eligibleColleges : null,

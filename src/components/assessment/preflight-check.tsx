@@ -123,17 +123,17 @@ export function PreflightCheck({
 
       <section className="mt-7">
         <h2 className="marker-triangle text-brand mb-3">
-          What is monitored
+          Rules during the test
         </h2>
         <div className="bg-card border border-line rounded-card p-5">
           <ul className="flex flex-col gap-2 text-ink-2">
             <Rule>
-              The assessment runs in fullscreen. Leaving fullscreen is recorded.
+              The assessment runs in fullscreen. Leaving fullscreen counts as a warning.
             </Rule>
             <Rule>
-              Switching tabs or windows is counted.{" "}
+              Switching tabs or windows counts as a warning.{" "}
               <strong className="text-ink font-semibold">
-                Three violations submits your test automatically.
+                Three warnings submit your test automatically.
               </strong>
             </Rule>
             <Rule>

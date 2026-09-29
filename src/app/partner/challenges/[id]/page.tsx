@@ -8,7 +8,11 @@ import { countdownLabel } from "@/lib/pipeline";
 import { groupIntoPipeline } from "@/lib/pipeline-columns";
 import { Section } from "@/components/ui/section";
 import { listActiveCanonicalSkills } from "@/db/queries/skills";
-import { formatDate as formatDateOnlyString, formatNullableDate as formatDate } from "@/lib/dates";
+import {
+  effectiveApplicationDeadline,
+  formatDate as formatDateOnlyString,
+  formatNullableDate as formatDate,
+} from "@/lib/dates";
 import { getPartnerChallengePage } from "@/services/partner.service";
 import { applicationWindow } from "@/services/application.service";
 import { listChallengeCandidateAccess } from "@/services/challenge-access.service";
@@ -260,7 +264,7 @@ export default async function PartnerChallengePage({
           )}
           {challenge.applicationDeadline ? (
             <p className="text-meta text-ink-3 mt-2">
-              Expiry must not exceed the application deadline: {formatCampusDateTime(challenge.applicationDeadline)}.
+              Expiry must not exceed the application deadline: {formatCampusDateTime(effectiveApplicationDeadline(challenge.applicationDeadline))}.
             </p>
           ) : null}
 
@@ -395,7 +399,7 @@ export default async function PartnerChallengePage({
                 }
               />
               <Row
-                label="Starts"
+                label="Planned start"
                 value={challenge.startDate ? formatDateOnlyString(challenge.startDate) : "Not set"}
               />
             </dl>

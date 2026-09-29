@@ -1,5 +1,6 @@
 import type { AuthenticatedActor } from "@/auth/authenticated-actor";
 import { db } from "@/db";
+import { applicationDeadlineCampusDate } from "@/lib/dates";
 import {
   getChallengeWriteActorByEmail,
   getChallengeWriteOrganizationById,
@@ -859,7 +860,7 @@ function isDateOnly(value: string) {
 }
 
 function dateOnlyKey(value: Date) {
-  return value.toISOString().slice(0, 10);
+  return applicationDeadlineCampusDate(value);
 }
 
 function sameId(a: bigint, b: bigint) {

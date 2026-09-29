@@ -496,8 +496,10 @@ async function loadOfferContext(
   if (!offer) return null;
 
   const member = await getOfferMember(database, offer.application.id, actor.userId);
-  if (!member) {
-    throw new OfferError("FORBIDDEN", "Actor is not an application member.");
+  // Only accepted team members see offer terms; a declined or still-invited
+  // invitee is isolated exactly like an unrelated student.
+  if (!member || member.status !== "ACCEPTED") {
+    throw new OfferError("FORBIDDEN", "Actor is not an accepted application member.");
   }
 
   return { member, offer };

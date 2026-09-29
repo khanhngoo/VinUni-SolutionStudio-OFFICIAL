@@ -17,7 +17,7 @@ import {
 import { listStudentTeamProfiles } from "@/db/queries/students";
 import { toTeam } from "@/lib/apply-view";
 import { eligibilityReasons } from "@/lib/challenge-marketplace";
-import { formatDate } from "@/lib/dates";
+import { applicationDeadlineCampusDate, formatDate } from "@/lib/dates";
 import { evaluateChallengeEligibility } from "@/services/challenge-policy";
 
 import { InvitationDecision } from "./invitation-decision";
@@ -107,7 +107,7 @@ export default async function InvitationPage({
         </div>
         {application.challenge.applicationDeadline ? (
           <Chip variant="warn">
-            Reply by {formatDate(application.challenge.applicationDeadline.toISOString())}
+            Reply by {formatDate(applicationDeadlineCampusDate(application.challenge.applicationDeadline))}
           </Chip>
         ) : null}
       </div>
@@ -124,7 +124,7 @@ export default async function InvitationPage({
             value={challenge?.durationWeeks ? `${challenge.durationWeeks} weeks` : "—"}
           />
           <Stat
-            label="Starts"
+            label="Planned start"
             value={challenge?.startDate ? formatDate(challenge.startDate) : "—"}
           />
         </dl>

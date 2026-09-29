@@ -164,14 +164,14 @@ function overlayContent(
     case "fullscreen":
       return {
         title: `Return to fullscreen. Warning ${warning.count} of ${limit}.`,
-        body: "Leaving fullscreen is recorded. Your timer has continued running.",
+        body: "Leaving fullscreen counts as a warning. Your timer has continued running.",
         action: "Return to fullscreen",
         tone: "warn",
       };
     case "tab":
       return {
         title: `Stay on this tab. Warning ${warning.count} of ${limit}.`,
-        body: "Switching tabs or windows is recorded. Your timer has continued running.",
+        body: "Switching tabs or windows counts as a warning. Your timer has continued running.",
         action: "Continue",
         tone: "warn",
       };

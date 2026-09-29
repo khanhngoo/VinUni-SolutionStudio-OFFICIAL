@@ -51,6 +51,27 @@ export function addCampusWorkingDays(from: Date, workingDays: number): Date {
   );
 }
 
+/**
+ * Challenge application deadlines are campus calendar dates. "Applications
+ * close 15 Nov" means applications stay valid through 23:59:59.999 on 15 Nov in
+ * Asia/Ho_Chi_Minh. A stored instant (whatever its time of day) is read as the
+ * campus date it falls on, so display and server validation agree for new and
+ * existing rows alike.
+ */
+export function applicationDeadlineCampusDate(deadline: Date): string {
+  return dayKey(deadline.toISOString());
+}
+
+/** The authoritative closing instant: end of the deadline's campus date. */
+export function effectiveApplicationDeadline(deadline: Date): Date {
+  return endOfCampusDate(applicationDeadlineCampusDate(deadline));
+}
+
+/** "2026-11-15" → 2026-11-15T16:59:59.999Z (UTC+7, no daylight saving). */
+export function endOfCampusDate(campusDate: string): Date {
+  return new Date(`${campusDate}T16:59:59.999Z`);
+}
+
 const MS_PER_DAY = 86_400_000;
 
 /** "2026-08-03" — no time component. Datetimes always carry a `T`. */
@@ -78,9 +99,22 @@ export function daysUntil(iso: string): number {
   return Math.round((target.getTime() - now().getTime()) / MS_PER_DAY);
 }
 
+/**
+ * Whole campus calendar days from today to a deadline's campus date. A
+ * deadline is open through the end of its date, so late evening on the day is
+ * still "today", never "Closed".
+ */
+export function campusDaysUntil(iso: string): number {
+  const target = DATE_ONLY.test(iso) ? iso : dayKey(iso);
+  const today = dayKey(now().toISOString());
+  return Math.round(
+    (Date.parse(`${target}T00:00:00Z`) - Date.parse(`${today}T00:00:00Z`)) / MS_PER_DAY
+  );
+}
+
 /** "Closes in 16 days" / "Closes in 3 days" / "Closes today" / "Closed". */
 export function deadlineLabel(isoDate: string): string {
-  const days = daysUntil(isoDate);
+  const days = campusDaysUntil(isoDate);
   if (days < 0) return "Closed";
   if (days === 0) return "Closes today";
   if (days === 1) return "Closes tomorrow";
@@ -89,7 +123,7 @@ export function deadlineLabel(isoDate: string): string {
 
 /** Under a week left reads as urgent and gets the warn treatment. */
 export function isUrgent(isoDate: string): boolean {
-  const days = daysUntil(isoDate);
+  const days = campusDaysUntil(isoDate);
   return days >= 0 && days <= 7;
 }
 

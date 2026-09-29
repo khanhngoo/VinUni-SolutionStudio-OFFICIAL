@@ -83,7 +83,7 @@ export default async function PartnerProjectPage({
               ? ` · supervised by ${detail.project.supervisorName}`
               : ""}
             {detail.project.startDate
-              ? ` · ${new Date(`${detail.project.startDate}T00:00:00Z`) > new Date() ? "starts" : "started"} ${formatDate(detail.project.startDate)}`
+              ? ` · planned start ${formatDate(detail.project.startDate)}`
               : ""}
           </p>
         </div>

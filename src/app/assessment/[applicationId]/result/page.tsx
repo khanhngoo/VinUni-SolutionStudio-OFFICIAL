@@ -50,8 +50,8 @@ export default async function AssessmentResultPage({
               : "Awaiting review"}
           </p>
           <p className="text-ink-2 mt-1.5 max-w-[46ch] mx-auto">
-            Results are consolidated before anyone sees them. You&apos;ll be
-            notified when yours is ready, typically within three working days.
+            Your faculty supervisor reviews the submission. The result appears
+            on this page once it has been recorded.
           </p>
           <Link
             href={
@@ -143,12 +143,9 @@ export default async function AssessmentResultPage({
           {passed === true ? (
             <>
               <p className="text-ink">
-                Your result goes to the partner with the rest of the shortlist.
-                If they move you forward, you&apos;ll be asked to book an
-                interview slot.
-              </p>
-              <p className="text-meta text-ink-3 mt-2">
-                Decisions typically follow within five working days.
+                Your application is now with the partner, who reviews eligible
+                applications and decides directly. If your team is selected,
+                the team leader receives an offer to accept.
               </p>
             </>
           ) : passed === false ? (
@@ -158,8 +155,8 @@ export default async function AssessmentResultPage({
                 final for this application.
               </p>
               <p className="text-meta text-ink-3 mt-2">
-                You can apply to other challenges after a cooldown on this
-                assessment track. Your other applications are unaffected.
+                You can still apply to other challenges. Your other
+                applications are unaffected.
               </p>
             </>
           ) : (

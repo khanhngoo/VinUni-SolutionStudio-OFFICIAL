@@ -3,7 +3,7 @@
 **Repository:** `VinUni-SolutionStudio-OFFICIAL`
 **Project:** VinUniversity Solution Studio / AI-in-Action Platform
 **Last updated:** 2026-09-29
-**Current phase:** Phase 6.6.9 isolated E2E acceptance complete and ready for final Phase 6.6 human review; Phase 8 is not authorized
+**Current phase:** Phase 6.6.9 acceptance and P1–P5 cleanup complete; Phase 6.6 awaits final human approval; Phase 8 is not authorized
 
 ---
 
@@ -2973,13 +2973,87 @@ selected", terms) read-only. P5 — a project can complete before its
 closes"; wizard shows "already submitted" instead of success; "3 members"
 counts a declined invitee; stale faculty-queue row until reload after approval.
 
-**Remaining blocker:** none. **Next checkpoint:** final Phase 6.6 human
-review of this ledger, F1 and findings P1–P5; Phase 8 is not authorized by
-this record.
+**Remaining blocker:** none. Findings P1–P5 were decided and resolved in the
+cleanup below. Phase 8 is not authorized by this record.
+
+### 6.6.9 final acceptance cleanup — 2026-09-29
+
+**Human decisions (P1–P5).** P1 FIX: a date-only application deadline means
+the end of the displayed campus date (Asia/Ho_Chi_Minh). P2 FIX COPY: no
+proctoring, interview or timed-notification promises unless configured. P3
+FIX: the owner-scoped team review shows the truthful challenge-specific
+assessment result; broader directory views use privacy-preserving wording.
+P4 FIX ACCESS: declined / non-accepted invitees get the same controlled 404 as
+unrelated actors on the offer page; the accepted leader stays the only
+responder; accepted members keep read-only visibility. P5 ACCEPTED SEMANTICS:
+project/offer `start_date` is a planned start, not a lifecycle gate; early work
+and completion are allowed; label it "Planned start". No schema change.
+
+**Fixes (no migration, no schema/DBML change).**
+- P1: `src/lib/dates.ts` adds `applicationDeadlineCampusDate`,
+  `effectiveApplicationDeadline` (23:59:59.999 campus on that date) and
+  `endOfCampusDate`; `deadlineLabel`/`isUrgent` count campus calendar days.
+  Server checks use the effective instant (`applicationWindow`, candidate
+  grant expiry and grant/apply windows in `challenge-access.service`); the
+  partner form stores the end-of-campus-day instant; the draft
+  deadline ≤ start check, marketplace/detail/apply/invitation/assessment
+  displays and the partner grant form use the same campus date. Existing rows
+  (any time of day) normalise identically, so no data migration.
+- P2: challenge "How you'll be assessed" reflects the configured assessment
+  (or "No assessment configured") and a direct partner decision; the timeline
+  is Applied → Supervision → Assessment (if configured) → Selection → Offer →
+  Kickoff with no durations; assessment preflight/runner say "Fullscreen
+  lockdown" and "counts as a warning" (violations are client-side only, not
+  recorded); result pages drop the three-working-day notification, interview,
+  five-day decision and cooldown promises.
+- P3: `selectAssessmentSummaries` derives `passed` from the authoritative
+  `overall_score ≥ passing_score` (legacy seeded rubric verdict as fallback);
+  the owner team page shows "Ready for selection" and "Assessment on this
+  challenge: Passed / Below the pass threshold / Submitted · awaiting review /
+  …" (still no numeric score to partners); the roster drops the directory
+  "Assessed not yet" claim and labels "Brief fit"; directory cards and
+  recommendation caveats say "Assessment result not available in this view."
+- P4: `loadOfferContext` (offer page, response and NDA actions) requires an
+  ACCEPTED application member; others → FORBIDDEN → 404.
+- P5: workspace, partner project, offer, application, invitation, review and
+  challenge detail show "Planned start"; "Started"/"starts" inference removed.
+- Minor: "Save draft" (saved nothing) removed from the apply wizard; "closes
+  closes" fixed; `/applications` and the partner team page count accepted
+  members only; faculty load shows "N active projects · no capacity limit set"
+  when no capacity is configured and no longer adds a phantom slot on
+  supervision acceptance; the invitation row shows real weeks/hours or omits
+  them; the faculty queue resyncs its optimistic rows when `/faculty`
+  revalidates (no stale row after an action).
+
+**Evidence.** New `scripts/verify-application-deadline.ts`: for three stored
+forms (end-of-day, legacy 00:00 UTC, legacy midday) the campus date is the
+displayed date, applications are accepted at 00:00, 07:30, 12:00 and 23:59:59
+campus on the deadline date and rejected the next day. Playwright (OBSERVED, fresh
+disposable DB `7690934904846589994`, 29 Sep 19:36 campus): challenge with
+deadline 29 Sep shows "Applications close 29 Sept 2026 · Closes today" and
+accepted a team application at 19:37:16 (DB: submitted ≤ deadline 23:59:59.999
+campus); deadline 28 Sep shows "Closed" and the wizard refuses. Challenge,
+preflight and result pages contain none of proctor/interview/notification/
+working-day/cooldown/recorded wording. After grading 80 ≥ 60 the owner team page
+shows "Ready for selection" and "Passed"; directory shows the privacy wording
+and no "not sat". Offer: declined invitee and unrelated student 404 (before and
+after acceptance, no inbox offer link); accepted teammate 200 read-only; leader
+Accept/Decline and acceptance work. Faculty queue: "8 wks · 10 h/wk", "0 active
+projects · no capacity limit set" before and after acceptance; approving a
+milestone from the queue removed the row and showed the final-review item
+without reload. Completed project renders "Completed · Planned start 1 Dec
+2026" (workspace, partner project, application, offer) with zero write
+controls; `/applications` shows "2 members". No HTTP 500s. All 31 verifiers
+(including Phase 6.3 authorization and offer provisioning), TypeScript,
+ESLint, `git diff --check`, `drizzle-kit check`/generate (no drift, no 0009)
+and the webpack build pass. The disposable DB was destroyed; the ordinary DB
+(same identifier) is data-identical. OrbStack had stopped during the session
+and was restarted, together with the ordinary DB container, without data
+change.
 
 ## Phase 6.6 exit criteria
 
-Status after 6.6.9 (agent evaluation; human approval pending):
+Status after 6.6.9 and its cleanup (agent evaluation):
 
 - [x] Every required major lifecycle state is reachable through authorized
   runtime actions, not merely seeded fixtures. *(Assessment definitions remain
@@ -2988,12 +3062,11 @@ Status after 6.6.9 (agent evaluation; human approval pending):
   pass negative regression tests.
 - [x] Deadline, scoring, selection, offer, and milestone integrity withstand
   stale requests and concurrent retries.
-- [ ] Stakeholder-facing copy, catalog counts, and demo chronology are honest.
-  *Partially: action gates and lifecycle labels are honest; P1–P5 need a human
-  decision.*
+- [x] Stakeholder-facing copy, catalog counts, and demo chronology are honest.
+  *(P1–P5 and the minor items resolved and verified above.)*
 - [ ] The isolated Playwright multi-role scenario and DB assertions pass; a
   human reviews the evidence and approves the Phase 8 handoff. *Scenario and
-  assertions pass; human review/approval outstanding.*
+  assertions pass — AWAITING FINAL HUMAN APPROVAL.*
 
 ---
 
@@ -3211,14 +3284,14 @@ project files
 
 ## Current status
 
-**Current phase:** Phase 6.6.9 — isolated E2E acceptance COMPLETE / READY FOR
-FINAL PHASE 6.6 HUMAN REVIEW
+**Current phase:** Phase 6.6.9 — isolated E2E acceptance and P1–P5 cleanup
+COMPLETE; Phase 6.6 AWAITING FINAL HUMAN APPROVAL
 
 **Phase 6:** COMPLETE / READY FOR FINAL HUMAN REVIEW
 
-**Active next checkpoint:** Human review of the Phase 6.6.9 ledger, fix F1 and
-findings P1–P5. Phase 8 is not authorized until that review approves the
-handoff. Phase 7 remains deferred.
+**Active next checkpoint:** Final human approval of Phase 6.6 (6.6.9 ledger,
+fix F1 and the P1–P5 cleanup). Phase 8 is not authorized until that approval.
+Phase 7 remains deferred.
 
 ### Latest completed work
 
@@ -3230,7 +3303,11 @@ handoff. Phase 7 remains deferred.
   final review → COMPLETED, with DB evidence at every boundary, a negative-path
   ledger and all 30 focused verifiers passing. One client fix (apply wizard
   team validation). The disposable DB was destroyed; the ordinary DB was
-  verified unchanged. See the 6.6.9 completion record.
+  verified unchanged. See the 6.6.9 completion record. Follow-up cleanup
+  implemented the human P1–P5 decisions (campus end-of-day deadlines, honest
+  assessment/selection copy, owner-scoped assessment result, accepted-member
+  offer access, "Planned start") plus minor truthfulness fixes; exit
+  criteria 1–4 met, criterion 5 awaits final human approval.
 
 - 2026-09-28 Phase 6.6.5 — Assessment submission safety and live grading is
   COMPLETE / READY FOR HUMAN APPROVAL. Approved assessment threshold and

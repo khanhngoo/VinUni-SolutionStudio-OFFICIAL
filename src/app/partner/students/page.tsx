@@ -6,6 +6,7 @@ import { StudentCard } from "@/components/partner/student-card";
 import { Chip } from "@/components/ui/chip";
 import { db } from "@/db";
 import type { PartnerChallengeDetailRead } from "@/db/queries/partner";
+import { applicationDeadlineCampusDate } from "@/lib/dates";
 import { listDirectoryStudents } from "@/db/queries/students";
 import { toCollege, toDirectoryStudent } from "@/lib/apply-view";
 import { recommendationsFor } from "@/lib/recommendations";
@@ -161,7 +162,9 @@ function toCandidateComparisonChallenge(
           : "Unpaid",
     confidential:
       challenge.visibility === "PRIVATE" || challenge.visibility === "INVITE_ONLY",
-    deadline: challenge.applicationDeadline?.toISOString() ?? "",
+    deadline: challenge.applicationDeadline
+      ? applicationDeadlineCampusDate(challenge.applicationDeadline)
+      : "",
     domainTags: challenge.domain
       ? challenge.domain.split(",").map((tag) => tag.trim()).filter(Boolean)
       : [],

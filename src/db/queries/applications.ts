@@ -65,6 +65,7 @@ export interface ApplicationChallengeRead {
   teamSizeMax: number | null;
   teamSizeMin: number | null;
   title: string;
+  durationWeeks: number | null;
   weeklyHours: number | null;
 }
 
@@ -183,6 +184,7 @@ interface BaseApplicationRow {
   challengeTeamSizeMax: number | null;
   challengeTeamSizeMin: number | null;
   challengeTitle: string;
+  challengeDurationWeeks: number | null;
   challengeWeeklyHours: number | null;
   createdAt: Date | null;
   id: bigint;
@@ -321,6 +323,7 @@ async function selectBaseApplications(
       challengeTeamSizeMax: challenges.teamSizeMax,
       challengeTeamSizeMin: challenges.teamSizeMin,
       challengeTitle: challenges.title,
+      challengeDurationWeeks: challenges.durationWeeks,
       challengeWeeklyHours: challenges.weeklyHours,
       createdAt: applications.createdAt,
       id: applications.id,
@@ -529,6 +532,8 @@ async function selectAssessmentSummaries(
       assessmentTitle: assessments.title,
       attemptStatus: assessmentAttempts.status,
       scoreId: assessmentScores.id,
+      overallScore: assessmentScores.overallScore,
+      passingScore: assessments.passingScore,
       rubricScores: assessmentScores.rubricScores,
       submittedAt: assessmentAttempts.submittedAt,
     })
@@ -546,7 +551,7 @@ async function selectAssessmentSummaries(
       hasReviewedResult:
         row.attemptStatus === "REVIEWED" && row.scoreId !== null,
       overallBand: overallBandFromRubric(row.rubricScores),
-      passed: passedFromRubric(row.rubricScores),
+      passed: authoritativePassed(row),
       submittedAt: row.submittedAt,
     });
     grouped.set(row.applicationId, list);
@@ -688,6 +693,7 @@ function toListItem(
       teamSizeMax: row.challengeTeamSizeMax,
       teamSizeMin: row.challengeTeamSizeMin,
       title: row.challengeTitle,
+      durationWeeks: row.challengeDurationWeeks,
       weeklyHours: row.challengeWeeklyHours,
     },
     createdAt: row.createdAt,
@@ -728,6 +734,25 @@ function overallBandFromRubric(value: unknown) {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   const band = (value as { sourceOverallBand?: unknown }).sourceOverallBand;
   return typeof band === "string" ? band : null;
+}
+
+/**
+ * A reviewed numeric score against the assessment's configured threshold is
+ * the authoritative outcome (Phase 6.6.5); legacy seeded reviews without a
+ * numeric score fall back to their recorded rubric verdict.
+ */
+function authoritativePassed(row: {
+  attemptStatus: string | null;
+  overallScore: number | string | null;
+  passingScore: number | string | null;
+  rubricScores: unknown;
+  scoreId: bigint | null;
+}) {
+  if (row.attemptStatus !== "REVIEWED" || row.scoreId === null) return null;
+  if (row.overallScore !== null && row.passingScore !== null) {
+    return Number(row.overallScore) >= Number(row.passingScore);
+  }
+  return passedFromRubric(row.rubricScores);
 }
 
 function passedFromRubric(value: unknown) {

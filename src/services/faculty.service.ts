@@ -161,7 +161,7 @@ export async function getFacultyQueue(
           ? [application.challenge.ownerOrganization.name]
           : [],
         daysLeft: daysBetween(now, request.respondBy),
-        durationWeeks: null,
+        durationWeeks: application?.challenge.durationWeeks ?? null,
         hoursPerWeek: application?.challenge.weeklyHours ?? null,
         kind: "invite" as const,
         requestId: String(request.id),

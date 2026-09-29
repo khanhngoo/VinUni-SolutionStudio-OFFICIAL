@@ -375,8 +375,11 @@ function lockedWorkspaceClosedReason(
   return null;
 }
 
-/** An offer can start a project on a future date; "Started" would be false until then. */
+/**
+ * `start_date` is a planned start, not a lifecycle gate (v1): work and even
+ * completion may happen earlier, so it is never presented as "started".
+ */
 function startLabel(startDate: string | null) {
-  if (!startDate) return "Start date to be confirmed";
-  return daysUntil(startDate) > 0 ? `Starts ${formatDate(startDate)}` : `Started ${formatDate(startDate)}`;
+  if (!startDate) return "Planned start to be confirmed";
+  return `Planned start ${formatDate(startDate)}`;
 }

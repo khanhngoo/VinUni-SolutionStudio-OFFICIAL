@@ -1,4 +1,5 @@
 import { db } from "@/db";
+import { effectiveApplicationDeadline } from "@/lib/dates";
 import {
   getCandidateAccessChallengeBySlug,
   insertCandidateAccessGrant,
@@ -82,7 +83,10 @@ export async function grantCandidateAccess(
     assertOwnerCanManageAccess(challenge, actor);
     assertChallengeCanGrantAccess(challenge, now);
 
-    if (!challenge.applicationDeadline || input.expiresAt > challenge.applicationDeadline) {
+    if (
+      !challenge.applicationDeadline ||
+      input.expiresAt > effectiveApplicationDeadline(challenge.applicationDeadline)
+    ) {
       throw new CandidateAccessError(
         "VALIDATION_ERROR",
         "Access expiry must be on or before the challenge application deadline."
@@ -218,7 +222,10 @@ export async function canStudentAccessInviteOnlyChallenge(
   if (await studentHasChallengeApplication(database, challenge.id, studentId)) {
     return true;
   }
-  if (!challenge.applicationDeadline || now > challenge.applicationDeadline) {
+  if (
+    !challenge.applicationDeadline ||
+    now > effectiveApplicationDeadline(challenge.applicationDeadline)
+  ) {
     return false;
   }
 
@@ -261,7 +268,10 @@ function assertChallengeCanGrantAccess(
       "Publish the INVITE_ONLY challenge before granting candidate access."
     );
   }
-  if (!challenge.applicationDeadline || now > challenge.applicationDeadline) {
+  if (
+    !challenge.applicationDeadline ||
+    now > effectiveApplicationDeadline(challenge.applicationDeadline)
+  ) {
     throw new CandidateAccessError(
       "CONFLICT",
       "The challenge application window is closed."

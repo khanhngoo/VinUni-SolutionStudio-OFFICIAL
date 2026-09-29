@@ -123,7 +123,7 @@ export default async function OfferPage({
         <dl className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
           <Stat label="Workload" value={detail.offer.terms.hoursPerWeek ? `${detail.offer.terms.hoursPerWeek} hrs / wk` : "To be confirmed"} />
           <Stat label="Duration" value={detail.offer.terms.durationWeeks ? `${detail.offer.terms.durationWeeks} weeks` : "To be confirmed"} />
-          <Stat label="Starts" value={detail.offer.terms.startDate ? formatDate(detail.offer.terms.startDate) : "To be confirmed"} />
+          <Stat label="Planned start" value={detail.offer.terms.startDate ? formatDate(detail.offer.terms.startDate) : "To be confirmed"} />
           <Stat label="Managing team" value={detail.challenge.managingOrganizationName} />
         </dl>
 

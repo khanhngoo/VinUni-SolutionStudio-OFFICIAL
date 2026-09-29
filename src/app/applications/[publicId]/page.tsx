@@ -6,7 +6,7 @@ import { Section } from "@/components/ui/section";
 import { getAuthenticatedActor } from "@/auth/authenticated-actor";
 import { db } from "@/db";
 import { listFacultyOptions } from "@/db/queries/students";
-import { dayKey, formatNullableDate as formatDate } from "@/lib/dates";
+import { dayKey, formatDate as formatDateOnly, formatNullableDate as formatDate } from "@/lib/dates";
 import {
   ApplicationError,
   getApplicationDetail,
@@ -215,7 +215,7 @@ export default async function ApplicationDetailPage({
             <p className="font-medium text-ink">{offerSummary.offerStatus?.replaceAll("_", " ") ?? "—"}</p>
             <p className="text-meta text-ink-3 mt-1">
               {offerSummary.hoursPerWeek ?? "—"} hrs/wk · {offerSummary.durationWeeks ?? "—"} wks
-              {offerSummary.startDate ? ` · Starts ${offerSummary.startDate}` : ""}
+              {offerSummary.startDate ? ` · Planned start ${formatDateOnly(offerSummary.startDate)}` : ""}
             </p>
             <Link
               href={`/offer/${application.publicId}`}

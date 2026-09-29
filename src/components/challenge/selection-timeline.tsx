@@ -1,18 +1,17 @@
 import { cn } from "@/lib/cn";
 
 /**
- * The pipeline as the cross-role swimlane diagram draws it (phases 3–5). There
- * is no faculty-approval gate on the student's application — faculty review the
- * challenge and the test, not the applicant — so the nodes run straight from
- * shortlisting to the test.
+ * The implemented application path. Six positions are kept because
+ * `timelineIndex` numbers them; no durations are promised and there is no
+ * interview step (the schema models none).
  */
 const NODES = [
   { label: "Applied", note: "You submit" },
-  { label: "Shortlisted", note: "Partner reviews" },
-  { label: "Test", note: "7-day window" },
-  { label: "Interview", note: "~1 week" },
-  { label: "Decision", note: "≤5 days" },
-  { label: "Kickoff", note: "You accept" },
+  { label: "Supervision", note: "Faculty confirms" },
+  { label: "Assessment", note: "If configured" },
+  { label: "Selection", note: "Partner decides" },
+  { label: "Offer", note: "Leader responds" },
+  { label: "Kickoff", note: "Project starts" },
 ];
 
 interface SelectionTimelineProps {
