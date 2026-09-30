@@ -47,6 +47,9 @@ export function NavLinks({
   const onOwnProfile = profileHref !== null && pathname.startsWith(profileHref);
 
   const links = [
+    ...(authenticated && !isStudent && !isFaculty && !isPartnerRepresentative && !isInternalUnitMember
+      ? [{ href: "/", label: "Account setup", active: pathname === "/" }]
+      : []),
     {
       href: "/challenges",
       label: "Challenges",

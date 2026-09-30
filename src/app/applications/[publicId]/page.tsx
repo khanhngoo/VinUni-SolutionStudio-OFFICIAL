@@ -4,12 +4,19 @@ import { notFound, redirect } from "next/navigation";
 import { Chip } from "@/components/ui/chip";
 import { Section } from "@/components/ui/section";
 import { getAuthenticatedActor } from "@/auth/authenticated-actor";
-import { formatNullableDate as formatDate } from "@/lib/dates";
+import { db } from "@/db";
+import { listFacultyOptions } from "@/db/queries/students";
+import { dayKey, formatDate as formatDateOnly, formatNullableDate as formatDate } from "@/lib/dates";
 import {
   ApplicationError,
   getApplicationDetail,
   toApplicationActorContext,
+  type ApplicationServiceDetail,
 } from "@/services/application.service";
+import { deriveApplicationLifecycleView } from "@/services/application-lifecycle.service";
+
+import { SupervisionReissue } from "./supervision-reissue";
+import { WithdrawApplication } from "./withdraw-application";
 
 export const dynamic = "force-dynamic";
 
@@ -46,6 +53,31 @@ export default async function ApplicationDetailPage({
   if (!application) notFound();
 
   const { challenge, members, offerSummary, projectSummary } = application;
+  const isSubmittingLeader = members.some(
+    (member) =>
+      member.memberRole === "LEADER" &&
+      member.email.toLowerCase() === resolution.actor.user.email.toLowerCase()
+  );
+  const lifecycle = deriveApplicationLifecycleView(
+    application,
+    isSubmittingLeader
+  );
+  const hasAcceptedSupervision = application.supervisionRequests.some(
+    (request) => request.status === "ACCEPTED"
+  );
+  const hasEffectivePendingSupervision = application.supervisionRequests.some(
+    (request) =>
+      request.status === "PENDING" &&
+      request.respondBy !== null &&
+      new Date() <= request.respondBy
+  );
+  const canReissueSupervision =
+    isSubmittingLeader &&
+    application.status === "SUBMITTED" &&
+    application.supervisionRequests.length > 0 &&
+    !hasAcceptedSupervision &&
+    !hasEffectivePendingSupervision;
+  const facultyOptions = canReissueSupervision ? await listFacultyOptions(db) : [];
 
   return (
     <div className="max-w-[880px] mx-auto px-6 sm:px-7 py-7 pb-16">
@@ -82,6 +114,15 @@ export default async function ApplicationDetailPage({
           </Link>
         ) : null}
       </div>
+
+      <Section title="Current next step">
+        <div className="bg-card border border-line rounded-card p-5">
+          <p className="text-ink-2 leading-relaxed">{lifecycle.message}</p>
+          {lifecycle.canWithdraw ? (
+            <WithdrawApplication publicId={application.publicId} />
+          ) : null}
+        </div>
+      </Section>
 
       <Section title="Team">
         <ul className="flex flex-col gap-2">
@@ -128,7 +169,7 @@ export default async function ApplicationDetailPage({
         </Section>
       ) : null}
 
-      {application.assessmentSummaries.length > 0 ? (
+      {application.activeAssessment || application.assessmentSummaries.length > 0 ? (
         <Section title="Assessments">
           <ul className="flex flex-col gap-2">
             {application.assessmentSummaries.map((assessment, index) => (
@@ -147,12 +188,24 @@ export default async function ApplicationDetailPage({
               </li>
             ))}
           </ul>
-          <Link
-            href={`/assessment/${application.publicId}`}
-            className="inline-block mt-3 text-meta font-semibold text-brand hover:text-brand-deep"
-          >
-            View assessment →
-          </Link>
+          {!lifecycle.terminal &&
+          (application.status === "ASSESSMENT" ||
+            application.assessmentSummaries.length > 0) ? (
+            <Link
+              href={`/assessment/${application.publicId}`}
+              className="inline-block mt-3 text-meta font-semibold text-brand hover:text-brand-deep"
+            >
+              View assessment →
+            </Link>
+          ) : lifecycle.terminal ? (
+            <p className="text-meta text-ink-3 mt-3">
+              Assessment actions are unavailable because this application is read-only.
+            </p>
+          ) : (
+            <p className="text-meta text-ink-3 mt-3">
+              Assessment opens after the supervision gate is complete.
+            </p>
+          )}
         </Section>
       ) : null}
 
@@ -162,7 +215,7 @@ export default async function ApplicationDetailPage({
             <p className="font-medium text-ink">{offerSummary.offerStatus?.replaceAll("_", " ") ?? "—"}</p>
             <p className="text-meta text-ink-3 mt-1">
               {offerSummary.hoursPerWeek ?? "—"} hrs/wk · {offerSummary.durationWeeks ?? "—"} wks
-              {offerSummary.startDate ? ` · Starts ${offerSummary.startDate}` : ""}
+              {offerSummary.startDate ? ` · Planned start ${formatDateOnly(offerSummary.startDate)}` : ""}
             </p>
             <Link
               href={`/offer/${application.publicId}`}
@@ -186,12 +239,41 @@ export default async function ApplicationDetailPage({
                   {request.faculty.fullName}
                   {request.faculty.department ? ` · ${request.faculty.department}` : ""}
                 </p>
-                <Chip>{request.status.replaceAll("_", " ")}</Chip>
+                <div className="text-right">
+                  <Chip>{supervisionLabel(request)}</Chip>
+                  <p className="text-meta text-ink-3 mt-1">
+                    {request.respondBy
+                      ? `Respond by ${formatDate(request.respondBy)}`
+                      : "No deadline · read-only"}
+                  </p>
+                </div>
               </li>
             ))}
           </ul>
+          {canReissueSupervision ? (
+            <SupervisionReissue
+              applicationPublicId={application.publicId}
+              facultyOptions={facultyOptions.map((faculty) => ({
+                id: faculty.userId.toString(),
+                label: `${faculty.fullName}${faculty.department ? ` · ${faculty.department}` : ""}`,
+              }))}
+            />
+          ) : null}
         </Section>
       ) : null}
     </div>
   );
+}
+
+function supervisionLabel(
+  request: ApplicationServiceDetail["supervisionRequests"][number]
+) {
+  if (request.status !== "PENDING") return request.status.replaceAll("_", " ");
+  if (!request.respondBy) return "PENDING · DEADLINE MISSING";
+  const now = new Date();
+  if (now > request.respondBy) return "PENDING · EXPIRED";
+  if (dayKey(now.toISOString()) === dayKey(request.respondBy.toISOString())) {
+    return "PENDING · DUE TODAY";
+  }
+  return "PENDING";
 }

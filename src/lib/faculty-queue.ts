@@ -26,6 +26,7 @@ export interface InviteQueueItem extends FacultyQueueItemBase {
   hoursPerWeek: number | null;
   kind: "invite";
   requestId: string;
+  responseState: "DUE_TODAY" | "EXPIRED" | "FUTURE" | "MISSING_DEADLINE";
   teamSize: number;
 }
 
@@ -37,6 +38,8 @@ export interface MilestoneQueueItem extends FacultyQueueItemBase {
   kind: "milestone";
   milestoneId: string;
   milestoneTitle: string;
+  /** The round this row's decision applies to; a stale round is refused server-side. */
+  submissionId: string | null;
   partnerApproved: boolean;
 }
 

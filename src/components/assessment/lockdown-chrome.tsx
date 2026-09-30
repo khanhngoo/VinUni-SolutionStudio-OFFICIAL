@@ -7,8 +7,8 @@ import { formatClock, type LockdownWarning } from "@/components/assessment/use-l
 interface LockdownHeaderProps {
   challengeTitle: string;
   progress: string;
-  secondsLeft: number;
-  totalSeconds: number;
+  secondsLeft: number | null;
+  totalSeconds: number | null;
   violations: number;
   violationLimit: number;
   savedAt: number | null;
@@ -25,10 +25,17 @@ export function LockdownHeader({
   savedAt,
   onSubmit,
 }: LockdownHeaderProps) {
-  const ratio = totalSeconds === 0 ? 0 : secondsLeft / totalSeconds;
+  const ratio =
+    totalSeconds === null || secondsLeft === null || totalSeconds === 0
+      ? null
+      : secondsLeft / totalSeconds;
   // Colour shifts at 25% and 10% remaining (PRD §8.4).
   const timerTone =
-    ratio <= 0.1 ? "text-red" : ratio <= 0.25 ? "text-warn" : "text-ink";
+    ratio !== null && ratio <= 0.1
+      ? "text-red"
+      : ratio !== null && ratio <= 0.25
+        ? "text-warn"
+        : "text-ink";
 
   return (
     <header className="h-[52px] shrink-0 bg-card border-b border-line">
@@ -62,8 +69,10 @@ export function LockdownHeader({
               timerTone,
             )}
           >
-            {formatClock(secondsLeft)}
-            <span className="sr-only"> remaining</span>
+            {secondsLeft === null ? "Untimed" : formatClock(secondsLeft)}
+            {secondsLeft === null ? null : (
+              <span className="sr-only"> remaining</span>
+            )}
           </span>
 
           <button
@@ -155,14 +164,14 @@ function overlayContent(
     case "fullscreen":
       return {
         title: `Return to fullscreen. Warning ${warning.count} of ${limit}.`,
-        body: "Leaving fullscreen is recorded. Your timer has continued running.",
+        body: "Leaving fullscreen counts as a warning. Your timer has continued running.",
         action: "Return to fullscreen",
         tone: "warn",
       };
     case "tab":
       return {
         title: `Stay on this tab. Warning ${warning.count} of ${limit}.`,
-        body: "Switching tabs or windows is recorded. Your timer has continued running.",
+        body: "Switching tabs or windows counts as a warning. Your timer has continued running.",
         action: "Continue",
         tone: "warn",
       };

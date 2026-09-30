@@ -29,7 +29,9 @@ export function InviteDecision({
   summary: string;
 }) {
   const router = useRouter();
-  const { challengeTitle, daysLeft, teamName } = item;
+  const { challengeTitle, daysLeft, responseState, teamName } = item;
+  const isReadOnly =
+    responseState === "EXPIRED" || responseState === "MISSING_DEADLINE";
   const [declineOpen, setDeclineOpen] = useState(false);
   const [decision, setDecision] = useState<"accepted" | "declined" | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -65,8 +67,8 @@ export function InviteDecision({
         </p>
         <p className="text-ink-2 mt-1.5 max-w-[46ch] mx-auto">
           {decision === "accepted"
-            ? `${teamName} and CAID have been notified. The project record opens to you once the team is selected and the engagement starts.`
-            : `${teamName} has been told, and will nominate another supervisor.`}
+            ? "Your acceptance is saved. The project record opens once the team is selected and the engagement starts."
+            : "Your decline is saved. The application owner can now nominate another supervisor."}
         </p>
         <button
           type="button"
@@ -97,9 +99,13 @@ export function InviteDecision({
             <Stat
               label="Respond by"
               value={
-                daysLeft <= 0
-                  ? "today"
-                  : `${daysLeft} day${daysLeft === 1 ? "" : "s"}`
+                responseState === "EXPIRED"
+                  ? "expired"
+                  : responseState === "DUE_TODAY"
+                    ? "due today"
+                    : responseState === "MISSING_DEADLINE"
+                      ? "deadline unavailable"
+                      : `${daysLeft} day${daysLeft === 1 ? "" : "s"}`
               }
               urgent={daysLeft <= 2}
             />
@@ -116,14 +122,22 @@ export function InviteDecision({
         </div>
       ) : null}
 
-      <Section title="Your decision">
+      <Section title={isReadOnly ? "Response window closed" : "Your decision"}>
         <div className="bg-card border border-line rounded-card p-5 flex flex-wrap items-center justify-between gap-4">
           <div>
             <p className="font-semibold text-ink">
-              {atCapacity ? "You are at supervision capacity" : "Take this on?"}
+              {isReadOnly
+                ? "This request has expired"
+                : atCapacity
+                  ? "You are at supervision capacity"
+                  : "Take this on?"}
             </p>
             <p className="text-meta text-ink-3 mt-0.5">
-              {atCapacity
+              {isReadOnly
+                ? responseState === "MISSING_DEADLINE"
+                  ? "This historical request has no deadline, so it is read-only."
+                  : "The response deadline has passed, so this request is read-only."
+                : atCapacity
                 ? `All ${faculty.slotsTotal} of your slots are in use. Free one up before accepting another team.`
                 : "Accepting commits you to milestone sign-off and mentoring for the whole engagement."}
             </p>
@@ -131,7 +145,7 @@ export function InviteDecision({
           <div className="flex items-center gap-2.5">
             <button
               type="button"
-              disabled={pending}
+              disabled={isReadOnly || pending}
               onClick={() => setDeclineOpen(true)}
               className="h-10 px-4 rounded-card border border-red text-red font-semibold hover:bg-red-soft disabled:opacity-60"
             >
@@ -139,7 +153,7 @@ export function InviteDecision({
             </button>
             <button
               type="button"
-              disabled={atCapacity || pending}
+              disabled={isReadOnly || atCapacity || pending}
               onClick={() => void respond("accepted")}
               className="h-10 px-5 rounded-card bg-brand text-white font-semibold hover:bg-brand-deep disabled:opacity-40 disabled:hover:bg-brand"
             >

@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useFormStatus } from "react-dom";
 
 import { INPUT_CLASS, SkillPicker } from "@/components/challenge/skill-picker";
 import type { ReviewOrganizationOption } from "@/db/queries/review";
@@ -26,9 +25,20 @@ export function PartnerPostForm({
   managingOrganizations: ReviewOrganizationOption[];
 }) {
   const [skillCount, setSkillCount] = useState(0);
+  const [error, setError] = useState<string | null>(null);
+  const [pending, setPending] = useState(false);
+
+  async function submit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setError(null);
+    setPending(true);
+    const message = await createChallengeDraftAction(new FormData(event.currentTarget));
+    setPending(false);
+    if (message) setError(message);
+  }
 
   return (
-    <form action={createChallengeDraftAction} className="mt-6 flex flex-col gap-6">
+    <form onSubmit={submit} className="mt-6 flex flex-col gap-6">
       <Field label="Title">
         <input name="title" required maxLength={255} className={INPUT_CLASS} />
       </Field>
@@ -97,6 +107,18 @@ export function PartnerPostForm({
       </div>
 
       <Field
+        label="Candidate access"
+        hint="Invite only stays out of the marketplace; you grant exact verified students access after publication."
+      >
+        <select name="visibility" className={INPUT_CLASS} defaultValue="VINUNI_ONLY">
+          <option value="VINUNI_ONLY">VinUni marketplace</option>
+          <option value="PUBLIC_PREVIEW">Public preview</option>
+          <option value="INVITE_ONLY">Invite only</option>
+          <option value="PRIVATE">Private owner workflow</option>
+        </select>
+      </Field>
+
+      <Field
         label="Managing VinUni unit"
         hint="Exactly one internal unit will review and manage this challenge."
       >
@@ -127,7 +149,18 @@ export function PartnerPostForm({
         />
       </div>
 
-      <SubmitButton disabled={skillCount === 0} label="Create draft" pendingLabel="Creating draft…" />
+      {error ? (
+        <div role="alert" className="border border-red/40 bg-red/5 text-red rounded-card px-4 py-3">
+          {error} Your entries are still here so you can correct them.
+        </div>
+      ) : null}
+
+      <SubmitButton
+        disabled={skillCount === 0}
+        label="Create draft"
+        pending={pending}
+        pendingLabel="Creating draft…"
+      />
     </form>
   );
 }
@@ -135,13 +168,14 @@ export function PartnerPostForm({
 function SubmitButton({
   disabled,
   label,
+  pending,
   pendingLabel,
 }: {
   disabled: boolean;
   label: string;
+  pending: boolean;
   pendingLabel: string;
 }) {
-  const { pending } = useFormStatus();
   return (
     <button
       type="submit"

@@ -6,7 +6,6 @@ import { LockIcon } from "@/components/ui/icons";
 import { Section } from "@/components/ui/section";
 import { MilestoneList } from "@/components/workspace/milestone-list";
 import { ResourceList, type SafeResource } from "@/components/workspace/resource-list";
-import { SubmitDeliverable } from "@/components/workspace/submit-deliverable";
 import { toMeeting, toMilestone } from "@/lib/apply-view";
 import { NextMeetingCard } from "@/components/workspace/next-meeting-card";
 import { ProgressBar } from "@/components/workspace/progress-bar";
@@ -29,6 +28,8 @@ import {
   WorkspaceError,
   type WorkspaceDetail,
 } from "@/services/workspace.service";
+
+import { CloseoutFeedbackList, FinalReviewPanel, ProjectWorkPanel } from "./project-work";
 
 export const dynamic = "force-dynamic";
 
@@ -95,10 +96,10 @@ export default async function WorkspacePage({
 
       <h1>{detail.challengeTitle}</h1>
       <p className="text-ink-2 mt-2">
-        Started{" "}
-        {detail.project.startDate
-          ? formatDate(detail.project.startDate)
-          : "to be confirmed"}{" "}
+        {startLabel(detail.project.startDate)}
+        {detail.projectStatus === "COMPLETED" && detail.project.endDate
+          ? ` · completed ${formatDate(detail.project.endDate)}`
+          : ""}{" "}
         · {detail.progress.completed} of {detail.progress.total} milestones approved
       </p>
 
@@ -114,12 +115,32 @@ export default async function WorkspacePage({
 
       {tab === "overview" ? (
         <>
+          {detail.projectStatus === "FINAL_REVIEW" ||
+          detail.projectStatus === "COMPLETED" ||
+          detail.finalReview.decisions.length > 0 ? (
+            <Section title="Final review">
+              <FinalReviewPanel applicationId={applicationId} detail={detail} />
+            </Section>
+          ) : null}
+
+          {detail.closeoutFeedback.length > 0 ? (
+            <Section title="Partner close-out feedback">
+              <CloseoutFeedbackList detail={detail} />
+            </Section>
+          ) : null}
+
           <Section title="The brief">
             <div className="bg-card border border-line rounded-card p-5 flex flex-col gap-3 text-ink-2">
               {detail.challenge.fullBrief ? (
                 detail.challenge.fullBrief
                   .split("\n\n")
                   .map((para) => <p key={para.slice(0, 24)}>{para}</p>)
+              ) : detail.challenge.fullBriefWithheld ? (
+                <p>
+                  This offer requires your signed NDA before the full brief is
+                  released to you.{" "}
+                  <Link href={`/offer/${applicationId}`}>Sign it on the offer page.</Link>
+                </p>
               ) : (
                 <p>
                   The partner has not filed a written brief for this challenge.
@@ -215,17 +236,13 @@ export default async function WorkspacePage({
       ) : null}
 
       {tab === "deliverables" ? (
-        <Section title="Deliverables" aside="Faculty and partner both sign off">
-          <MilestoneList milestones={milestones} showSignoff />
+        <Section title="Deliverables & sign-off" aside="Faculty and partner both sign off each round">
+          <ProjectWorkPanel applicationId={applicationId} detail={detail} />
           {readOnly ? (
             <p className="text-meta text-ink-3 mt-5">
-              This challenge is closed. Submissions are archived.
+              This project is complete. Its submissions and reviews are kept read-only.
             </p>
-          ) : (
-            <div className="mt-5">
-              <SubmitDeliverable milestones={milestones} />
-            </div>
-          )}
+          ) : null}
         </Section>
       ) : null}
 
@@ -264,6 +281,7 @@ async function LockedWorkspace({
         status: detail.status,
       })
     : null;
+  const closedReason = lockedWorkspaceClosedReason(detail);
 
   return (
     <article className="max-w-[820px] mx-auto px-6 sm:px-7 py-7 pb-16">
@@ -282,11 +300,13 @@ async function LockedWorkspace({
           <LockIcon className="w-3.5 h-3.5" />
         </span>
         <p className="font-semibold text-ink mt-3">
-          This workspace opens when you&apos;re selected and accept
+          {closedReason ?? "This workspace opens when you're selected and accept"}
         </p>
         <p className="text-ink-2 mt-1.5 max-w-[46ch] mx-auto">
-          The full brief, datasets and partner contact stay sealed until then.
-          {stage ? (
+          {closedReason
+            ? "No workspace was created for this application."
+            : "The full brief, datasets and partner contact stay sealed until then."}
+          {stage && !closedReason ? (
             <>
               {" "}
               Your application is currently{" "}
@@ -333,4 +353,33 @@ function Person({
       <p className="text-meta text-ink-2 mt-1.5 break-words">{note}</p>
     </div>
   );
+}
+
+/** A terminal outcome means no workspace will ever open, so saying otherwise would mislead. */
+function lockedWorkspaceClosedReason(
+  detail: {
+    offerSummary: { offerStatus: string | null; respondBy: Date | null } | null;
+    status: string;
+  } | null
+) {
+  if (!detail) return null;
+  const offer = detail.offerSummary;
+  if (offer?.offerStatus === "DECLINED") return "Your team declined this offer";
+  if (offer?.offerStatus === "CANCELLED") return "This offer was withdrawn";
+  if (offer?.offerStatus === "PENDING" && offer.respondBy && offer.respondBy < new Date()) {
+    return "The response window for this offer has ended";
+  }
+  if (detail.status === "REJECTED" || detail.status === "WITHDRAWN") {
+    return "This application is closed";
+  }
+  return null;
+}
+
+/**
+ * `start_date` is a planned start, not a lifecycle gate (v1): work and even
+ * completion may happen earlier, so it is never presented as "started".
+ */
+function startLabel(startDate: string | null) {
+  if (!startDate) return "Planned start to be confirmed";
+  return `Planned start ${formatDate(startDate)}`;
 }

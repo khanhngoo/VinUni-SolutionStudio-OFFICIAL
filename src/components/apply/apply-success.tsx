@@ -12,8 +12,8 @@ export function ApplySuccess({ supervisorName }: ApplySuccessProps) {
       </span>
       <p className="font-semibold text-[15px] mt-3.5">Application submitted</p>
       <p className="text-ink-2 mt-1.5 max-w-[42ch] mx-auto">
-        {supervisorName} has been notified and has five working days to respond.
-        You&apos;ll hear from us either way.
+        A supervision request for {supervisorName} is now in the faculty queue.
+        They have five working days to respond.
       </p>
     </div>
   );

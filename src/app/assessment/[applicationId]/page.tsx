@@ -3,7 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { PreflightCheck } from "@/components/assessment/preflight-check";
 import { Chip } from "@/components/ui/chip";
 import { LockIcon } from "@/components/ui/icons";
-import { deadlineLabel } from "@/lib/dates";
+import { applicationDeadlineCampusDate, deadlineLabel } from "@/lib/dates";
 import { getAuthenticatedActor } from "@/auth/authenticated-actor";
 import { toApplicationActorContext } from "@/services/application.service";
 import {
@@ -41,7 +41,8 @@ export default async function AssessmentPreflightPage({
   if (
     preflight.state === "NOT_OPEN" ||
     preflight.state === "REVIEWED" ||
-    preflight.state === "SUBMITTED"
+    preflight.state === "SUBMITTED" ||
+    preflight.state === "UNAVAILABLE"
   ) {
     return (
       <article className="max-w-[820px] mx-auto px-6 sm:px-7 py-7 pb-16">
@@ -52,6 +53,8 @@ export default async function AssessmentPreflightPage({
         <h1 className="mt-3.5">
           {preflight.state === "SUBMITTED"
             ? "Assessment submitted"
+            : preflight.state === "UNAVAILABLE"
+              ? "Assessment unavailable"
             : "Assessment closed"}
         </h1>
 
@@ -64,6 +67,8 @@ export default async function AssessmentPreflightPage({
               ? "You have already taken this assessment."
               : preflight.state === "SUBMITTED"
                 ? "Your assessment is awaiting review."
+                : preflight.state === "UNAVAILABLE"
+                  ? "This assessment has no questions and cannot be started."
                 : "This assessment is not open to you right now."}
           </p>
           <p className="text-ink-2 mt-1.5 max-w-[46ch] mx-auto">
@@ -101,20 +106,20 @@ export default async function AssessmentPreflightPage({
 
       <div className="flex flex-wrap gap-1.5 mt-3.5 mb-2.5">
         <Chip>{preflight.trackLabel}</Chip>
-        <Chip variant="warn">Proctored · lockdown</Chip>
+        <Chip variant="warn">Fullscreen lockdown</Chip>
       </div>
 
       <h1>Before you begin</h1>
       <p className="text-ink-2 mt-2 max-w-[62ch]">
-        This assessment is timed, monitored and single-attempt. Work through the
-        checks below, then read what is recorded during the test.
+        This assessment is {preflight.assessment.timeLimitMinutes === null ? "" : "timed, "}single-attempt and runs in fullscreen. Work through
+        the checks below, then read the rules that apply during the test.
       </p>
 
       {preflight.challenge.applicationDeadline ? (
         <p className="text-meta text-warn font-medium mt-3">
-          This challenge closes{" "}
+          This challenge{" "}
           {deadlineLabel(
-            preflight.challenge.applicationDeadline.toISOString()
+            applicationDeadlineCampusDate(preflight.challenge.applicationDeadline)
           ).toLowerCase()}{" "}
           — your attempt has to be in before then.
         </p>
@@ -123,7 +128,7 @@ export default async function AssessmentPreflightPage({
       <PreflightCheck
         applicationId={preflight.application.publicId}
         trackLabel={preflight.trackLabel}
-        minutes={preflight.assessment.timeLimitMinutes ?? 0}
+        minutes={preflight.assessment.timeLimitMinutes}
         itemCount={preflight.itemCountLabel}
         startAction={startAction}
       />

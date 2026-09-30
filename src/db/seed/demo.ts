@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 
 import {
   facultyProfiles,
@@ -393,22 +393,30 @@ async function ensureDemoUser(
   ctx: SeedContext,
   seed: Pick<DemoContactSeed | DemoStudentSeed | DemoFacultySeed, "email" | "fullName" | "key">
 ) {
-  const [user] = await ctx.tx
-    .insert(users)
-    .values({
-      email: seed.email,
-      fullName: seed.fullName,
-      status: "ACTIVE",
-    })
-    .onConflictDoUpdate({
-      target: users.email,
-      set: {
+  const [existing] = await ctx.tx
+    .select({ id: users.id })
+    .from(users)
+    .where(sql`lower(${users.email}) = lower(${seed.email})`)
+    .limit(1);
+
+  const [user] = existing
+    ? await ctx.tx
+      .update(users)
+      .set({
         fullName: seed.fullName,
         status: "ACTIVE",
         updatedAt: new Date(),
-      },
-    })
-    .returning({ id: users.id });
+      })
+      .where(eq(users.id, existing.id))
+      .returning({ id: users.id })
+    : await ctx.tx
+      .insert(users)
+      .values({
+        email: seed.email,
+        fullName: seed.fullName,
+        status: "ACTIVE",
+      })
+      .returning({ id: users.id });
 
   ctx.setId(seed.key, user.id);
   return user.id;

@@ -1,3 +1,5 @@
+import "dotenv/config";
+
 import { and, count, eq, sql } from "drizzle-orm";
 import type { PgTable } from "drizzle-orm/pg-core";
 
@@ -33,6 +35,8 @@ import {
 const APP_TRIAGE = "44444444-4444-4444-8444-000000000001";
 const APP_CHURN = "44444444-4444-4444-8444-000000000003";
 const DISPOSABLE_APP = "55555555-5555-5555-8555-000000000052";
+const DISPOSABLE_CODING_APP = "55555555-5555-5555-8555-000000000053";
+const DISPOSABLE_TEXT_APP = "55555555-5555-5555-8555-000000000054";
 const ROLLBACK_SENTINEL = Symbol("rollback assessment runtime verification");
 type RuntimeDatabase = typeof db | Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -75,7 +79,12 @@ async function main() {
       assert(churnResult.result.overallScore === null, "app-churn score should be null");
       assert(churnResult.application.status === "SELECTION_PENDING", "app-churn application status mismatch");
 
-      await createDisposableAssessmentApplication(tx, bao.userId);
+      await createDisposableAssessmentApplication(
+        tx,
+        bao.userId,
+        DISPOSABLE_APP,
+        "triage-protocol-review"
+      );
 
       await expectAssessmentError(
         "FORBIDDEN",
@@ -106,11 +115,63 @@ async function main() {
         "wrong member access to assessment taking session should be forbidden"
       );
 
+      const triageAssessmentId = await assessmentIdForChallenge(
+        tx,
+        "triage-protocol-review"
+      );
+      await tx
+        .update(assessments)
+        .set({ timeLimitMinutes: null })
+        .where(eq(assessments.id, triageAssessmentId));
+
+      const unlimitedPreflight = await getAssessmentPreflight(
+        DISPOSABLE_APP,
+        bao,
+        { database: tx }
+      );
+      assert(
+        unlimitedPreflight?.assessment.timeLimitMinutes === null,
+        "nullable assessment timer should remain unlimited"
+      );
+
+      await tx.execute(sql`savepoint assessment_empty_definition`);
+      await tx.execute(sql`
+        delete from assessment_questions
+        where section_id in (
+          select id from assessment_sections
+          where assessment_id = ${triageAssessmentId}
+        )
+      `);
+      const emptyPreflight = await getAssessmentPreflight(DISPOSABLE_APP, bao, {
+        database: tx,
+      });
+      assert(
+        emptyPreflight?.state === "UNAVAILABLE",
+        "empty assessment should be unavailable before start"
+      );
+      await expectAssessmentError(
+        "VALIDATION_ERROR",
+        () =>
+          startAssessmentAttempt(DISPOSABLE_APP, bao, {
+            database: tx,
+            now: demoNow(),
+          }),
+        "empty assessment should fail before creating an attempt"
+      );
+      assertCount(
+        await attemptCountForApplication(tx, DISPOSABLE_APP),
+        0,
+        "empty assessment attempt count"
+      );
+      await tx.execute(sql`rollback to savepoint assessment_empty_definition`);
+
       const started = await startAssessmentAttempt(DISPOSABLE_APP, bao, {
         database: tx,
         now: demoNow(),
       });
       assert(started.sections.length === 4, "disposable cognitive assessment sections missing");
+      assert(started.assessment.timeLimitMinutes === null, "unlimited timer changed after start");
+      assert(!started.assessment.title.includes("DEMO"), "student title exposed DEMO wording");
       assert(!JSON.stringify(started).includes("correctIndex"), "student model leaked correctIndex");
 
       const secondStart = await startAssessmentAttempt(DISPOSABLE_APP, bao, {
@@ -229,6 +290,105 @@ async function main() {
         "reviewed attempt should not be editable"
       );
 
+      await createDisposableAssessmentApplication(
+        tx,
+        bao.userId,
+        DISPOSABLE_CODING_APP,
+        "merchant-churn-model"
+      );
+      const codingSession = await startAssessmentAttempt(
+        DISPOSABLE_CODING_APP,
+        bao,
+        { database: tx, now: demoNow() }
+      );
+      const codingQuestions = codingSession.sections.flatMap(
+        (section) => section.questions
+      );
+      assert(codingQuestions.length === 2, "coding questions missing");
+      await saveAssessmentResponse(
+        DISPOSABLE_CODING_APP,
+        codingQuestions[0].questionKey,
+        { kind: "CODING", code: "def answer():\n    return 1" },
+        bao,
+        { database: tx, now: demoNow() }
+      );
+      const afterCodingDeadline = new Date(demoNow().getTime() + 61 * 60_000);
+      await expectAssessmentError(
+        "INVALID_TRANSITION",
+        () =>
+          saveAssessmentResponse(
+            DISPOSABLE_CODING_APP,
+            codingQuestions[1].questionKey,
+            { kind: "CODING", code: "late response" },
+            bao,
+            { database: tx, now: afterCodingDeadline }
+          ),
+        "response save after the server deadline should fail"
+      );
+      await submitAssessmentAttempt(DISPOSABLE_CODING_APP, bao, {
+        database: tx,
+        now: afterCodingDeadline,
+        responses: {
+          [codingQuestions[1].questionKey]: {
+            kind: "CODING",
+            code: "late response",
+          },
+        },
+      });
+      assert(
+        (await getAssessmentResult(DISPOSABLE_CODING_APP, bao, { database: tx }))
+          ?.attempt?.status === "SUBMITTED",
+        "unanswered coding item should not poison submission"
+      );
+      assertCount(
+        await responseCount(
+          tx,
+          await disposableAttemptId(tx, DISPOSABLE_CODING_APP),
+          decodeQuestionKeyForScript(codingQuestions[1].questionKey)
+        ),
+        0,
+        "late response count"
+      );
+
+      await createDisposableAssessmentApplication(
+        tx,
+        hoang.userId,
+        DISPOSABLE_TEXT_APP,
+        "merchant-churn-model"
+      );
+      const secondCodingQuestionId = decodeQuestionKeyForScript(
+        codingQuestions[1].questionKey
+      );
+      await tx
+        .update(assessmentQuestions)
+        .set({ questionType: "REASONING" })
+        .where(eq(assessmentQuestions.id, secondCodingQuestionId));
+      const textSession = await startAssessmentAttempt(
+        DISPOSABLE_TEXT_APP,
+        hoang,
+        { database: tx, now: demoNow() }
+      );
+      const textQuestion = textSession.sections
+        .flatMap((section) => section.questions)
+        .find((question) => question.questionType === "REASONING");
+      assert(textQuestion, "manual text question missing");
+      await saveAssessmentResponse(
+        DISPOSABLE_TEXT_APP,
+        textQuestion.questionKey,
+        { kind: "TEXT", response: "Structured manual-review response." },
+        hoang,
+        { database: tx, now: demoNow() }
+      );
+      await submitAssessmentAttempt(DISPOSABLE_TEXT_APP, hoang, {
+        database: tx,
+        now: demoNow(),
+      });
+      assert(
+        (await getAssessmentResult(DISPOSABLE_TEXT_APP, hoang, { database: tx }))
+          ?.attempt?.status === "SUBMITTED",
+        "text response submission failed"
+      );
+
       const inside = await snapshot(tx);
       assertCount(inside.counts.assessmentScores, 2, "assessment scores during disposable tests");
       assertCount(inside.counts.matchResults, 0, "match results during disposable tests");
@@ -242,27 +402,29 @@ async function main() {
   const after = await snapshot();
   assertDeepEqual(after, before, "canonical counts changed after rollback");
 
-  console.log("Phase 5.2 assessment runtime verification passed.");
+  console.log("Phase 6.6.5 assessment submission safety verification passed.");
   console.log(JSON.stringify(after, null, 2));
 }
 
 async function createDisposableAssessmentApplication(
   tx: RuntimeDatabase,
-  studentId: bigint
+  studentId: bigint,
+  publicId: string,
+  challengeSlug: string
 ) {
   const [challenge] = await tx
     .select({ id: challenges.id })
     .from(challenges)
-    .where(eq(challenges.slug, "triage-protocol-review"))
+    .where(eq(challenges.slug, challengeSlug))
     .limit(1);
-  if (!challenge) throw new Error("Missing triage challenge.");
+  if (!challenge) throw new Error(`Missing ${challengeSlug} challenge.`);
 
   const [application] = await tx
     .insert(applications)
     .values({
       challengeId: challenge.id,
       motivation: "Disposable Phase 5.2 assessment verification.",
-      publicId: DISPOSABLE_APP,
+      publicId,
       status: "ASSESSMENT",
       submittedAt: demoNow(),
       submittedBy: studentId,
@@ -279,14 +441,41 @@ async function createDisposableAssessmentApplication(
   });
 }
 
+async function assessmentIdForChallenge(
+  tx: RuntimeDatabase,
+  challengeSlug: string
+) {
+  const [row] = await tx
+    .select({ id: assessments.id })
+    .from(assessments)
+    .innerJoin(challenges, eq(challenges.id, assessments.challengeId))
+    .where(eq(challenges.slug, challengeSlug))
+    .limit(1);
+  if (!row) throw new Error(`Assessment missing for ${challengeSlug}.`);
+  return row.id;
+}
+
+async function attemptCountForApplication(
+  tx: RuntimeDatabase,
+  applicationPublicId: string
+) {
+  const [row] = await tx
+    .select({ total: count() })
+    .from(assessmentAttempts)
+    .innerJoin(applications, eq(applications.id, assessmentAttempts.applicationId))
+    .where(eq(applications.publicId, applicationPublicId));
+  return row?.total ?? 0;
+}
+
 async function disposableAttemptId(
-  tx: RuntimeDatabase
+  tx: RuntimeDatabase,
+  applicationPublicId = DISPOSABLE_APP
 ) {
   const [row] = await tx
     .select({ id: assessmentAttempts.id })
     .from(assessmentAttempts)
     .innerJoin(applications, eq(applications.id, assessmentAttempts.applicationId))
-    .where(eq(applications.publicId, DISPOSABLE_APP))
+    .where(eq(applications.publicId, applicationPublicId))
     .limit(1);
   if (!row) throw new Error("Disposable attempt was not found.");
   return row.id;

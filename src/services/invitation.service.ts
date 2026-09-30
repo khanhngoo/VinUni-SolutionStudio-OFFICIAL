@@ -1,9 +1,16 @@
 import { db } from "@/db";
 import {
+  getInvitationWriteSubject,
   respondToTeamInvitation,
   type InvitationMutationDatabase,
 } from "@/db/mutations/invitations";
+import {
+  findDuplicateApplicationMemberships,
+  lockApplicationForLifecycle,
+  lockEffectiveApplicationParticipants,
+} from "@/db/mutations/applications";
 import type { AuthenticatedActor } from "@/auth/authenticated-actor";
+import { progressApplicationAfterGateChange } from "@/services/application-lifecycle.service";
 
 export type InvitationErrorCode = "CONFLICT" | "FORBIDDEN";
 
@@ -42,18 +49,82 @@ export async function respondToInvitation(
     );
   }
 
-  const database = options.database ?? db;
-  const answered = await respondToTeamInvitation(database, {
-    applicationPublicId,
-    now: options.now ?? new Date(),
-    status: decision === "ACCEPT" ? "ACCEPTED" : "DECLINED",
-    studentId: actor.user.userId,
-  });
-
-  if (!answered) {
-    throw new InvitationError(
-      "CONFLICT",
-      "This invitation is no longer waiting on you."
+  const now = options.now ?? new Date();
+  const run = async (tx: InvitationMutationDatabase) => {
+    let subject = await getInvitationWriteSubject(
+      tx,
+      applicationPublicId,
+      actor.user.userId
     );
+    if (!subject || subject.memberStatus !== "INVITED") {
+      throw new InvitationError(
+        "CONFLICT",
+        "This invitation is no longer waiting on you."
+      );
+    }
+
+    if (decision === "ACCEPT") {
+      await lockEffectiveApplicationParticipants(tx, subject.challengeId, [
+        actor.user.userId,
+      ]);
+    }
+    await lockApplicationForLifecycle(tx, subject.applicationId);
+    subject = await getInvitationWriteSubject(
+      tx,
+      applicationPublicId,
+      actor.user.userId
+    );
+    if (
+      !subject ||
+      subject.memberStatus !== "INVITED" ||
+      !["SUBMITTED", "SHORTLISTED", "ASSESSMENT", "SELECTION_PENDING"].includes(
+        subject.applicationStatus
+      )
+    ) {
+      throw new InvitationError(
+        "CONFLICT",
+        "This invitation is no longer waiting on you."
+      );
+    }
+
+    if (decision === "ACCEPT") {
+      const conflicts = await findDuplicateApplicationMemberships(
+        tx,
+        subject.challengeId,
+        [actor.user.userId],
+        subject.applicationId
+      );
+      if (conflicts.length > 0) {
+        throw new InvitationError(
+          "CONFLICT",
+          "You already participate in another active application for this challenge."
+        );
+      }
+    }
+
+    const answered = await respondToTeamInvitation(tx, {
+      applicationPublicId,
+      now,
+      status: decision === "ACCEPT" ? "ACCEPTED" : "DECLINED",
+      studentId: actor.user.userId,
+    });
+    if (!answered) {
+      throw new InvitationError(
+        "CONFLICT",
+        "This invitation is no longer waiting on you."
+      );
+    }
+
+    await progressApplicationAfterGateChange(answered.applicationId, {
+      database: tx,
+      now,
+    });
+  };
+
+  const database = options.database ?? db;
+  if ("rollback" in database && typeof database.rollback === "function") {
+    await run(database);
+  } else {
+    await database.transaction((tx) => run(tx));
   }
 }

@@ -17,7 +17,7 @@ import {
 import { listStudentTeamProfiles } from "@/db/queries/students";
 import { toTeam } from "@/lib/apply-view";
 import { eligibilityReasons } from "@/lib/challenge-marketplace";
-import { formatDate } from "@/lib/dates";
+import { applicationDeadlineCampusDate, formatDate } from "@/lib/dates";
 import { evaluateChallengeEligibility } from "@/services/challenge-policy";
 
 import { InvitationDecision } from "./invitation-decision";
@@ -79,6 +79,12 @@ export default async function InvitationPage({
     : [];
 
   const answered = seat.status !== "INVITED";
+  const responseClosed = ![
+    "SUBMITTED",
+    "SHORTLISTED",
+    "ASSESSMENT",
+    "SELECTION_PENDING",
+  ].includes(application.status);
 
   return (
     <article className="max-w-[720px] mx-auto px-6 sm:px-7 py-7 pb-16">
@@ -101,7 +107,7 @@ export default async function InvitationPage({
         </div>
         {application.challenge.applicationDeadline ? (
           <Chip variant="warn">
-            Reply by {formatDate(application.challenge.applicationDeadline.toISOString())}
+            Reply by {formatDate(applicationDeadlineCampusDate(application.challenge.applicationDeadline))}
           </Chip>
         ) : null}
       </div>
@@ -118,7 +124,7 @@ export default async function InvitationPage({
             value={challenge?.durationWeeks ? `${challenge.durationWeeks} weeks` : "—"}
           />
           <Stat
-            label="Starts"
+            label="Planned start"
             value={challenge?.startDate ? formatDate(challenge.startDate) : "—"}
           />
         </dl>
@@ -168,10 +174,11 @@ export default async function InvitationPage({
         )}
       </Section>
 
-      {answered ? (
+      {answered || responseClosed ? (
         <p className="mt-7 rounded-card border border-line bg-card px-4 py-3 text-ink-2">
-          You already {seat.status === "ACCEPTED" ? "accepted" : "declined"} this
-          invitation.{" "}
+          {responseClosed && !answered
+            ? "This application has moved beyond team formation, so the invitation is now read-only."
+            : `You already ${seat.status === "ACCEPTED" ? "accepted" : "declined"} this invitation.`}{" "}
           <Link className="font-semibold" href="/inbox">
             Back to inbox
           </Link>

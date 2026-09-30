@@ -32,6 +32,7 @@ export function ChallengeEditForm({
     teamSizeMax: number | null;
     teamSizeMin: number | null;
     title: string;
+    visibility: "PUBLIC_PREVIEW" | "VINUNI_ONLY" | "INVITE_ONLY" | "PRIVATE";
     weeklyHours: number | null;
   };
   slug: string;
@@ -120,6 +121,22 @@ export function ChallengeEditForm({
           />
         </Field>
       </div>
+
+      <Field
+        label="Candidate access"
+        hint="Invite only stays out of the marketplace and uses exact candidate grants after publication."
+      >
+        <select
+          name="visibility"
+          className={INPUT_CLASS}
+          defaultValue={initialValues.visibility}
+        >
+          <option value="VINUNI_ONLY">VinUni marketplace</option>
+          <option value="PUBLIC_PREVIEW">Public preview</option>
+          <option value="INVITE_ONLY">Invite only</option>
+          <option value="PRIVATE">Private owner workflow</option>
+        </select>
+      </Field>
 
       <div>
         <label className="text-meta font-semibold text-ink-2 uppercase tracking-wide">

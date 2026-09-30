@@ -26,8 +26,8 @@ interface FacultyQueueProps {
   settled: SettledSupervision[];
   onAcceptInvite?: (requestId: string) => Promise<string | null>;
   onDeclineInvite?: (requestId: string) => Promise<string | null>;
-  onApproveMilestone?: (milestoneId: string) => Promise<string | null>;
-  onRequestChanges?: (milestoneId: string, comments: string) => Promise<string | null>;
+  onApproveMilestone?: (milestoneId: string, submissionId: string) => Promise<string | null>;
+  onRequestChanges?: (milestoneId: string, submissionId: string, comments: string) => Promise<string | null>;
 }
 
 /**
@@ -51,11 +51,22 @@ export function FacultyQueue({
 }: FacultyQueueProps) {
   const [invites, setInvites] = useState(initialInvites);
   const [milestones, setMilestones] = useState(initialMilestones);
+  // Server actions revalidate /faculty; when fresh rows arrive, they replace
+  // the optimistic local copies so no stale row survives an action.
+  const [serverRows, setServerRows] = useState({ initialInvites, initialMilestones });
+  if (
+    serverRows.initialInvites !== initialInvites ||
+    serverRows.initialMilestones !== initialMilestones
+  ) {
+    setServerRows({ initialInvites, initialMilestones });
+    setInvites(initialInvites);
+    setMilestones(initialMilestones);
+  }
   // Feedback rows cannot be resolved from here yet, so this list never changes.
   const feedback = initialFeedback;
-  // Accepting a supervision consumes a slot, so the load bar has to move with
-  // it — otherwise it keeps reporting the seeded number all session.
-  const [slotsUsed, setSlotsUsed] = useState(faculty.slotsUsed);
+  // Load counts unfinished supervised projects (server-derived). Accepting a
+  // supervision request creates no project, so nothing is added locally.
+  const slotsUsed = faculty.slotsUsed;
   const [error, setError] = useState<string | null>(null);
 
   const [typeFilter, setTypeFilter] = useState<Record<ItemKind, boolean>>({
@@ -122,7 +133,7 @@ export function FacultyQueue({
               onChange={(v) => setTypeFilter((p) => ({ ...p, milestone: v }))}
             />
             <TypeCheckbox
-              label="Feedback due"
+              label="Final reviews"
               count={feedback.length}
               checked={typeFilter.feedback}
               onChange={(v) => setTypeFilter((p) => ({ ...p, feedback: v }))}
@@ -154,15 +165,24 @@ export function FacultyQueue({
 
         <div className="bg-card border border-line rounded-card p-3.5">
           <h3 className="mb-2">Supervision load</h3>
-          <p className="text-body text-ink-2 mb-1.5">
-            {slotsUsed} of {faculty.slotsTotal} slots
-          </p>
-          <div className="h-1.5 rounded-full bg-line-2 overflow-hidden">
-            <div
-              className={cn("h-full", atCapacity ? "bg-warn" : "bg-brand")}
-              style={{ width: `${slotsPct}%` }}
-            />
-          </div>
+          {faculty.slotsTotal > 0 ? (
+            <>
+              <p className="text-body text-ink-2 mb-1.5">
+                {slotsUsed} of {faculty.slotsTotal} slots
+              </p>
+              <div className="h-1.5 rounded-full bg-line-2 overflow-hidden">
+                <div
+                  className={cn("h-full", atCapacity ? "bg-warn" : "bg-brand")}
+                  style={{ width: `${slotsPct}%` }}
+                />
+              </div>
+            </>
+          ) : (
+            <p className="text-body text-ink-2">
+              {slotsUsed} active project{slotsUsed === 1 ? "" : "s"} · no
+              capacity limit set
+            </p>
+          )}
           {atCapacity ? (
             <p className="text-meta text-warn mt-2">
               At capacity — you cannot take on another team.
@@ -195,17 +215,15 @@ export function FacultyQueue({
             if (item.kind === "invite") {
               return (
                 <InviteRow
-                  key={item.requestId}
+                  key={`invite-${item.requestId}`}
                   item={item}
                   atCapacity={atCapacity}
                   onAccept={async () => {
                     setError(null);
-                    setSlotsUsed((n) => n + 1);
                     setInvites((prev) => prev.filter((i) => i.requestId !== item.requestId));
                     const message = await onAcceptInvite?.(item.requestId);
                     if (message) {
                       setError(message);
-                      setSlotsUsed((n) => Math.max(n - 1, 0));
                       setInvites((prev) => [...prev, item]);
                     }
                   }}
@@ -225,7 +243,7 @@ export function FacultyQueue({
             if (item.kind === "milestone") {
               return (
                 <MilestoneRow
-                  key={item.milestoneId}
+                  key={`milestone-${item.milestoneId}`}
                   item={item}
                   onApprove={async () => {
                     setError(null);
@@ -236,7 +254,7 @@ export function FacultyQueue({
                           : m,
                       ),
                     );
-                    const message = await onApproveMilestone?.(item.milestoneId);
+                    const message = await onApproveMilestone?.(item.milestoneId, item.submissionId ?? "");
                     if (message) {
                       setError(message);
                       setMilestones((prev) =>
@@ -257,7 +275,7 @@ export function FacultyQueue({
                           : m,
                       ),
                     );
-                    const message = await onRequestChanges?.(item.milestoneId, comments);
+                    const message = await onRequestChanges?.(item.milestoneId, item.submissionId ?? "", comments);
                     if (message) {
                       setError(message);
                       setMilestones((prev) =>
@@ -274,7 +292,7 @@ export function FacultyQueue({
             }
 
             return (
-              <FeedbackRow key={item.applicationPublicId} item={item} />
+              <FeedbackRow key={`feedback-${item.applicationPublicId}`} item={item} />
             );
           })}
 
@@ -386,7 +404,9 @@ function InviteRow({
   onAccept: () => void;
   onDecline: () => void;
 }) {
-  const { challengeTitle, daysLeft, teamName } = item;
+  const { challengeTitle, daysLeft, responseState, teamName } = item;
+  const isReadOnly =
+    responseState === "EXPIRED" || responseState === "MISSING_DEADLINE";
   const [declineOpen, setDeclineOpen] = useState(false);
 
   return (
@@ -399,11 +419,16 @@ function InviteRow({
           <>
             Team of {item.teamSize}
             {item.colleges.length > 0 ? ` · ${item.colleges.join(", ")}` : ""} ·{" "}
-            {item.durationWeeks ?? "—"} wks · {item.hoursPerWeek ?? "—"} h/wk ·{" "}
-            <span className={daysLeft <= 2 ? "text-warn font-medium" : undefined}>
-              {daysLeft <= 0
-                ? "expires today"
-                : `expires in ${daysLeft} day${daysLeft === 1 ? "" : "s"}`}
+            {item.durationWeeks !== null ? `${item.durationWeeks} wks · ` : ""}
+            {item.hoursPerWeek !== null ? `${item.hoursPerWeek} h/wk · ` : ""}
+            <span className={responseState === "EXPIRED" || responseState === "DUE_TODAY" ? "text-warn font-medium" : undefined}>
+              {responseState === "EXPIRED"
+                ? "response deadline passed"
+                : responseState === "DUE_TODAY"
+                  ? "due today"
+                  : responseState === "MISSING_DEADLINE"
+                    ? "deadline unavailable · read-only"
+                    : `due in ${daysLeft} day${daysLeft === 1 ? "" : "s"}`}
             </span>
           </>
         }
@@ -412,6 +437,7 @@ function InviteRow({
             <button
               type="button"
               onClick={() => setDeclineOpen(true)}
+              disabled={isReadOnly}
               className="h-8 px-3 rounded-card border border-red text-red font-semibold hover:bg-red-soft"
             >
               Decline
@@ -419,10 +445,12 @@ function InviteRow({
             <button
               type="button"
               onClick={onAccept}
-              disabled={atCapacity}
+              disabled={atCapacity || isReadOnly}
               title={
                 atCapacity
                   ? "You are at supervision capacity"
+                  : isReadOnly
+                    ? "This request is read-only"
                   : undefined
               }
               className="h-8 px-3.5 rounded-card bg-brand text-white font-semibold hover:bg-brand-deep disabled:opacity-40 disabled:hover:bg-brand"
@@ -518,26 +546,21 @@ function MilestoneRow({
 }
 
 function FeedbackRow({ item }: { item: FeedbackQueueItem }) {
-  const { challengeTitle, daysLeft } = item;
+  const { challengeTitle } = item;
 
   return (
     <QueueCard
-      chip={<Chip variant="accent">Feedback due</Chip>}
+      chip={<Chip variant="accent">Final review</Chip>}
       title={challengeTitle}
       href={`/faculty/${item.applicationPublicId}`}
-      meta={`${item.teamName} · ${Math.abs(daysLeft)} days without a closing review`}
+      meta={`${item.teamName} · every milestone is approved — your final sign-off is needed`}
       actions={
-        // Closing feedback has no mutation behind it yet. The row still earns
-        // its place -- it is a real obligation -- but the button is disabled
-        // rather than accepting a note it would silently drop.
-        <button
-          type="button"
-          disabled
-          title="Written feedback is not yet stored"
-          className="h-8 px-3.5 rounded-card border border-line text-ink-3 font-semibold disabled:opacity-60"
+        <Link
+          href={`/workspace/${item.applicationPublicId}`}
+          className="h-8 px-3.5 rounded-card bg-brand text-white font-semibold grid place-items-center hover:bg-brand-deep hover:text-white"
         >
-          Write feedback
-        </button>
+          Open final review
+        </Link>
       }
     />
   );

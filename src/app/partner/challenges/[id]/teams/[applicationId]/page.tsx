@@ -9,19 +9,33 @@ import { Section } from "@/components/ui/section";
 import { db } from "@/db";
 import { getApplicationByPublicId } from "@/db/queries/applications";
 import { listDirectoryStudents, listStudentTeamProfiles } from "@/db/queries/students";
-import { toApplyChallenge, toDirectoryStudent, toTeam } from "@/lib/apply-view";
-import { marketplaceContextForActor } from "@/lib/challenge-marketplace";
+import {
+  toDirectoryStudent,
+  toPartnerOwnedApplyChallenge,
+  toTeam,
+} from "@/lib/apply-view";
 import { formatDate } from "@/lib/dates";
 import { countdownLabel } from "@/lib/pipeline";
 import { bandChipVariant } from "@/lib/score";
 import { confirmedMembers, pendingMembers } from "@/lib/teams";
 import type { ScoreBand } from "@/lib/types";
 import { getPartnerChallengePage } from "@/services/partner.service";
-import { getMarketplaceChallengeBySlug } from "@/services/challenge.service";
 import { deriveApplicationStage } from "@/services/application-stage";
+import { deriveApplicationLifecycleView } from "@/services/application-lifecycle.service";
 import { STAGE_LABELS } from "@/lib/types";
+import { isPublicId } from "@/lib/public-id";
+
+import { issueSelectionOfferAction } from "./actions";
 
 export const dynamic = "force-dynamic";
+
+const OFFER_ERROR_MESSAGES: Record<string, string> = {
+  CONFLICT: "This team's selection changed before it could be saved. Refresh and try again.",
+  FORBIDDEN: "Your account cannot select applications for this challenge.",
+  INVALID_TRANSITION: "This application is no longer ready for selection.",
+  NOT_FOUND: "This application could not be found.",
+  VALIDATION_ERROR: "Check the offer terms and try again.",
+};
 
 const BANDS: ScoreBand[] = ["Strong", "Proficient", "Developing", "Below threshold"];
 
@@ -36,13 +50,17 @@ const BANDS: ScoreBand[] = ["Strong", "Proficient", "Developing", "Below thresho
  */
 export default async function PartnerTeamPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string; applicationId: string }>;
+  searchParams: Promise<{ code?: string; offer?: string }>;
 }) {
   const { id: slug, applicationId } = await params;
+  const query = await searchParams;
 
   const resolution = await getAuthenticatedActor();
   if (resolution.status !== "RESOLVED") redirect("/sign-in");
+  if (!isPublicId(applicationId)) notFound();
 
   // Ownership is established by resolving the challenge through the partner
   // service, which scopes to the actor's organization. A challenge belonging
@@ -54,12 +72,6 @@ export default async function PartnerTeamPage({
   // Guard the pairing, not just the ids — a valid team under the wrong
   // challenge would otherwise render fit numbers against the wrong brief.
   if (!application || application.challenge.slug !== slug) notFound();
-
-  const detail = await getMarketplaceChallengeBySlug(
-    slug,
-    marketplaceContextForActor(resolution.actor)
-  );
-  if (!detail) notFound();
 
   const memberIds = application.members.map((member) => member.student.userId);
   const [profiles, directoryRows] = await Promise.all([
@@ -74,7 +86,10 @@ export default async function PartnerTeamPage({
     directoryRows.map((row) => [String(row.userId), toDirectoryStudent(row)])
   );
 
-  const challenge = toApplyChallenge(detail);
+  const challenge = toPartnerOwnedApplyChallenge(
+    page.challenge,
+    application.challenge.ownerOrganization.name
+  );
   const team = toTeam(application.teamName, application.members, profiles);
   const confirmed = confirmedMembers(team);
   const pending = pendingMembers(team);
@@ -85,6 +100,7 @@ export default async function PartnerTeamPage({
     projectSummary: application.projectSummary,
     status: application.status,
   });
+  const lifecycle = deriveApplicationLifecycleView(application);
 
   const offer = application.offerSummary;
   const offerLeft =
@@ -92,9 +108,10 @@ export default async function PartnerTeamPage({
       ? countdownLabel(offer.respondBy.toISOString())
       : null;
 
-  const assessment = application.assessmentSummaries.find(
-    (summary) => summary.overallBand !== null
-  );
+  const stageLabel =
+    application.status === "SELECTION_PENDING"
+      ? "Ready for selection"
+      : STAGE_LABELS[stage];
 
   return (
     <div className="max-w-[900px] mx-auto px-6 sm:px-7 py-7 pb-16">
@@ -118,7 +135,7 @@ export default async function PartnerTeamPage({
             {application.submittedAt ? ` · applied ${formatDate(application.submittedAt.toISOString())}` : ""}
           </p>
         </div>
-        <Chip variant="solid">{STAGE_LABELS[stage]}</Chip>
+        <Chip variant="solid">{stageLabel}</Chip>
       </div>
 
       {offerLeft ? (
@@ -135,30 +152,147 @@ export default async function PartnerTeamPage({
         </p>
       ) : null}
 
-      <Section title="Members" aside={`${team.members.length} listed`}>
+      {query.offer === "issued" ? (
+        <Banner tone="ok">Offer issued. The accepted team leader can now respond.</Banner>
+      ) : null}
+      {query.offer === "error" ? (
+        <Banner tone="error">
+          {OFFER_ERROR_MESSAGES[query.code ?? ""] ?? "Something went wrong."}
+        </Banner>
+      ) : null}
+
+      <Section title="Members" aside={`${confirmed.length} confirmed`}>
         <PartnerTeamRoster challenge={challenge} directory={directory} team={team} />
       </Section>
+
+      <Section title="Application next step">
+        <div className="bg-card border border-line rounded-card p-5">
+          <p className="text-ink-2 leading-relaxed">{lifecycle.message}</p>
+        </div>
+      </Section>
+
+      {application.status === "SELECTION_PENDING" ? (
+        <Section title="Selection">
+          <div className="bg-card border border-line rounded-card p-5">
+            <p className="text-ink-2 leading-relaxed">
+              This team cleared every required gate. Selecting them here is
+              your own decision — it is a direct choice from the eligible
+              applications on this challenge, not an AI-ranked or
+              AI-generated shortlist.
+            </p>
+            <form
+              action={issueSelectionOfferAction}
+              className="mt-4 grid gap-3 sm:grid-cols-2"
+            >
+              <input type="hidden" name="slug" value={slug} />
+              <input type="hidden" name="applicationId" value={applicationId} />
+              <label className="flex flex-col gap-1.5">
+                <span className="text-meta font-semibold text-ink-2 uppercase tracking-wide">
+                  Hours per week
+                </span>
+                <input
+                  type="number"
+                  name="hoursPerWeek"
+                  min={1}
+                  defaultValue={page.challenge.weeklyHours ?? undefined}
+                  className="h-10 w-full rounded-card border border-line bg-card px-3 text-ink outline-none focus:border-brand"
+                />
+              </label>
+              <label className="flex flex-col gap-1.5">
+                <span className="text-meta font-semibold text-ink-2 uppercase tracking-wide">
+                  Duration (weeks)
+                </span>
+                <input
+                  type="number"
+                  name="durationWeeks"
+                  min={1}
+                  defaultValue={page.challenge.durationWeeks ?? undefined}
+                  className="h-10 w-full rounded-card border border-line bg-card px-3 text-ink outline-none focus:border-brand"
+                />
+              </label>
+              <label className="flex flex-col gap-1.5">
+                <span className="text-meta font-semibold text-ink-2 uppercase tracking-wide">
+                  Start date
+                </span>
+                <input
+                  type="date"
+                  name="startDate"
+                  defaultValue={page.challenge.startDate ?? undefined}
+                  className="h-10 w-full rounded-card border border-line bg-card px-3 text-ink outline-none focus:border-brand"
+                />
+              </label>
+              <label className="flex flex-col gap-1.5">
+                <span className="text-meta font-semibold text-ink-2 uppercase tracking-wide">
+                  Response deadline (working days)
+                </span>
+                <input
+                  type="number"
+                  name="respondByWorkingDays"
+                  min={1}
+                  defaultValue={5}
+                  className="h-10 w-full rounded-card border border-line bg-card px-3 text-ink outline-none focus:border-brand"
+                />
+              </label>
+              <label className="flex flex-col gap-1.5 sm:col-span-2">
+                <span className="text-meta font-semibold text-ink-2 uppercase tracking-wide">
+                  Compensation note
+                </span>
+                <textarea
+                  name="compensationNote"
+                  rows={2}
+                  defaultValue={page.challenge.compensationDescription ?? ""}
+                  className="w-full rounded-card border border-line bg-card px-3 py-2 text-ink outline-none focus:border-brand"
+                />
+              </label>
+              <label className="flex items-center gap-2 sm:col-span-2">
+                <input type="checkbox" name="ndaRequired" className="h-4 w-4" />
+                <span className="text-ink-2">Require an NDA before restricted materials are released</span>
+              </label>
+              <div className="sm:col-span-2">
+                <button
+                  type="submit"
+                  className="h-10 px-5 rounded-card bg-brand text-white font-semibold hover:bg-brand-deep"
+                >
+                  Select this team and issue offer
+                </button>
+              </div>
+            </form>
+          </div>
+        </Section>
+      ) : null}
 
       <Section title="Fit">
         <TeamFit team={team} challenge={challenge} />
       </Section>
 
-      {assessment?.overallBand ? (
-        <Section title="Assessment">
-          <div className="bg-card border border-line rounded-card p-5">
-            <div className="flex flex-wrap items-center gap-2">
-              <Chip variant={bandChipVariant(toBand(assessment.overallBand))}>
-                {assessment.overallBand} overall
-              </Chip>
-              {assessment.submittedAt ? (
-                <span className="text-meta text-ink-3">
-                  Submitted {formatDate(assessment.submittedAt.toISOString())}
-                </span>
-              ) : null}
-            </div>
-            <p className="text-meta text-ink-3 mt-3 leading-relaxed">
-              Bands only. The platform does not show a partner a numeric score
-              or a rank against other applicants.
+      {application.assessmentSummaries.length > 0 ? (
+        <Section title="Assessment on this challenge">
+          <div className="bg-card border border-line rounded-card p-5 flex flex-col gap-3">
+            {application.assessmentSummaries.map((assessment, index) => {
+              const result = assessmentResult(assessment);
+              return (
+                <div key={index} className="flex flex-wrap items-center gap-2">
+                  <span className="font-medium text-ink">
+                    {assessment.assessmentTitle ?? "Assessment"}
+                  </span>
+                  <Chip variant={result.variant}>{result.label}</Chip>
+                  {assessment.overallBand ? (
+                    <Chip variant={bandChipVariant(toBand(assessment.overallBand))}>
+                      {assessment.overallBand} overall
+                    </Chip>
+                  ) : null}
+                  {assessment.submittedAt ? (
+                    <span className="text-meta text-ink-3">
+                      Submitted {formatDate(assessment.submittedAt.toISOString())}
+                    </span>
+                  ) : null}
+                </div>
+              );
+            })}
+            <p className="text-meta text-ink-3 leading-relaxed">
+              The team&apos;s faculty supervisor records the authoritative
+              result. The platform does not show a partner a numeric score or a
+              rank against other applicants.
             </p>
           </div>
         </Section>
@@ -173,7 +307,42 @@ export default async function PartnerTeamPage({
   );
 }
 
+function assessmentResult(assessment: {
+  attemptStatus: string;
+  hasReviewedResult: boolean;
+  passed: boolean | null;
+}): { label: string; variant: "ok" | "warn" | "default" } {
+  if (assessment.hasReviewedResult) {
+    if (assessment.passed === true) return { label: "Passed", variant: "ok" };
+    if (assessment.passed === false) {
+      return { label: "Below the pass threshold", variant: "warn" };
+    }
+    return { label: "Reviewed · no pass threshold configured", variant: "default" };
+  }
+  if (assessment.attemptStatus === "SUBMITTED") {
+    return { label: "Submitted · awaiting review", variant: "default" };
+  }
+  if (assessment.attemptStatus === "IN_PROGRESS") {
+    return { label: "In progress", variant: "default" };
+  }
+  return { label: "Not started", variant: "default" };
+}
+
 /** Bands come back from jsonb as free text; anything unrecognised is not a band. */
 function toBand(value: string): ScoreBand {
   return BANDS.find((band) => band === value) ?? "Developing";
+}
+
+function Banner({ children, tone }: { children: React.ReactNode; tone: "error" | "ok" }) {
+  return (
+    <div
+      className={
+        tone === "ok"
+          ? "mt-4 border border-line bg-line-2 text-ink-2 rounded-card px-4 py-3"
+          : "mt-4 border border-red/40 bg-red/5 text-red rounded-card px-4 py-3"
+      }
+    >
+      {children}
+    </div>
+  );
 }

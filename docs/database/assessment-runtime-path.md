@@ -132,7 +132,8 @@ Validation:
 - Generic text-like question types require non-empty text when supported.
 - Student payload cannot include score, rubric, reviewer, pass/fail, answer key, or grading metadata.
 
-`assessment_responses` has no database unique constraint for `(attempt_id, question_id)` in the frozen schema. Phase 5.2 therefore implements service-level upsert:
+Phase 6.6.5 adds a database unique constraint for `(attempt_id, question_id)`.
+The runtime uses that constraint for an atomic upsert:
 
 ```text
 existing response for attempt/question
@@ -141,8 +142,8 @@ existing response for attempt/question
 no existing response
     -> insert
 
-more than one existing response
-    -> CONFLICT
+concurrent insert for the same attempt/question
+    -> ON CONFLICT update the one effective response
 ```
 
 No response version history is added.
@@ -290,6 +291,28 @@ projects = 4
 match_results = 0
 ```
 
+## Phase 6.6.5 approved assessment result architecture
+
+Human review on 2026-09-28 approved these additions to the canonical model:
+
+- `assessments.passing_score decimal(5,2) NULL`, with no default and a
+  `0..100` check when present. `NULL` is an explicit unresolved configuration;
+  it never implies `60` or any other pass threshold.
+- `UNIQUE (attempt_id, question_id)` on `assessment_responses`, because the
+  current table stores one effective response rather than response history.
+- `UNIQUE (attempt_id)` on `assessment_scores`, because one attempt has one
+  authoritative result in Phase 6.6. `overall_score` remains nullable for
+  historical qualitative results and is constrained to `0..100` when present.
+
+Live grading authority is the application's accepted faculty supervisor, not a
+generic Faculty capability or organization-admin membership. An authorized
+grading transaction owns score/rubric persistence, `SUBMITTED -> REVIEWED`,
+threshold derivation, and the application transition. MCQ correctness is
+server-side grader evidence only. Coding and free-response types are manual;
+there is no execution sandbox or invented mixed-question weighting.
+
 ## Next Boundary
 
-The next checkpoint in `PRODUCTION_TRANSFORMATION_PLAN.md` is Phase 5.3 Offers. Phase 5.2 stops before any selection, offer, agreement, project, workspace, authentication, RBAC, or matching implementation.
+The current next boundary is completion and browser acceptance of Phase 6.6.5.
+Selection, offer issuance, project creation, matching, and deployment remain
+outside this document's runtime scope.

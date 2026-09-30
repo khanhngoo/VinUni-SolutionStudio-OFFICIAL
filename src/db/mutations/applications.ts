@@ -51,6 +51,7 @@ export interface ApplicationWriteChallenge {
   teamSizeMax: number | null;
   teamSizeMin: number | null;
   title: string;
+  visibility: NonNullable<typeof challenges.$inferSelect.visibility>;
 }
 
 export interface ApplicationWriteSubject {
@@ -156,6 +157,7 @@ export async function getApplicationWriteChallengeBySlug(
       teamSizeMax: challenges.teamSizeMax,
       teamSizeMin: challenges.teamSizeMin,
       title: challenges.title,
+      visibility: sql<NonNullable<typeof challenges.$inferSelect.visibility>>`coalesce(${challenges.visibility}, 'VINUNI_ONLY')`,
     })
     .from(challenges)
     .where(eq(challenges.slug, slug.trim()))
@@ -290,9 +292,21 @@ export async function selectChallengeEligibilityRulesForWrite(
 export async function findDuplicateApplicationMemberships(
   database: ApplicationMutationDatabase,
   challengeId: bigint,
-  studentIds: bigint[]
+  studentIds: bigint[],
+  excludeApplicationId?: bigint
 ) {
   if (studentIds.length === 0) return [];
+
+  const conditions = [
+    eq(applications.challengeId, challengeId),
+    inArray(applicationMembers.studentId, studentIds),
+    eq(applicationMembers.status, "ACCEPTED"),
+    ne(applications.status, "WITHDRAWN"),
+    ne(applications.status, "REJECTED"),
+  ];
+  if (excludeApplicationId !== undefined) {
+    conditions.push(ne(applications.id, excludeApplicationId));
+  }
 
   return database
     .select({
@@ -303,13 +317,64 @@ export async function findDuplicateApplicationMemberships(
     .from(applicationMembers)
     .innerJoin(applications, eq(applications.id, applicationMembers.applicationId))
     .where(
-      and(
-        eq(applications.challengeId, challengeId),
-        inArray(applicationMembers.studentId, studentIds),
-        ne(applications.status, "WITHDRAWN"),
-        ne(applications.status, "REJECTED")
-      )
+      and(...conditions)
     );
+}
+
+/**
+ * Serializes effective participation checks without changing the normalized
+ * team schema. Every creator/acceptor takes the same transaction-scoped lock
+ * for each (challenge, accepted student) pair before checking for conflicts.
+ * Sorting prevents overlapping team submissions from deadlocking; a hash
+ * collision can only serialize unrelated work and cannot weaken correctness.
+ */
+export async function lockEffectiveApplicationParticipants(
+  database: ApplicationMutationDatabase,
+  challengeId: bigint,
+  studentIds: bigint[]
+) {
+  const sortedIds = Array.from(new Set(studentIds.map(String)))
+    .map(BigInt)
+    .sort((left, right) => (left < right ? -1 : left > right ? 1 : 0));
+
+  for (const studentId of sortedIds) {
+    const lockKey = `application-participation:${challengeId.toString()}:${studentId.toString()}`;
+    await database.execute(
+      sql`select pg_advisory_xact_lock(hashtextextended(${lockKey}, 0))`
+    );
+  }
+}
+
+/** Row lock shared by lifecycle, invitation, withdrawal and future selection writes. */
+export async function lockApplicationForLifecycle(
+  database: ApplicationMutationDatabase,
+  applicationId: bigint
+) {
+  await database.execute(
+    sql`select ${applications.id} from ${applications} where ${applications.id} = ${applicationId} for update`
+  );
+}
+
+export async function getApplicationWriteSubjectById(
+  database: ApplicationMutationDatabase,
+  applicationId: bigint
+): Promise<ApplicationWriteSubject | null> {
+  const [application] = await database
+    .select({
+      challengeId: applications.challengeId,
+      id: applications.id,
+      managingOrganizationId: challenges.managingOrganizationId,
+      ownerOrganizationId: challenges.ownerOrganizationId,
+      publicId: applications.publicId,
+      status: sql<ApplicationStatus>`coalesce(${applications.status}, 'SUBMITTED')`,
+      submittedBy: applications.submittedBy,
+    })
+    .from(applications)
+    .innerJoin(challenges, eq(challenges.id, applications.challengeId))
+    .where(eq(applications.id, applicationId))
+    .limit(1);
+
+  return application ?? null;
 }
 
 export async function insertApplication(
@@ -371,13 +436,14 @@ export async function updateApplicationStatus(
   database: ApplicationMutationDatabase,
   applicationId: bigint,
   expectedStatuses: ApplicationStatus[],
-  nextStatus: ApplicationStatus
+  nextStatus: ApplicationStatus,
+  now = new Date()
 ) {
   const [application] = await database
     .update(applications)
     .set({
       status: nextStatus,
-      updatedAt: new Date(),
+      updatedAt: now,
     })
     .where(
       and(

@@ -2,6 +2,8 @@
 
 import { useActionState } from "react";
 
+import { PasswordField } from "@/components/ui/password-field";
+
 import { signInWithDemo, type AuthenticationFormState } from "./actions";
 
 const initialState: AuthenticationFormState = {};
@@ -15,17 +17,13 @@ export function DemoSignInForm() {
         Explore the student portal with a prepared demo profile. Enter the demo
         password provided to you by the site owner.
       </p>
-      <label className="mt-5 block text-sm font-medium text-ink" htmlFor="demo-password">
-        Demo password
-        <input
-          autoComplete="current-password"
-          className="mt-1.5 h-10 w-full rounded-card border border-line bg-white px-3 text-ink outline-none focus:border-brand focus:ring-2 focus:ring-brand/15"
-          id="demo-password"
-          name="password"
-          required
-          type="password"
-        />
-      </label>
+      <PasswordField
+        autoComplete="current-password"
+        className="mt-5"
+        id="demo-password"
+        label="Demo password"
+        name="password"
+      />
       {state.message ? (
         <p aria-live="polite" className="mt-4 text-sm text-ink-2" role="status">
           {state.message}

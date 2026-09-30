@@ -7,7 +7,7 @@ import { cn } from "@/lib/cn";
 interface PreflightCheckProps {
   applicationId: string;
   trackLabel: string;
-  minutes: number;
+  minutes: number | null;
   itemCount: string;
   startAction: (formData: FormData) => void | Promise<void>;
 }
@@ -43,7 +43,10 @@ export function PreflightCheck({
     {
       id: "connection",
       label: "Stable connection",
-      detail: "A 5-minute grace window applies if you drop",
+      detail:
+        minutes === null
+          ? "Required to save responses during the assessment"
+          : "Reconnect before the assessment time limit expires",
       state: "pending",
     },
     {
@@ -120,17 +123,17 @@ export function PreflightCheck({
 
       <section className="mt-7">
         <h2 className="marker-triangle text-brand mb-3">
-          What is monitored
+          Rules during the test
         </h2>
         <div className="bg-card border border-line rounded-card p-5">
           <ul className="flex flex-col gap-2 text-ink-2">
             <Rule>
-              The assessment runs in fullscreen. Leaving fullscreen is recorded.
+              The assessment runs in fullscreen. Leaving fullscreen counts as a warning.
             </Rule>
             <Rule>
-              Switching tabs or windows is counted.{" "}
+              Switching tabs or windows counts as a warning.{" "}
               <strong className="text-ink font-semibold">
-                Three violations submits your test automatically.
+                Three warnings submit your test automatically.
               </strong>
             </Rule>
             <Rule>
@@ -140,11 +143,13 @@ export function PreflightCheck({
               You get one attempt. There is no restart once you begin.
             </Rule>
             <Rule>
-              Your answers autosave every 15 seconds and on every change.
+              Your answers are saved to the server as you work and before
+              submission.
             </Rule>
             <Rule>
-              The timer keeps running if you disconnect. You have a 5-minute
-              grace window to return.
+              {minutes === null
+                ? "This assessment has no countdown timer."
+                : "The timer keeps running if you disconnect. Reconnect before the time limit expires."}
             </Rule>
           </ul>
 
@@ -165,7 +170,7 @@ export function PreflightCheck({
       <div className="mt-7 flex flex-wrap items-center justify-between gap-4 bg-card border border-line rounded-card p-5">
         <div>
           <p className="font-semibold text-ink">
-            {trackLabel} · {minutes} minutes
+            {trackLabel} · {minutes === null ? "Untimed" : `${minutes} minutes`}
           </p>
           <p className="text-meta text-ink-3 mt-0.5">
             {itemCount} · single attempt

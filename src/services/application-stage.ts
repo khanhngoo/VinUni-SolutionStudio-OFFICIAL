@@ -4,6 +4,7 @@ import type {
   ApplicationProjectSummary,
   ApplicationListItemRead,
 } from "@/db/queries/applications";
+import { applicationDeadlineCampusDate, endOfCampusDate } from "@/lib/dates";
 import type { PipelineApplicationView } from "@/lib/pipeline";
 import type { ApplicationStage } from "@/lib/types";
 
@@ -123,7 +124,13 @@ export function toPipelineView(
   return {
     nextAction: NEXT_ACTION[stage],
     nextActionDue: toIsoDate(
-      stage === "INVITED" ? respondBy : application.challenge.applicationDeadline
+      stage === "INVITED"
+        ? respondBy
+        : application.challenge.applicationDeadline
+          ? endOfCampusDate(
+              applicationDeadlineCampusDate(application.challenge.applicationDeadline)
+            )
+          : null
     ),
     offerRespondBy: respondBy?.toISOString() ?? null,
     publicId: application.publicId,

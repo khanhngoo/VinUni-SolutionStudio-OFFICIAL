@@ -34,8 +34,11 @@ async function respond(requestId: string, decision: "ACCEPT" | "DECLINE") {
   }
 
   try {
-    await respondToSupervisionRequest(BigInt(requestId), decision, resolution.actor);
+    const parsedRequestId = BigInt(requestId);
+    if (parsedRequestId < BigInt(1)) return "That supervision request is no longer available.";
+    await respondToSupervisionRequest(parsedRequestId, decision, resolution.actor);
   } catch (error) {
+    if (error instanceof SyntaxError) return "That supervision request is no longer available.";
     if (error instanceof SupervisionError) return error.message;
     throw error;
   }
@@ -44,12 +47,16 @@ async function respond(requestId: string, decision: "ACCEPT" | "DECLINE") {
   return null;
 }
 
-export async function approveMilestone(milestoneId: string): Promise<string | null> {
-  return review(milestoneId, "APPROVED", null);
+export async function approveMilestone(
+  milestoneId: string,
+  submissionId: string
+): Promise<string | null> {
+  return review(milestoneId, submissionId, "APPROVED", null);
 }
 
 export async function requestMilestoneChanges(
   milestoneId: string,
+  submissionId: string,
   comments: string
 ): Promise<string | null> {
   const trimmed = comments.trim();
@@ -57,11 +64,12 @@ export async function requestMilestoneChanges(
     return "Say what needs changing — the team only sees what you write here.";
   }
 
-  return review(milestoneId, "REVISION_REQUESTED", trimmed);
+  return review(milestoneId, submissionId, "REVISION_REQUESTED", trimmed);
 }
 
 async function review(
   milestoneId: string,
+  submissionId: string,
   decision: "APPROVED" | "REVISION_REQUESTED",
   comments: string | null
 ) {
@@ -73,11 +81,13 @@ async function review(
   try {
     await recordFacultyMilestoneReview(
       BigInt(milestoneId),
+      BigInt(submissionId),
       decision,
       comments,
       resolution.actor
     );
   } catch (error) {
+    if (error instanceof SyntaxError) return "That milestone is no longer available to you.";
     if (error instanceof MilestoneReviewError) {
       return error.code === "NOT_FOUND"
         ? "That milestone is no longer available to you."

@@ -189,7 +189,7 @@ export function scoreStudent(
     caveats.push(`Already on one live challenge.`);
   }
   if (student.assessmentBand === null) {
-    caveats.push(`Has not sat a Studio assessment yet.`);
+    caveats.push(`Assessment result not available in this view.`);
   }
 
   return {

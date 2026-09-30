@@ -138,7 +138,7 @@ export function StudentCard({
           <div>
             <h3 className="text-h3 text-ink-3">Assessment</h3>
             <p className="text-ink font-medium mt-1">
-              {student.assessmentBand ?? "Not assessed yet"}
+              {student.assessmentBand ?? "Result not available in this view"}
             </p>
           </div>
           <div>

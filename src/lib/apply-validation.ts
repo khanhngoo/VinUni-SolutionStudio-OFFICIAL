@@ -1,5 +1,5 @@
 import type { Challenge, Team } from "@/lib/types";
-import { teamReadiness } from "@/lib/teams";
+import { confirmedMembers, pendingMembers, sizeLabel } from "@/lib/teams";
 
 export const MAX_WORDS = 300;
 
@@ -41,8 +41,17 @@ export function validateTeam(
   const errors: ApplyErrors = {};
   if (draft.teamName.trim() === "") errors.teamName = "Give the team a name.";
 
-  const { blockers } = teamReadiness(team, challenge);
-  if (blockers.length > 0) errors.team = blockers[0];
+  // Invitations are sent on submission and answered afterwards; the server
+  // counts the leader plus invitees against the size rule
+  // (validateTeamShape) and holds progression until every invitee responds.
+  // A pending invite therefore cannot block submitting.
+  const roster = confirmedMembers(team).length + pendingMembers(team).length;
+  if (roster < challenge.teamSizeMin) {
+    const short = challenge.teamSizeMin - roster;
+    errors.team = `${short} more ${short === 1 ? "teammate" : "teammates"} needed — this challenge asks for ${sizeLabel(challenge)}`;
+  } else if (roster > challenge.teamSizeMax) {
+    errors.team = `Too many members — this challenge takes at most ${challenge.teamSizeMax}`;
+  }
 
   return errors;
 }

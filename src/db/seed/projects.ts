@@ -3,8 +3,8 @@ import { and, eq, inArray, isNull, sql } from "drizzle-orm";
 import {
   applicationMembers,
   deliverables,
-  feedback,
   milestoneReviews,
+  milestoneSubmissions,
   milestones,
   offers,
   projectMembers,
@@ -754,12 +754,20 @@ async function ensureDeliverable(
     throw new Error(`Refusing to seed duplicate deliverable "${seed.title}".`);
   }
 
+  const submissionId = await ensureRoundOneSubmission(
+    ctx,
+    milestoneId,
+    submittedBy,
+    seed.submittedAt
+  );
+
   const values = {
     description: seed.description,
     deliverableType: seed.type,
     externalUrl: null,
     fileUrl: null,
     milestoneId,
+    submissionId,
     submittedAt: seed.submittedAt,
     submittedBy,
     title: seed.title,
@@ -774,6 +782,41 @@ async function ensureDeliverable(
   }
 
   await ctx.tx.insert(deliverables).values(values);
+}
+
+/** Seeded work is always a single first round; identity is (milestone, round 1). */
+async function ensureRoundOneSubmission(
+  ctx: SeedContext,
+  milestoneId: bigint,
+  submittedBy: bigint,
+  submittedAt: Date
+) {
+  const [submission] = await ctx.tx
+    .insert(milestoneSubmissions)
+    .values({ createdAt: submittedAt, milestoneId, roundNumber: 1, submittedAt, submittedBy })
+    .onConflictDoUpdate({
+      target: [milestoneSubmissions.milestoneId, milestoneSubmissions.roundNumber],
+      set: { submittedAt, submittedBy },
+    })
+    .returning({ id: milestoneSubmissions.id });
+  return submission.id;
+}
+
+async function roundOneSubmissionId(ctx: SeedContext, milestoneId: bigint) {
+  const [submission] = await ctx.tx
+    .select({ id: milestoneSubmissions.id })
+    .from(milestoneSubmissions)
+    .where(
+      and(
+        eq(milestoneSubmissions.milestoneId, milestoneId),
+        eq(milestoneSubmissions.roundNumber, 1)
+      )
+    )
+    .limit(1);
+  if (!submission) {
+    throw new Error("Refusing to seed a milestone review without a submitted round.");
+  }
+  return submission.id;
 }
 
 async function findProjectLeaderUserId(ctx: SeedContext, milestoneId: bigint) {
@@ -833,6 +876,7 @@ async function ensureMilestoneReview(
     createdAt: seed.createdAt,
     decision: seed.decision,
     milestoneId,
+    submissionId: await roundOneSubmissionId(ctx, milestoneId),
     reviewerId,
     reviewerOrganizationId,
     reviewerRole: seed.reviewerRole,
@@ -1175,12 +1219,6 @@ async function validateDemoProjects(ctx: SeedContext) {
     throw new Error(
       "Seed validation failed: deliverable submitters must be project members."
     );
-  }
-
-  const feedbackCount = await ctx.tx.select({ id: feedback.id }).from(feedback);
-
-  if (feedbackCount.length > 0) {
-    throw new Error("Seed validation failed: Phase 3.8 intentionally seeds no feedback.");
   }
 
   const nonProjectApplications = [

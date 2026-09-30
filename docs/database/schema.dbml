@@ -747,6 +747,46 @@ Table challenges {
 
 
 //////////////////////////////////////////////////////////////
+// CANDIDATE-SPECIFIC CHALLENGE ACCESS
+//
+// INVITE_ONLY sourcing resolves one exact active student and grants access to
+// that student for one challenge. Effective state is derived from grant,
+// expiry, revocation, challenge lifecycle, and application deadline; it is
+// not stored as a redundant status. Historical rows are retained across
+// revocation, expiry, and re-grant.
+//
+// PostgreSQL checks enforce timestamp validity and paired revocation fields.
+// The service locks the challenge row while granting so concurrent requests
+// cannot create two effective grants for the same challenge/student. A
+// time-dependent partial unique index using now() is deliberately not used.
+//////////////////////////////////////////////////////////////
+
+Table challenge_candidate_access {
+  id bigint [pk, increment]
+
+  challenge_id bigint [not null]
+  student_id bigint [not null]
+
+  granted_by bigint [not null]
+  granted_at timestamptz [not null]
+  expires_at timestamptz [not null]
+
+  revoked_by bigint
+  revoked_at timestamptz
+
+  created_at timestamptz
+  updated_at timestamptz
+
+  indexes {
+    (challenge_id, student_id)
+    (student_id, expires_at)
+    granted_by
+    revoked_by
+  }
+}
+
+
+//////////////////////////////////////////////////////////////
 // CHALLENGE ELIGIBILITY RULES
 //
 // Flexible rule model for GPA, study year, school, major,
@@ -1089,6 +1129,10 @@ Table assessments {
 
   time_limit_minutes int
 
+  // Authoritative 0-100 pass threshold for reviewed numeric scores.
+  // NULL means no pass/fail outcome can be derived. There is no default.
+  passing_score decimal(5,2)
+
   ai_policy assessment_ai_policy
 
   scope assessment_scope [not null, default: 'INDIVIDUAL']
@@ -1209,6 +1253,10 @@ Table assessment_responses {
   attachment_url varchar
 
   submitted_at timestamptz
+
+  indexes {
+    (attempt_id, question_id) [unique]
+  }
 }
 
 
@@ -1222,10 +1270,11 @@ Table assessment_responses {
 Table assessment_scores {
   id bigint [pk, increment]
 
-  attempt_id bigint [not null]
+  attempt_id bigint [not null, unique]
 
   reviewer_id bigint [not null]
 
+  // Nullable for historical qualitative results. When present, 0 <= score <= 100.
   overall_score decimal
 
   rubric_scores jsonb
@@ -1412,6 +1461,35 @@ Table milestones {
 
 
 //////////////////////////////////////////////////////////////
+// MILESTONE SUBMISSION ROUNDS (Phase 6.6.8, approved 2026-09-29)
+//
+// Each submission of work for a milestone is one round. The
+// effective round is the highest round_number. Reviews and
+// deliverables belong to exactly one round, so an approval from
+// an earlier round can never count toward a later round's
+// quorum, and all prior rounds remain as history.
+//////////////////////////////////////////////////////////////
+
+Table milestone_submissions {
+  id bigint [pk, increment]
+
+  milestone_id bigint [not null]
+
+  round_number int [not null]
+
+  submitted_by bigint [not null]
+
+  submitted_at timestamptz [not null]
+
+  created_at timestamptz
+
+  indexes {
+    (milestone_id, round_number) [unique]
+  }
+}
+
+
+//////////////////////////////////////////////////////////////
 // PROJECT DELIVERABLES
 //
 // File/URL fields are object-storage or external references,
@@ -1422,6 +1500,10 @@ Table deliverables {
   id bigint [pk, increment]
 
   milestone_id bigint [not null]
+
+  // Round this deliverable was submitted in; must belong to the
+  // same milestone.
+  submission_id bigint [not null]
 
   submitted_by bigint [not null]
 
@@ -1445,12 +1527,19 @@ Table deliverables {
 // Replaces MVP facultyApproved/posterApproved booleans.
 // Dual approval is derived from required review records.
 // Repeated review/revision rounds are preserved as rows.
+//
+// Append-only. One decision per reviewer role per submission
+// round; a milestone completes only when FACULTY and PARTNER
+// both APPROVED the same (current) round. REVISION_REQUESTED
+// closes the round; the next submission opens a new one.
 //////////////////////////////////////////////////////////////
 
 Table milestone_reviews {
   id bigint [pk, increment]
 
   milestone_id bigint [not null]
+
+  submission_id bigint [not null]
 
   reviewer_id bigint [not null]
 
@@ -1464,6 +1553,47 @@ Table milestone_reviews {
 
   created_at timestamptz
   updated_at timestamptz
+
+  indexes {
+    (submission_id, reviewer_role) [unique]
+  }
+}
+
+
+//////////////////////////////////////////////////////////////
+// PROJECT FINAL REVIEW (Phase 6.6.8, approved 2026-09-29)
+//
+// Formal project-level close-out decisions, kept separate from
+// milestone reviews and from generic feedback. Entered when every
+// milestone is COMPLETED (project -> FINAL_REVIEW). FACULTY and
+// PARTNER both APPROVED in the same round -> COMPLETED. A
+// REVISION_REQUESTED returns the project to ACTIVE and closes the
+// round; the next final review uses the next round_number.
+// Append-only.
+//////////////////////////////////////////////////////////////
+
+Table project_final_reviews {
+  id bigint [pk, increment]
+
+  project_id bigint [not null]
+
+  round_number int [not null]
+
+  reviewer_id bigint [not null]
+
+  reviewer_organization_id bigint
+
+  reviewer_role milestone_review_role [not null]
+
+  decision milestone_review_decision [not null]
+
+  comments text
+
+  created_at timestamptz
+
+  indexes {
+    (project_id, round_number, reviewer_role) [unique]
+  }
 }
 
 
@@ -1700,6 +1830,14 @@ Ref: organizations.id < challenges.managing_organization_id
 
 Ref: users.id < challenges.contact_person_id
 
+Ref: challenges.id < challenge_candidate_access.challenge_id
+
+Ref: student_profiles.user_id < challenge_candidate_access.student_id
+
+Ref: users.id < challenge_candidate_access.granted_by
+
+Ref: users.id < challenge_candidate_access.revoked_by
+
 Ref: challenges.id < challenge_eligibility_rules.challenge_id
 
 
@@ -1841,11 +1979,25 @@ Ref: student_profiles.user_id < project_members.student_id
 
 Ref: projects.id < milestones.project_id
 
+Ref: milestones.id < milestone_submissions.milestone_id
+
+Ref: users.id < milestone_submissions.submitted_by
+
 Ref: milestones.id < deliverables.milestone_id
+
+Ref: milestone_submissions.id < deliverables.submission_id
 
 Ref: users.id < deliverables.submitted_by
 
 Ref: milestones.id < milestone_reviews.milestone_id
+
+Ref: milestone_submissions.id < milestone_reviews.submission_id
+
+Ref: projects.id < project_final_reviews.project_id
+
+Ref: users.id < project_final_reviews.reviewer_id
+
+Ref: organizations.id < project_final_reviews.reviewer_organization_id
 
 Ref: users.id < milestone_reviews.reviewer_id
 

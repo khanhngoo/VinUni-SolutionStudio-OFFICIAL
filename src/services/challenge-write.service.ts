@@ -1,5 +1,6 @@
 import type { AuthenticatedActor } from "@/auth/authenticated-actor";
 import { db } from "@/db";
+import { applicationDeadlineCampusDate } from "@/lib/dates";
 import {
   getChallengeWriteActorByEmail,
   getChallengeWriteOrganizationById,
@@ -303,6 +304,15 @@ export async function recordChallengeReviewDecision(
   return withChallengeWriteTransaction(options.database ?? db, async (tx) => {
     const challenge = await requireChallenge(tx, slug);
     const reviewerOrganizationId = assertManagingCanWrite(challenge, actor);
+    const comments = cleanOptional(input.comments);
+    if (input.decision === "REJECTED") {
+      validationError([
+        "Reviewer feedback must request a revision; cancellation is a separate intentional owner workflow.",
+      ]);
+    }
+    if (input.decision === "REVISION_REQUESTED" && (!comments || comments.length < 3)) {
+      validationError(["Revision requests require an actionable reason."]);
+    }
     const nextStatus = reviewDecisionStatus(input.decision);
 
     const updated = await updateChallengeStatus(
@@ -315,7 +325,7 @@ export async function recordChallengeReviewDecision(
 
     await insertChallengeReview(tx, {
       challengeId: challenge.id,
-      comments: input.comments ?? null,
+      comments,
       decision: input.decision,
       reviewerId: actor.userId,
       reviewerOrganizationId,
@@ -536,7 +546,10 @@ function reviewDecisionStatus(decision: ReviewDecision): ChallengeStatus {
     case "REVISION_REQUESTED":
       return "REVISION_REQUESTED";
     case "REJECTED":
-      return "CANCELLED";
+      throw new ChallengeWriteError(
+        "VALIDATION_ERROR",
+        "Reviewer feedback cannot terminally cancel a challenge."
+      );
   }
 }
 
@@ -847,7 +860,7 @@ function isDateOnly(value: string) {
 }
 
 function dateOnlyKey(value: Date) {
-  return value.toISOString().slice(0, 10);
+  return applicationDeadlineCampusDate(value);
 }
 
 function sameId(a: bigint, b: bigint) {

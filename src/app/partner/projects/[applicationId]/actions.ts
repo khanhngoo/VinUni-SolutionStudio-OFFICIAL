@@ -9,13 +9,15 @@ import {
 } from "@/services/milestone-review.service";
 
 export async function approveMilestoneAsPartner(
-  milestoneId: string
+  milestoneId: string,
+  submissionId: string
 ): Promise<string | null> {
-  return review(milestoneId, "APPROVED", null);
+  return review(milestoneId, submissionId, "APPROVED", null);
 }
 
 export async function requestMilestoneRevision(
   milestoneId: string,
+  submissionId: string,
   comments: string
 ): Promise<string | null> {
   const trimmed = comments.trim();
@@ -23,11 +25,12 @@ export async function requestMilestoneRevision(
     return "Say what needs changing — the team sees this verbatim.";
   }
 
-  return review(milestoneId, "REVISION_REQUESTED", trimmed);
+  return review(milestoneId, submissionId, "REVISION_REQUESTED", trimmed);
 }
 
 async function review(
   milestoneId: string,
+  submissionId: string,
   decision: "APPROVED" | "REVISION_REQUESTED",
   comments: string | null
 ) {
@@ -39,11 +42,13 @@ async function review(
   try {
     await recordPartnerMilestoneReview(
       BigInt(milestoneId),
+      BigInt(submissionId),
       decision,
       comments,
       resolution.actor
     );
   } catch (error) {
+    if (error instanceof SyntaxError) return "That milestone is no longer available to you.";
     if (error instanceof MilestoneReviewError) {
       return error.code === "NOT_FOUND"
         ? "That milestone is no longer available to you."

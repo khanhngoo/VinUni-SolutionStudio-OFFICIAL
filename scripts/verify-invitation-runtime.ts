@@ -1,5 +1,5 @@
 import "dotenv/config";
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 
 import { db } from "../src/db";
 import { applicationMembers, applications } from "../src/db/schema";
@@ -22,11 +22,24 @@ async function main() {
   const pendingRows = await db
     .select({ applicationId: applicationMembers.applicationId, studentId: applicationMembers.studentId })
     .from(applicationMembers)
-    .where(eq(applicationMembers.status, "INVITED"));
+    .innerJoin(applications, eq(applications.id, applicationMembers.applicationId))
+    .where(
+      and(
+        eq(applicationMembers.status, "INVITED"),
+        inArray(applications.status, [
+          "SUBMITTED",
+          "SHORTLISTED",
+          "ASSESSMENT",
+          "SELECTION_PENDING",
+        ])
+      )
+    );
 
   if (pendingRows.length === 0) {
-    console.error("No INVITED membership seeded — the invitation flow is unexercised.");
-    process.exit(1);
+    console.log(
+      "No pre-selection INVITED membership is seeded; disposable invitation acceptance is covered by verify-application-lifecycle.ts."
+    );
+    process.exit(0);
   }
 
   const [{ applicationId, studentId }] = pendingRows;

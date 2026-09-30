@@ -1,4 +1,6 @@
 import type { DirectoryStudentRead, FacultyOptionRead, PeerRead } from "@/db/queries/students";
+import type { PartnerChallengeDetailRead } from "@/db/queries/partner";
+import { applicationDeadlineCampusDate } from "@/lib/dates";
 import {
   challengeDeliverables,
   challengeDomainTags,
@@ -205,7 +207,7 @@ export function toApplyChallenge(detail: MarketplaceChallengeDetailModel): Chall
     compensation: COMPENSATION_LABELS[detail.compensationType] ?? "Unpaid",
     confidential: !detail.ownerOrganization.nameIsPublic,
     deadline: detail.applicationDeadline
-      ? new Date(detail.applicationDeadline).toISOString()
+      ? applicationDeadlineCampusDate(new Date(detail.applicationDeadline))
       : "",
     domainTags: challengeDomainTags(detail),
     durationWeeks: detail.durationWeeks ?? 0,
@@ -238,6 +240,64 @@ export function toApplyChallenge(detail: MarketplaceChallengeDetailModel): Chall
     subType: toChallengeSubType(detail.subtype),
     // Faculty assignments carry a display name but no id on the read model,
     // so there is nothing to pre-select against; the picker lists everyone.
+    suggestedFacultyIds: [],
+    summary: detail.summary,
+    teamSizeMax: detail.teamSizeMax ?? 0,
+    teamSizeMin: detail.teamSizeMin ?? 0,
+    title: detail.title,
+    workMode: WORK_MODE_LABELS[detail.workMode ?? ""] ?? "Hybrid",
+  };
+}
+
+/**
+ * The same legacy view model, built from an owner-authorized partner read.
+ *
+ * A partner must not be forced through the student marketplace visibility
+ * boundary to inspect a team for its own VINUNI_ONLY challenge. This adapter
+ * deliberately consumes the already owner-scoped detail returned by the
+ * partner service instead of weakening marketplace disclosure rules.
+ */
+export function toPartnerOwnedApplyChallenge(
+  detail: PartnerChallengeDetailRead,
+  ownerOrganizationName: string
+): Challenge {
+  const schools = detail.eligibilitySummary.schools ?? [];
+  const eligibleColleges = schools
+    .map((school) => COLLEGES.find((college) => college === school))
+    .filter((college): college is College => Boolean(college));
+
+  return {
+    applicantCount: detail.applicantCount,
+    assessmentMinutes: 0,
+    assessmentTrack: "Cognitive",
+    colleges: eligibleColleges,
+    compensation: COMPENSATION_LABELS[detail.compensationType] ?? "Unpaid",
+    confidential: detail.visibility !== "PUBLIC_PREVIEW",
+    deadline: detail.applicationDeadline
+      ? applicationDeadlineCampusDate(detail.applicationDeadline)
+      : "",
+    domainTags: detail.domain ? [detail.domain] : [],
+    durationWeeks: detail.durationWeeks ?? 0,
+    eligibleColleges: eligibleColleges.length > 0 ? eligibleColleges : null,
+    eligibleYears: detail.eligibilitySummary.studyYears ?? [],
+    hoursPerWeek: detail.weeklyHours ?? 0,
+    id: detail.slug ?? detail.publicId,
+    interviewFormat: "",
+    lockedBlocks: [],
+    minGpa: detail.eligibilitySummary.minGpa,
+    orgCategory: "Partner",
+    orgId: "",
+    orgName: ownerOrganizationName,
+    posterKind: "Company",
+    postedAt: "",
+    responsibilities: [],
+    skills: detail.skills.map((skill) => ({
+      level: skill.requirementType === "REQUIRED" ? "must" : "nice",
+      name: skill.canonicalName,
+    })),
+    startDate: detail.startDate ?? "",
+    status: "Published",
+    subType: toChallengeSubType(detail.subtype),
     suggestedFacultyIds: [],
     summary: detail.summary,
     teamSizeMax: detail.teamSizeMax ?? 0,
@@ -333,8 +393,9 @@ const MEETING_KIND_LABELS: Record<string, MeetingKind> = {
  * legible without the component having to reason about review rows.
  */
 export function toMilestone(row: {
+  currentSubmission?: { id: string; roundNumber: number } | null;
   deadline: string | null;
-  deliverables: Array<{ title: string | null }>;
+  deliverables: Array<{ externalUrl?: string | null; fileUrl?: string | null; roundNumber?: number; title: string | null }>;
   description: string | null;
   facultyApproved: boolean;
   id: string;
@@ -342,12 +403,17 @@ export function toMilestone(row: {
   status: string;
   title: string;
 }): Milestone {
+  const round = row.currentSubmission?.roundNumber ?? null;
+  const current = row.deliverables.find((item) => item.roundNumber === round) ?? row.deliverables[0];
   return {
-    deliverable: row.deliverables[0]?.title ?? row.description ?? "Deliverable",
+    deliverable: current?.title ?? row.description ?? "Deliverable",
+    deliverableUrl: current?.externalUrl ?? current?.fileUrl ?? null,
     dueDate: row.deadline ?? "",
     facultyApproved: row.facultyApproved,
     id: row.id,
     posterApproved: row.partnerApproved,
+    round,
+    submissionId: row.currentSubmission?.id ?? null,
     status: MILESTONE_STATUS_LABELS[row.status] ?? "Not started",
     title: row.title,
   };

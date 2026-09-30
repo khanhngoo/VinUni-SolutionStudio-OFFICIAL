@@ -2,8 +2,8 @@
 
 **Repository:** `VinUni-SolutionStudio-OFFICIAL`
 **Project:** VinUniversity Solution Studio / AI-in-Action Platform
-**Last updated:** 2026-09-06
-**Current phase:** Phase 6.5 complete / ready for human review — next checkpoint: Phase 7.1 — Structured skill matching
+**Last updated:** 2026-09-29
+**Current phase:** Phase 6.6.9 acceptance and P1–P5 cleanup complete; Phase 6.6 awaits final human approval; Phase 8 is not authorized
 
 ---
 
@@ -34,9 +34,14 @@ Authentication + RBAC
    ↓
 Local containerized development
    ↓
-AI matching
+Phase 6.6 — End-to-End Workflow Closure & Production-Readiness Remediation
    ↓
-Production deployment
+Human review + Playwright multi-role E2E acceptance
+   ↓
+Phase 7 skill + semantic matching (DEFERRED; optional later resumption)
+   ↓
+Phase 8 staging + production deployment (after Phase 6.6 acceptance;
+Phase 7 is not a prerequisite)
 ```
 
 The **canonical ERD stored at `docs/database/schema.dbml`** should be treated as the design source of truth for the production database schema.
@@ -147,8 +152,9 @@ VinUni-SolutionStudio-OFFICIAL/
 | Phase 5 | Applications, assessments, offers, workspace → real DB | ✅ Complete / human review complete |
 | Phase 6 | Authentication + RBAC | ✅ Complete / ready for final human review |
 | Phase 6.5 | Local containerized development | ✅ Complete / ready for human review |
-| Phase 7 | Skill + semantic matching | ⬜ Not started |
-| Phase 8 | Production deployment | ⬜ Not started |
+| Phase 6.6 | End-to-End Workflow Closure & Production-Readiness Remediation | 🟡 6.6.8 complete and ready for human approval; 6.6.9 not started |
+| Phase 7 | Skill + semantic matching | ⏸ Deferred / not required for initial near-production release |
+| Phase 8 | Staging + production deployment | ⬜ Not started; follows Phase 6.6 human review and E2E acceptance, independently of Phase 7 |
 
 ---
 
@@ -1585,9 +1591,9 @@ deployment/later-work boundaries documented in `docs/security/security-baseline.
 - [x] RBAC is enforced server-side
 - [x] Unauthorized operations are blocked regardless of frontend UI state
 
-Phase 6 is COMPLETE / READY FOR FINAL HUMAN REVIEW. Next checkpoint: Phase 6.5
-— Local containerized development, then human review, then Phase 7.1 —
-Structured skill matching.
+Phase 6 is COMPLETE / READY FOR FINAL HUMAN REVIEW. Historical handoff was
+Phase 6.5 — Local containerized development. The current handoff is Phase 6.6
+after human review of this roadmap amendment; Phase 7 is deferred.
 
 ---
 
@@ -1680,11 +1686,1396 @@ docker compose exec -e ALLOW_DB_SEED=true app pnpm db:seed
 - [x] Host `pnpm dev` and every existing `db:*` script behave exactly as before
 - [x] No secrets are baked into image layers
 - [x] Containerized commands are documented in Section 16 and `README.md`
-- [ ] Human review is completed before Phase 7.1 — Structured skill matching begins
+- [ ] Human review of Phase 6.5 and the amended roadmap is completed before Phase 6.6.0 implementation begins
+
+---
+
+# 10.6. Phase 6.6 — End-to-End Workflow Closure & Production-Readiness Remediation
+
+## Goal and boundaries
+
+Move from a tour of seeded downstream states to a near-production, authorized
+action path: challenge draft/review/publish → legitimate student access and
+application → supervision request/response → assessment submission and grading
+→ application progression → partner selection and offer → leader acceptance →
+project/member provisioning → milestone decisions and close-out. A state shown
+as an actionable product step must be reachable and persisted through runtime
+actions, not only through `pnpm db:reset` fixtures. Historical/negative seed
+scenarios may remain when clearly labelled and internally coherent.
+
+This is a **planned** checkpoint, not approval to implement it. Proceed through
+6.6.0–6.6.9 in order, with a bounded review after each slice. Preserve Phase
+6.3: anonymous and external-partner ordinary marketplace access is
+`PUBLIC_PREVIEW` only; VinUni actors retain their established scope; private
+and confidential disclosure stays protected. Production authentication still
+follows the approved Entra/VinUniversity direction. No production privileged
+self-selection, global-admin shortcut, Phase 7 matching, or Phase 8 deployment
+is implied. Do not add arbitrary code-execution/sandbox infrastructure merely
+to complete assessment grading.
+
+Evidence and priority come from
+`context/pre-demo-product-quality-audit.md`,
+`context/browser-product-quality-audit-2026-09-27.md`, and
+`context/product-quality-audit-reconciliation-2026-09-27.md`. Focus on their
+workflow-blocking P0/P1 and pertinent F1–F9 findings; do not import every
+low-priority polish item. Use Playwright MCP after each implemented checkpoint
+and inspect persisted rows for write/integrity tests in an isolated/disposable
+development database. Do not run destructive resets against a shared database.
+For any structural change, first review `docs/database/schema.dbml` and the
+reconciliation; obtain explicit approval, then update DBML → Drizzle schema →
+reviewed migration. A proposed checklist item is not schema approval.
+
+## 6.6.0 Product-rule confirmation — first implementation checkpoint
+
+**Goal:** Freeze decisions that determine the action path before writing it.
+
+**Scope/checklist:**
+
+- [ ] Approve a representative end-to-end branch (public or scoped invitation,
+  solo/team, supervision required or optional, assessment required or optional)
+  and define which transitions are compulsory versus valid bypasses.
+- [ ] Approve development-only persona provisioning boundaries and first-use
+  destinations; decide how a tester chooses an external partner organization
+  without acquiring arbitrary production authority.
+- [ ] Decide `PRIVATE` versus `INVITE_ONLY` discovery and candidate-access
+  semantics; require verification of a VinUni student identity, an owner-scoped
+  partner operation, student-specific access, revocation/expiry, and auditability.
+- [ ] Confirm `respond_by` is a hard supervision deadline: `PENDING` with
+  `now <= respond_by` may respond; `now > respond_by` is effectively expired
+  and read-only. Define missing deadline, reissue/reroute, and timezone rules.
+- [ ] Decide grading authority, rubric/numeric score, authoritative pass
+  threshold and its owner, manual versus automatic assessment types, retry and
+  failure consequences; do not infer pass from an absent result.
+- [ ] Decide challenge rejection recovery/closing, application withdrawal and
+  valid transitions, effective milestone review versus retained review history,
+  terminal project close-out, and historical versus intentionally open demo
+  scenarios/date convention.
+
+**Dependencies/decisions:** Human product review is required; this checkpoint
+records decisions, not implementation. Existing DBML has
+`supervision_requests.respond_by` and describes derived offer expiry, but has
+no explicit candidate-specific challenge invitation/access table. It describes
+derived assessment bands from numeric scores/policy thresholds without fixing
+the threshold authority. Review these gaps against DBML before design.
+**Non-scope:** No source, data, or schema writes merely to close 6.6.0.
+**Playwright regression:** Record baseline persona journeys and the chosen
+acceptance path; do not claim a newly working flow before implementation.
+**DB/integrity verification:** Read-only model/constraint inventory; no data
+mutation. **Exit:** Signed-off rule ledger, named schema-review items, and
+approved 6.6.1 scope. **DBML/schema review:** Required for invitation/access,
+grading threshold, and any other missing model; no migration until approved.
+
+## 6.6.1 Route safety and honest action gates
+
+**Goal:** Prevent 500-class failures and misleading actions at existing entry
+points (older F-05/F-13; latest F4/F5/F7).
+
+**Scope/checklist:**
+
+- [x] Validate malformed public IDs before UUID queries; map wrong-role,
+  unrelated-resource, absent-resource, and ordinary domain failures to safe
+  route/action outcomes without leaking protected existence.
+- [x] Align Apply, offer, supervision, and assessment controls with the same
+  server-side status, deadline, ownership, and eligibility rules used on submit.
+- [x] Label marketplace counts accurately; distinguish future, due-today, and
+  expired supervision requests; make expired actions unavailable server-side.
+- [x] Make pending/lapsed/accepted offer inbox copy and CTAs state-aware.
+
+**Dependencies/decisions:** 6.6.0 supervision deadline and error-disclosure
+rules. **Non-scope:** No new lifecycle write path or broad policy change.
+**Playwright regression:** Anonymous, student, faculty, and partner direct
+navigation across malformed/absent/forbidden challenge, application,
+assessment, offer, and workspace routes; no raw 500. Test a student with no
+existing application against open, PUBLISHED, closed, and expired challenges;
+test future/today/expired requests and offer inbox states.
+**DB/integrity verification:** Read-only boundary checks and no row-count
+changes. **Exit:** Every offered CTA matches a valid server action and
+denials are controlled. **DBML/schema review:** None expected.
+
+### 6.6.1 implementation record — 2026-09-27
+
+**Implementation facts:** Added UUID validation at public-ID service boundaries
+before UUID queries; protected application, assessment, offer, workspace,
+meeting, faculty, and partner-team routes resolve malformed, absent, and
+unrelated resources through existing controlled 404/redirect policy. The Apply
+entry and direct apply page now reuse the creation service's application-window
+rule and surface deadline/status/profile/eligibility gates before offering a
+wizard. Supervision expiry is derived from `PENDING + now > respond_by`, is
+atomic in the mutation predicate, returns a controlled server error, and is
+read-only in faculty UI with future/due-today/expired state wording. Offer and
+inbox wording is state-aware; non-leaders have no response CTA. Marketplace
+counts now say `published challenges`, matching the result set rather than
+calling deadline-closed records open.
+
+**Verification:** `pnpm exec tsc --noEmit`, `pnpm lint`, and `git diff --check`
+passed. Initial Playwright coverage observed anonymous protected routes redirect
+to `/sign-in`; authenticated malformed application/assessment/offer/workspace/
+faculty and partner-project paths return controlled 404; unrelated student
+application, assessment, offer, and workspace paths return 404; the open
+no-application E-Lab scenario offers Apply; and the deadline-closed campus
+challenge has no Apply CTA and its direct apply page is unavailable.
+
+**Regression closure — 2026-09-27:** Used disposable local records only (then
+deleted) to observe future supervision (`2 days`, enabled actions), due-today
+supervision (`due today`, enabled actions), and overdue supervision (`expired`,
+read-only, both actions disabled). A deliberately stale browser action against
+a now-expired disposable request was rejected by the server with `The response
+deadline has passed. This request is now read-only.` Live pending offer UI was
+actionable for its accepted leader and non-actionable for its accepted member;
+the leader inbox used `Respond to offer`, while declined, expired, and accepted
+offers/inbox entries used terminal state-aware wording with no response action.
+A disposable `PUBLISHED` + `PUBLIC_PREVIEW` challenge with no applications was
+representable under the existing model: its detail page said `Applications are
+not open for this challenge`, and direct `/apply` rendered the same server gate.
+
+The disposable fixtures were then removed. Shared counts returned exactly to
+the pre-test baseline: `challenges=11`, `applications=8`,
+`supervision_requests=1`, `selections=5`, and `offers=5`; the targeted query
+found zero temporary challenge/application/request/offer rows.
+
+**Build classification:** The default Turbopack build still fails while its CSS
+worker attempts a prohibited port bind, including when run outside the normal
+sandbox. `pnpm exec next build --webpack` compiled, type-checked, generated all
+routes, and completed successfully. This is a Turbopack/environment runtime
+restriction, not a Phase 6.6.1 regression; it should be resolved before Phase
+8 production acceptance, but does not block this checkpoint's human review.
+
+**DB/schema impact:** None. No DBML, schema, migration, seed, or intentional
+workflow-row mutation.
+
+**Exact next checkpoint:** Human review of complete Phase 6.6.1; only then
+Phase 6.6.2 — Development personas and first-use navigation.
+
+## 6.6.2 Development personas and first-use navigation
+
+**Goal:** Let local/internal-QA testers create usable identities without
+weakening production identity or RBAC (latest F1; older F-11).
+
+**Scope/checklist:**
+
+- [x] Extend only explicitly gated non-production self-service registration to
+  provision actual domain records: Student → `student_profiles`; Faculty →
+  `faculty_profiles`; Partner → approved external-partner membership; CAID/E-Lab
+  admin → `ADMIN` membership in that exact internal organization.
+- [x] Resolve all capabilities from server-owned profile/membership rows, never
+  a client role string or session claim; prevent production activation of the
+  persona selector and arbitrary organization/admin assignment.
+- [x] Give a newly created or incomplete identity a clear next step; use
+  capability-aware post-sign-in destinations and navigation, including
+  zero-data/empty states and existing seeded identities.
+
+**Dependencies/decisions:** 6.6.0 persona/organization choices and secure dev
+gate. **Non-scope:** Public production self-registration or replacing Entra.
+**Playwright regression:** Fresh unauthenticated contexts register each dev
+persona, sign in, land on an appropriate page, and attempt both allowed and
+forbidden role routes; verify the gate is absent outside non-production mode.
+**DB/integrity verification:** Exactly one user plus only the intended profile
+or scoped membership per registration; duplicate/retry cannot grant extra
+authority; transaction rollback on partial provisioning.
+**Exit:** Each QA persona can enter its real role workflow with no privileged
+self-selection in production. **DBML/schema review:** Existing profile and
+membership model appears sufficient; review if the approved provisioning
+workflow needs new fields or constraints.
+
+### 6.6.2 implementation record — 2026-09-27
+
+**Implementation:** Added `AUTH_DEV_PERSONAS_ENABLED=true` as a second explicit
+gate requiring `NODE_ENV=development` or `test` and enabled self-service
+authentication. Signup accepts one of five development personas, then creates
+the user, credential, and exactly one profile or active scoped membership in a
+transaction. Partner keys resolve through a three-organization server allowlist;
+CAID and E-Lab resolve by exact verified internal-unit name and type. Ambiguous
+or unavailable organizations fail closed. No role is stored in the session;
+existing actor resolution continues reading database profiles and memberships.
+The authenticated home route now selects the marketplace, faculty queue,
+partner dashboard, or scoped review queue by capability. A basic account sees
+an account-setup message. Navigation follows the resolved actor on desktop and
+mobile.
+
+**Verification:** `pnpm exec tsc --noEmit`, `pnpm lint`, `git diff --check`,
+and `pnpm exec next build --webpack` passed. The rollback-only persona verifier
+confirmed all five domain records, duplicate-email retry, server allowlist
+rejections, disabled and production-mode gate rejection, and rollback after a
+controlled organization-availability failure. The existing self-service auth
+verifier passed with the persona gate disabled.
+
+**Playwright:** Fresh isolated browser contexts registered Student →
+`/challenges`, Faculty → `/faculty`, Partner → `/partner`, CAID → `/review`, and
+E-Lab → `/review`; each displayed the corresponding role navigation. Manual
+sign-in repeated these destinations. Representative allowed profile routes
+returned 200 and forbidden role routes returned 404 for all five. Four
+partner-form tampering attempts (arbitrary ID, CAID, E-Lab, malformed value)
+remained on signup with an allowlist error. With the gate disabled, the persona
+selector disappeared; a new basic account reached the actionable setup page
+and `/faculty` returned 404. Existing seeded Student, Faculty, Partner, CAID,
+and E-Lab identities retained their expected destinations and 200/404 role
+boundaries. E-Lab was denied the CAID-managed review detail route (404).
+
+**DB/integrity:** Browser-created rows showed one user/credential and exactly
+the intended profile or scoped membership per identity, with no cross-role
+records; rejected partner attempts created no users. All disposable browser
+accounts were removed. Final counts were `users=22`, `organizations=7`,
+`organization_memberships=7`, and zero `qa-662-%` users or credentials.
+No DBML, schema, migration, or seed change was needed. Temporary local QA
+configuration was restored. **Blockers:** None for 6.6.2. The existing
+Turbopack environment issue remains; the previously validated webpack build
+path passed. **Exact next checkpoint:** Human review of 6.6.2, then explicit
+approval for 6.6.3 and its private-access model review. Do not begin 6.6.3
+automatically.
+
+## 6.6.3 Challenge, private access, and supervision lifecycle
+
+**Goal:** Close the creation-to-legitimate-access path, including private
+candidate sourcing and hard supervision response (older F-01/F-12/F-14/D-12;
+latest F3/F4).
+
+**Scope/checklist:**
+
+- [x] Finish owner draft → managing-unit review → publish UI using existing
+  authorized service boundaries; use recoverable `REVISION_REQUESTED` review
+  feedback with a required reason and resubmission path, reserve `CANCELLED` for
+  intentional terminal cancellation, and derive deadline closing semantics.
+- [x] Repair partner Students default with a separate owner-scoped selection
+  path, not the ordinary external-partner marketplace query; preserve
+  `PUBLIC_PREVIEW`-only ordinary browsing and unrelated-partner denial.
+- [x] Implement approved external candidate nomination: verify the candidate
+  is an appropriate VinUni student, create scoped invitation/access, let only
+  that student view/apply to the target INVITE_ONLY challenge, and support
+  approved expiry/revocation. Do not expose other private briefs or change the
+  existing PRIVATE semantics.
+- [x] Persist the student's faculty nomination as a supervision request or
+  remove any claim of notification when none is created. Store decline reason
+  if promised. Enforce `respond_by` on the server; provide authorized
+  reroute/reissue when the deadline passes. Prefer derived effective expiry if
+  consistent with the reviewed model, not a gratuitous `EXPIRED` status.
+- [x] Preserve honest partner post-form input/errors and remove misleading
+  synthetic/internal challenge copy relevant to the stakeholder flow.
+
+**Dependencies/decisions:** 6.6.0 private-access model, notification wording,
+challenge rejection/close rules, request deadline. **Non-scope:** Ordinary
+partner VINUNI_ONLY discovery or Phase 7 ranking.
+**Playwright regression:** Partner draft → CAID/E-Lab scoped review/publish;
+rejection/recovery; private owner nominates verified candidate; invited student
+can view/apply while unrelated student/partner cannot; partner Students default
+does not 404; faculty accepts/declines before deadline, cannot respond after,
+and sees reroute/reissue result. Recheck anonymous/external ordinary catalog.
+**DB/integrity verification:** Challenge review and access/request rows match
+actors, scope and dates; no duplicate effective invitation or late response;
+unrelated organizations see no protected data; retries/partial failures roll
+back. **Exit:** A genuine challenge can become discoverable to its intended
+audience and supervision decisions are durable/truthful. **DBML/schema
+review:** Explicitly required for candidate-specific invitation/access if
+existing ERD cannot express it; review request uniqueness/history and any
+approved close/reissue design before migration.
+
+**2026-09-28 implementation record (complete — ready for human review):**
+
+- Owner authoring now preserves submitted form values on expected validation
+  errors. The browser-verified lifecycle is draft → edit → submit → scoped
+  managing-unit review → required-reason revision → owner edit/resubmit →
+  approve → publish. An unrelated internal unit receives a controlled 404.
+- Partner Students uses an owner-scoped challenge path. The owning partner can
+  use its PRIVATE challenge as the candidate-directory context while the
+  ordinary external marketplace remains `PUBLIC_PREVIEW` only; service
+  verification denies an unrelated partner. Synthetic swipe/invite behavior
+  and AI-ranking claims were removed.
+- Application submission now atomically creates a real `PENDING` supervision
+  request for an active faculty user with a required five-campus-working-day
+  `respond_by`. The server accepts only while `now <= respond_by`; effective
+  expiry is derived, no `EXPIRED` enum was added. A decline is durable and the
+  submitting leader can append a new request without mutating prior history.
+  The UI no longer promises email/notification delivery or a persisted decline
+  reason that the approved model cannot store. Database timestamp labels use
+  the campus timezone so the displayed response date matches the server cutoff.
+- Playwright verified owner PRIVATE context, ordinary-marketplace isolation,
+  scoped review/revision/resubmission/publication, student application and
+  persisted request, faculty future/due-today actions, expired read-only state,
+  decline, and student reroute with both old and new history visible. DB checks
+  confirmed the review/request actors, statuses and timestamps. Disposable QA
+  rows were removed and confirmed absent.
+- Verification passed: TypeScript, lint, webpack production build, DB health,
+  challenge writes, partner runtime authorization, application/supervision
+  transactions and rollback, faculty queue deadline enforcement, apply-flow
+  integration, and the Phase 6.3 authorization regression suite.
+- The approved `challenge_candidate_access` history model is now represented in
+  DBML and the modular Drizzle schema. Migration
+  `drizzle/0006_condemned_stardust.sql` adds challenge/student/granting-actor
+  references, required grant/expiry timestamps, optional paired revocation
+  actor/time, audit timestamps, integrity checks, and lookup indexes. Effective
+  state remains derived. One-effective-grant enforcement is serialized by a
+  challenge-row lock and a transactional recheck; no time-dependent partial
+  index or redundant lifecycle status was added.
+- Owner grant/revoke management resolves an exact active-student email without
+  exposing a student search surface. INVITE_ONLY remains absent from ordinary
+  marketplace reads. Candidate detail/application authorization is scoped to
+  the one challenge; application creation rechecks every team member under the
+  same challenge lock, and submitted application membership becomes the durable
+  downstream basis after invitation expiry. Revocation is prohibited after
+  submission, while revoked/expired/re-granted history remains inspectable.
+- Candidate-access integrity verification passed owner, unrelated-partner,
+  non-student and unknown-identity cases; deadline validation; idempotent and
+  concurrent duplicate grants; actor-stamped revocation; revoked/expired access;
+  history; post-submission durability; and rollback. Fresh migration replay,
+  deterministic seed plus repeat seed, Drizzle consistency, DB health,
+  TypeScript, lint, webpack build, challenge/partner/application/faculty/apply
+  regressions, and Phase 6.3 authorization all passed.
+- Playwright used disposable records to verify owner creation/review/publication,
+  anonymous and ordinary-marketplace isolation, exact-email grant, invited and
+  unrelated students, unrelated external partner denial, pre-submit revocation,
+  re-grant history, submission, post-expiry durable application access, expired
+  pre-application denial, PRIVATE partner-Students behavior, and the persisted
+  supervision request. The temporary challenge, application, access history,
+  supervision request, and unrelated-partner login were removed; shared seed
+  counts returned to baseline.
+- **Remaining blocker / exact next checkpoint:** None within Phase 6.6.3. Obtain
+  explicit human approval before beginning Phase 6.6.4.
+
+## 6.6.4 Application lifecycle and concurrency
+
+**Goal:** Make submitted applications move through authorized stages rather
+than remain seeded-state snapshots (older F-06c/C-02).
+
+**Scope/checklist:**
+
+- [x] Implement only approved state transitions (including withdrawal,
+  supervision/assessment gates, rejection, and partner handoff), with clear
+  reason/history display where the model supports it.
+- [x] Guarantee one effective application per student/challenge under two-tab
+  and double-submit races; respect the normalized `applications` plus
+  `application_members` model rather than adding an invalid simple index.
+- [x] Keep student, partner, and internal views consistent, with truthful
+  pending/blocked/terminal next steps and eligibility errors.
+
+**Dependencies/decisions:** 6.6.0 state machine; 6.6.3 access/supervision.
+**Non-scope:** Selection, offer issuance, or project creation.
+**Playwright regression:** Invited/public student applies, withdraws where
+permitted, sees progression; partner sees the same persisted status; duplicate
+submits and forbidden transitions receive controlled feedback.
+**DB/integrity verification:** Cross-table application/member invariants,
+single accepted leader, duplicate-race test, transition authorization, atomic
+rollback and no orphaned requests. **Exit:** Every displayed application stage
+has an authorized action path or an explicit documented external decision.
+**DBML/schema review:** Required if concurrency/history cannot be enforced
+with existing constraints/transactions; do not assume the old proposed index.
+
+**Implementation record (2026-09-28):**
+
+- Added one server-owned lifecycle policy/reconciliation boundary. Supervision
+  acceptance and the last invitation response re-evaluate the persisted gates
+  under an application row lock. A ready application advances from `SUBMITTED`
+  to `ASSESSMENT` when exactly one active assessment exists, or to
+  `SELECTION_PENDING` when none exists. An attempt, `IN_PROGRESS`/`SUBMITTED`
+  state, missing score, or unreviewed result is never treated as a pass; Phase
+  6.6.5 still owns grading and pass/fail writes. Terminal and stale transitions
+  are rejected or safely no-op on retry.
+- Whole-application withdrawal is an accepted-leader-only, pre-selection
+  transaction with a row lock plus compare-and-set status update. `WITHDRAWN`
+  and `REJECTED` remain terminal; ordinary withdrawal is unavailable after
+  selection/offer. Terminal history remains readable but does not count as an
+  effective application if the student later submits a genuinely new one.
+- Duplicate participation is serialized with transaction-scoped PostgreSQL
+  advisory locks keyed by `(challenge_id, accepted_student_id)`, acquired in
+  sorted student-id order before the conflict recheck and inserts. Only
+  accepted participants count; invited members do not gain downstream rights.
+  Application creation, member inserts and supervision request creation remain
+  one transaction, so an injected failure leaves no orphaned rows. Application
+  row locks serialize invitation acceptance, supervision progression,
+  withdrawal and stale retries.
+- Student detail, challenge/apply, invitation, faculty supervision, partner
+  pipeline and owner-scoped partner team detail now render the same persisted
+  lifecycle explanation. They expose no premature selection action. Pending,
+  declined/expired supervision, assessment pending/review, selection pending,
+  rejected and withdrawn states have explicit honest copy and gated actions.
+- Focused verification covered pending/declined/expired/accepted supervision,
+  assessment/no-assessment routing, missing/unreviewed outcomes, invalid/stale
+  and terminal transitions, leader/non-leader withdrawal, accepted/invited
+  team semantics, rapid/double-tab and competing-transaction creation, retry,
+  rollback and baseline restoration. Playwright used disposable data to verify
+  submission, cross-role state, faculty acceptance, assessment presentation,
+  leader withdrawal, terminal/read-only behavior, unrelated-student denial and
+  two pre-opened tabs producing one effective application plus a controlled
+  stale-tab conflict. The fixture was removed; baseline returned to 8
+  applications, 18 application members, 2 assessments, 11 challenges and 1
+  supervision request.
+- Verification passed: lifecycle and relevant application/assessment,
+  candidate-access, invitation, faculty, partner, persona and Phase 6.3
+  authorization verifiers; TypeScript; lint; DB health; Drizzle consistency;
+  webpack production build; and `git diff --check`.
+- **DB/schema impact:** none for Phase 6.6.4. Existing normalized tables and
+  PostgreSQL transaction/locking semantics were sufficient; no DBML, Drizzle
+  schema or migration change was required.
+- **Remaining blocker / exact next checkpoint:** None within Phase 6.6.4.
+  Obtain explicit human approval before beginning Phase 6.6.5 assessment
+  submission safety and live grading. Do not infer that approval from this
+  completion record.
+
+## 6.6.5 Assessment submission safety and live grading
+
+**Goal:** Complete a real assessment-to-authoritative-result path (older
+F-04/F-07–F-10/C-01).
+
+**Scope/checklist:**
+
+- [x] Reconcile preflight duration with runner timer; handle nullable time
+  limits/empty question sets before attempt creation and allow intentionally
+  unanswered coding responses without poisoning submission.
+- [x] Make response saves and submits concurrency-safe; do not allow a
+  duplicate `(attempt_id, question_id)` logical answer to make an attempt
+  permanently un-submittable. Preserve answer-key isolation.
+- [x] Add approved reviewer/grader authorization, rubric/score write, reviewed
+  transition, threshold-based pass/fail, and the corresponding authorized
+  application transition. Unknown verdict must remain pending/unknown, never
+  default to Passed. Specify which question types use manual or automatic
+  grading; do not imply arbitrary code execution.
+- [x] Remove internal `DEMO`/phase commentary from user-facing assessment
+  titles and feedback in the representative flow.
+
+**Dependencies/decisions:** 6.6.0 grading authority, threshold, assessment
+type, retry, and result policy; 6.6.4 transitions.
+**Non-scope:** General code sandbox or Phase 7 scoring.
+**Playwright regression:** Student starts, saves none/some/all answers,
+submits, sees pending review; authorized grader reviews and persists result;
+pass/fail/unknown render correctly; wrong student/reviewer cannot alter it;
+empty/null-limit cases fail safely; timer matches preflight.
+**DB/integrity verification:** One effective response per question, one
+authoritative reviewed outcome under concurrent saves/reviews, actor ownership,
+attempt/application consistency, rollback on failed grading transition.
+**Exit:** A fresh attempt can reach a trusted reviewed result and the correct
+application state. **DBML/schema review:** Required for threshold authority,
+score/rubric model and any response uniqueness or review-history constraint.
+
+### 6.6.5 completion record — 2026-09-28
+
+**Approved schema and migration:** Pre-migration inspection found zero duplicate
+response `(attempt_id, question_id)` pairs and zero duplicate score
+`attempt_id` values, so no historical rows were deleted or merged. DBML,
+assessment runtime documentation and the modular Drizzle schema now define:
+
+1. nullable, no-default `assessments.passing_score numeric(5,2)` constrained to
+   `0..100` when present;
+2. one `assessment_responses` row per `(attempt_id, question_id)`; and
+3. one `assessment_scores` row per attempt, with nullable `overall_score`
+   constrained to `0..100` when present.
+
+Migration `drizzle/0007_green_sabra.sql` contains only those approved changes.
+Its former non-unique attempt indexes are replaced by equivalent-leading unique
+indexes. Existing qualitative `NULL` scores remain valid. The migration applied
+locally, replayed from a fresh reset, and the seed completed twice without
+count drift. The representative disposable Phase 6.6.5 browser assessment set
+`passing_score = 60.00`; unrelated seeded assessments were not assigned a
+guessed threshold.
+
+**Submission safety and grading implementation:** Assessment start, response
+save and submit serialize on the application lock. Response persistence is an
+atomic `ON CONFLICT (attempt_id, question_id) DO UPDATE`, and submitted/reviewed
+attempts cannot be edited. Empty definitions, nullable timers, original-expiry
+reloads, server-side timeout enforcement and intentionally unanswered coding
+items fail safely. Student-taking payloads omit MCQ answer keys; the coding UI
+does not claim or fabricate execution.
+
+The faculty dashboard now discovers submitted individual attempts only through
+an `ACCEPTED` supervision request for the same application. The grading view
+shows persisted responses, grader-only MCQ correctness, and manual coding/text
+material. It accepts a validated `0..100` authoritative score plus rubric and
+student-facing comments; no mixed-question weighting was invented.
+
+The grading transaction derives the actor server-side, locks the application
+then attempt, rechecks accepted-supervisor authority and `SUBMITTED` state,
+inserts the single score, marks the attempt `REVIEWED`, and invokes the
+centralized Phase 6.6.4 application lifecycle reconciliation before commit.
+`score >= passing_score` moves the application to `SELECTION_PENDING`; a lower
+score moves it to `REJECTED`. A `NULL` threshold records the review but returns
+an explicit unresolved configuration outcome and leaves the application at
+`ASSESSMENT`. Same-reviewer/same-score retry is idempotent; stale, different or
+concurrent conflicting grades receive controlled rejection. No selection,
+offer or project is created.
+
+**Verification:** Focused rollback verifiers cover response/attempt uniqueness,
+same-question concurrent saves, save-versus-submit, accepted-supervisor and
+wrong-role authorization, MCQ/coding/reasoning presentation, pass/fail/exact
+threshold, `0`, `100`, invalid/out-of-range/NaN scores, missing threshold,
+same-grade retry, conflicting concurrent grades, stale attempts, injected
+post-score failure, lifecycle transition, no downstream leakage and baseline
+restoration. Phase 6.6.4 lifecycle and Phase 6.3 authorization regressions also
+pass. TypeScript, ESLint, DB health, Drizzle consistency, fresh reset/migration/
+seed, repeated seed, webpack production build and `git diff --check` pass.
+
+**Playwright acceptance:** Disposable browser fixtures verified Bao reaches the
+assessment, starts, answers and submits both correct and incorrect cases, sees
+`Awaiting review`, and never receives `correctIndex`. Accepted supervisor Pham
+sees both queue items, opens the grader, sees correct/incorrect evidence, and
+submits `60` (exact-threshold pass) and `59` (fail). The reviewed student pages
+show `Passed` and `Below threshold`; database evidence showed corresponding
+`SELECTION_PENDING` and `REJECTED` applications. Reviewed pages remove grading
+controls. Student, partner and CAID admin direct access returned 404, and the
+same faculty route returned 404 after the disposable accepted-supervisor link
+was revoked. Fixtures were removed and canonical counts returned to 8
+applications, 2 attempts, 0 responses, 2 scores and unchanged downstream
+selection/offer/project totals.
+
+**Completion state / exact next checkpoint:** Phase 6.6.5 is fully implemented
+and ready for human approval. Phase 6.6.6 has not begun; start it only after
+explicit human approval.
+
+## 6.6.6 Partner selection and offer issuance
+
+**Goal:** Let an authorized partner choose a real candidate/team and issue a
+durable pending offer (older F-02/F-06c).
+
+**Scope/checklist:**
+
+- [x] Replace sourcing copy that claims an AI shortlist with an honest
+  deterministic/curated description while Phase 7 is deferred; give the
+  partner a persisted decision, not a browser-only deck choice.
+- [x] Validate ownership, application readiness, eligibility/assessment gate,
+  capacity, offer terms and response deadline; atomically create selection,
+  PENDING offer, and coherent application status.
+- [x] Show the resulting offer to the accepted team leader; keep ordinary
+  partner marketplace disclosure separate from owner-scoped candidate review.
+
+**Dependencies/decisions:** 6.6.4/6.6.5 progression and 6.6.0 offer rules.
+**Non-scope:** Matching scores or project provisioning.
+**Playwright regression:** Partner reviews eligible applicant, selects once,
+refreshes/double-clicks safely; leader sees offer, other member cannot
+respond; unrelated partner and wrong-status application cannot select.
+**DB/integrity verification:** Exactly one selection and offer per chosen
+application; actor/owner and term snapshots correct; race/rollback tests.
+**Exit:** Authorized runtime action persists selection and PENDING offer.
+**DBML/schema review:** Existing cardinality may suffice; review any needed
+capacity/audit or term change before schema work.
+
+### 6.6.6 completion record — 2026-09-28
+
+**Selection authority:** `issueSelectionOffer` (new, in
+`src/services/offer.service.ts`) requires `hasOneOfActiveOrganizationRoles`
+against the challenge's `ownerOrganizationId` with `ADMIN`/`CONTACT_PERSON` —
+the same predicate `getPartnerChallengePage`/`grantCandidateAccess` already
+use. This is organization-scoped, not capability-scoped, so a CAID/E-Lab
+admin, faculty account, ordinary student, or a different partner's
+representative is rejected (`FORBIDDEN`) even though some of those actors
+hold real admin authority elsewhere. A membership that is no longer `ACTIVE`
+never reaches `actor.memberships` (`resolveAuthenticatedActor` filters at the
+query), so a revoked/stale membership loses selection authority the same way.
+The UI entry point is the owner-scoped `/partner/challenges/[id]/teams/[applicationId]`
+page; there is no internal-owner (CAID/E-Lab posting its own challenge)
+selection UI today, matching the existing partner-only scope of the 6.6.3
+Students page — the service-level check is organization-agnostic and would
+authorize that case too if such a route existed.
+
+**Application readiness:** `SELECTION_PENDING` is trusted as the sole
+readiness gate and is never re-derived — it already encodes that 6.6.4's team/
+supervision gates and 6.6.5's assessment result (when required) cleared.
+`SUBMITTED`, `ASSESSMENT`, `REJECTED`, and `WITHDRAWN` all return
+`INVALID_TRANSITION` with zero writes.
+
+**Capacity — human-approved product decision (2026-09-28):** Phase 6.6 does
+**not** impose "one selected application/team per challenge." Authoritative
+capacity is the already-modeled team-size constraint; several otherwise-valid
+applications for one challenge may each independently receive an offer. No
+challenge-level selection quota and no schema change were added.
+`issueSelectionOffer` enforces only a fresh recheck, under the application's
+row lock, that the accepted member count still satisfies the challenge's own
+`team_size_min`/`team_size_max` (mirroring the identical check
+`progressApplicationAfterGateChange` already performs). This decision closes
+what the initial 6.6.6 implementation had flagged as an open product
+question.
+
+**Idempotent issuance — human-approved product decision (2026-09-28), with a
+follow-up correction:** Idempotent replay is approved, but only for a
+*replay-equivalent* retry (same already-selected application, same effective
+offer terms) — that returns the existing durable selection/offer as success.
+A *conflicting* retry (selection/offer already exists, but the new request's
+terms differ) must not claim the new terms succeeded; it must return a
+controlled conflict and leave the existing offer untouched. The initial
+implementation did not make this distinction — every retry against an
+already-`SELECTED` application, identical or not, returned
+`alreadyIssued: true` with the *original* offer's data, silently discarding
+whatever different terms a second caller had submitted. This has been
+corrected: `issueSelectionOffer` now compares the retry's normalized terms
+(`hoursPerWeek`, `durationWeeks`, `startDate`, `compensationNote`,
+`ndaRequired`) plus its freshly computed `respondBy` against the persisted
+offer (`offerTermsMatch`, new, in `src/services/offer.service.ts`). An exact
+match returns the existing offer as idempotent success, unchanged. Any
+mismatch throws `OfferError("CONFLICT", …)` — reusing the existing error
+vocabulary rather than adding a new code — and creates no row and changes no
+existing row. Comparing the *computed* `respondBy` rather than the caller's
+raw `respondByWorkingDays` is deliberate and safe: `addCampusWorkingDays` is
+date-granular (it keys off the calendar date of `now`, not the time of day),
+so two calls on the same day with the same working-day count always compute
+the identical timestamp — a genuine difference in the computed value reliably
+reflects a genuine difference in the caller's input, not clock drift between
+the two calls.
+
+**Atomicity/concurrency:** `issueSelectionOffer` locks the application row via
+the existing `lockApplicationForLifecycle` (the same lock 6.6.4 uses for
+withdrawal/invitation progression) before any read the decision depends on,
+then atomically inserts `selections` + `offers`
+(`insertSelectionAndOffer`, new in `src/db/mutations/offers.ts`, using
+`ON CONFLICT (application_id) DO NOTHING` on the existing unique index as a
+defense-in-depth backstop) and transitions `SELECTION_PENDING → SELECTED`
+with a compare-and-set (`updateApplicationStatus`). Under the row lock, a
+concurrent replay-equivalent attempt (double-click, two tabs with identical
+terms, a second authorized actor) converges on the one durable offer with no
+error; a concurrent conflicting attempt (different terms) converges on the
+same one durable offer but the loser receives a controlled `CONFLICT`
+instead of a false success.
+
+**Offer terms:** Uses only existing `offers` columns
+(`hours_per_week`, `duration_weeks`, `start_date`, `compensation_note`,
+`nda_required`, `respond_by`) — no new field was added. `respond_by` reuses
+the existing `addCampusWorkingDays` helper (`src/lib/dates.ts`), the same
+campus-business-day convention 6.6.3's supervision `respond_by` already uses,
+defaulting to 5 working days and editable by the partner in the form.
+`hoursPerWeek`/`durationWeeks` must be positive integers when present
+(matching the existing `offers_*_positive` CHECK constraints); a malformed
+start date or a non-positive response window is rejected before any write.
+`selected_by`/`respond_by` are entirely server-derived; the client cannot
+supply or spoof them.
+
+**Application status:** `SELECTION_PENDING → SELECTED` only, via the existing
+enum value — no new status was introduced. Offer state (`PENDING` at
+creation) lives on the `offers` row as designed.
+
+**Honest partner UI:** `src/app/partner/challenges/[id]/teams/[applicationId]/page.tsx`
+now renders a "Selection" section, with an offer-terms form and explicit
+non-AI copy ("your own decision... not an AI-ranked or AI-generated
+shortlist"), only when `application.status === "SELECTION_PENDING"`. Once
+issued, that section disappears (the existing offer-countdown banner and
+"Selection is complete..." lifecycle message take over) — a stale tab cannot
+re-submit a second offer, and there is nothing resembling a repeatable
+"select again" action. No internal phase/debug terminology is user-facing.
+The `/partner/students` sourcing deck already said "Fit is a deterministic
+weighted comparison, not AI ranking" before this checkpoint; no other AI-
+shortlist claim was found anywhere in the partner-facing candidate/selection
+surfaces.
+
+**Schema impact:** None. `docs/database/schema.dbml` and
+`src/db/schema/**` are unchanged; `drizzle-kit generate` confirmed "No schema
+changes, nothing to migrate" against the current `selections`/`offers`/
+`applications`/`challenges` tables.
+
+**Files changed:** `src/db/mutations/offers.ts` (+`insertSelectionAndOffer`),
+`src/services/offer.service.ts` (+`issueSelectionOffer` and helpers),
+`src/app/partner/challenges/[id]/teams/[applicationId]/page.tsx` (Selection
+section + offer/error banners), `src/app/partner/challenges/[id]/teams/[applicationId]/actions.ts`
+(new — `issueSelectionOfferAction`), `scripts/verify-selection-offer.ts` (new
+— dedicated rollback-style DB verifier).
+
+**Verification:** `pnpm exec tsc --noEmit`, `pnpm lint`, `git diff --check`,
+and `pnpm exec next build --webpack` all pass, both after the initial
+implementation and again after the retry-conflict correction. `drizzle-kit
+generate` shows no drift. `scripts/verify-selection-offer.ts` covers, against
+disposable `qa-666-*` fixtures with a full before/after baseline-count
+assertion: unrelated-partner/student/faculty/CAID/E-Lab/stale-membership
+`FORBIDDEN`; `SUBMITTED`/`ASSESSMENT`/`REJECTED`/`WITHDRAWN` `INVALID_TRANSITION`
+with zero writes; invalid offer terms (non-positive response window,
+negative hours, zero duration, malformed date) `VALIDATION_ERROR`; a genuine
+`SELECTION_PENDING` application succeeding with an exact term snapshot,
+`status = PENDING`, no responder yet, and `selected_by` equal to the
+server-derived actor; two literal injected mid-transaction failures (a real
+`offers_duration_weeks_positive` CHECK violation after the selection insert,
+and a failed post-offer compare-and-set before the status transition) both
+rolling back completely, including the selection row that had committed fine
+on its own; a team application (leader + one accepted member) reaching
+`SELECTION_PENDING` and being selected, with only the accepted leader
+authorized to respond and a directly-inserted `INVITED` row (this flow
+cannot otherwise produce one) still rejected; and zero
+`projects`/`project_members` created anywhere in the run.
+
+Retry/idempotency coverage, specifically: rapid double-click with identical
+terms (two concurrent calls, one fresh success plus one idempotent success,
+same `offerId`); two tabs with *different* `hoursPerWeek` submitted
+concurrently (exactly one fresh success, the other a controlled `CONFLICT`,
+never a false success with the winner's terms); two different authorized
+partner-org actors submitting identical terms concurrently (idempotent);
+a sequential identical retry after success (idempotent, no new rows); three
+sequential conflicting retries after success — changed `hoursPerWeek`,
+changed `startDate`, and changed `respondByWorkingDays` — each a controlled
+`CONFLICT` with the persisted offer snapshot asserted byte-for-byte unchanged
+after every one; and a final recheck that exactly one selection and one
+offer row exist after all of the above. Regression re-run (with each
+script's own required environment): `verify-offer-runtime.ts` (6.6.1/Phase
+5.3 offer response), `verify-application-lifecycle.ts` (6.6.4),
+`verify-assessment-grading.ts` (6.6.5), `verify-development-personas.ts`
+(6.6.2, run with `NODE_ENV=development`), `verify-candidate-access-runtime.ts`
+and `verify-invitation-runtime.ts` (6.6.3), `verify-authorization.ts` (Phase
+6.3), `verify-partner-runtime.ts`, and `verify-partner-pipeline-runtime.ts`
+all pass unmodified.
+
+**Playwright acceptance:** Using the real seeded canonical actors (BenCang
+partner contact, Dr. Minh Pham, Bao Tran) via the sign-in page's development-
+identity switcher, and one disposable challenge/application built end-to-end
+through the actual UI (post → CAID review/approve/publish → student solo
+apply → faculty accepts supervision → `SELECTION_PENDING`, observed on the
+team page as "All current application gates are complete. Awaiting partner
+selection."): the partner's team page showed the honest, non-AI "Selection"
+section; submitting the offer-terms form redirected to `?offer=issued` with
+an "Offer issued..." banner, a live "7 days 3 hrs left..." countdown, and the
+Selection section correctly gone; Bao's inbox showed "Needs your response (1)
+— Offer awaiting your team's response"; `/offer/<publicId>` rendered the
+exact submitted terms (10 hrs/wk, 8 weeks, start 20 Oct 2026, the entered
+compensation note) and the correct `respond_by` (5 campus working days out)
+with Accept/Decline available to the leader — Accept was deliberately never
+clicked, per this checkpoint's boundary. An unrelated student
+(`HOANG_STUDENT_DEMO`) hitting the same `/offer/<publicId>` URL got a
+controlled 404. `/partner/students` (the sourcing deck) was inspected live and
+still reads "Fit is a deterministic weighted comparison, not AI ranking." The
+disposable challenge/application/members/supervision-request/selection/offer
+were removed after; `scripts/verify-selection-offer.ts` was re-run afterward
+and confirmed all canonical counts (`applications=8`, `applicationMembers=18`,
+`challenges=11`, `offers=5`, `projects=4`, `selections=5`) returned exactly to
+baseline.
+
+**DB/schema impact:** None beyond the disposable rows created and removed
+during Playwright verification; no DBML, Drizzle schema, or migration change.
+
+**Remaining blocker:** None. Both open items from the initial implementation
+were resolved by explicit human product decision on 2026-09-28 (capacity:
+no challenge-level quota, confirmed above; idempotent issuance: replay vs.
+conflict distinction, implemented and verified above).
+
+**Exact next checkpoint:** Phase 6.6.6 is fully human-approved. Phase 6.6.7
+(offer response and atomic project provisioning) has not begun; do not start
+it without explicit approval.
+
+## 6.6.7 Offer response and atomic project provisioning
+
+**Goal:** Close acceptance into an immediately usable workspace (older F-03;
+latest F2/F7).
+
+**Scope/checklist:**
+
+- [x] Preserve accepted-leader-only, pending-unexpired offer response and
+  decline behavior; ensure accepted response atomically creates one project
+  and project members from accepted application members only.
+- [x] Apply approved project supervisor, agreement/restricted-resource and
+  application/project state rules; never promote merely invited members.
+- [x] Make lapsed offers and mixed challenge/offer demo dates truthful;
+  reconcile deterministic fixtures for intended open versus historical cases
+  without changing the production server clock.
+
+**Dependencies/decisions:** 6.6.0 offer/project rules and 6.6.6 issuance.
+**Non-scope:** Arbitrary agreement acceptance or project milestone actions
+unless explicitly approved in the relevant checkpoint.
+**Playwright regression:** Leader accepts a fresh offer → workspace opens
+immediately; non-leader/unrelated user denied; decline and expiry do not
+provision; offer inbox and historical offer copy reflect terminal state.
+**DB/integrity verification:** One offer response and one project/application,
+correct accepted-member roster, transaction rollback on injected failure,
+safe concurrent accepts; query challenge/application/selection/offer/project
+chronology after reset. **Exit:** Accepted offer reliably creates a usable
+project; no seed-only bridge remains. **DBML/schema review:** Review only if
+approved supervisor/agreement/capacity semantics need new persistence.
+
+### 6.6.7 completion record — 2026-09-29
+
+**Acceptance/provisioning transaction:** `respondToOffer`
+(`src/services/offer.service.ts`) now runs as one transaction: resolve the
+student actor server-side → read the offer → take the shared application row
+lock (`lockApplicationForLifecycle`, the same lock 6.6.4 withdrawal/lifecycle
+and 6.6.6 selection use) → re-read the offer under the lock → require the
+accepted `LEADER` → if the offer is already terminal, treat a repeat of the
+same response as idempotent success and refuse the opposite one
+(`INVALID_TRANSITION`, never overwriting) → reject expiry
+(`PENDING` + `respond_by < now`) → on ACCEPT, refuse if a project already
+exists → compare-and-set the offer (`respondToPendingOffer`, server-owned
+`responded_by`/`responded_at`) → on ACCEPT, provision the project and members.
+Any failure rolls back everything, including the offer response.
+
+**Project/member derivation:** New `src/db/mutations/projects.ts`. One
+`projects` row per application (`application_id` stays the only origin link;
+no `challenge_id` added), `status = ACTIVE` (existing initial state),
+`start_date` snapshotted from the offer, `end_date` left null (not invented).
+`project_members` are copied only from `application_members` with
+`status = ACCEPTED` at acceptance time (`project_role` = the member's
+committed `preferred_role`, `joined_at` = acceptance time); INVITED, DECLINED
+and REMOVED members are never promoted. The existing unique indexes
+(`projects_application_unique`, `project_members_project_student_unique`) back
+this up under concurrency; `insertProjectForApplication` uses
+`ON CONFLICT DO NOTHING` so a duplicate becomes a controlled `CONFLICT`.
+The application stays `SELECTED`, matching every seeded accepted offer; the
+accepted offer and the project carry the downstream lifecycle.
+
+**Supervisor:** `projects.faculty_supervisor_id` is the faculty member on the
+application's single `ACCEPTED` supervision request, never input. More than one
+`ACCEPTED` request fails closed (`CONFLICT`). None → null; this only happens
+for legacy seed fixtures created before the supervision lifecycle (for example
+the canonical seeded pending offer `…0002`), because the 6.6.4 lifecycle cannot
+reach `SELECTION_PENDING` without an accepted supervisor. Runtime projects
+correctly count toward the supervisor's existing 5-project load cap (observed
+while writing the verifier).
+
+**Agreements / restricted resources:** Acceptance creates no `agreements` rows
+(verified: zero per accepted application). NDA signing stays the existing
+per-member, post-acceptance action. Runtime provisioning made one pre-existing
+gap reachable: the workspace always served the full brief to any project member
+even when the offer required an NDA, while the offer page withholds it until
+that member signs. `getWorkspaceDetail` now applies the offer page's rule
+(`fullBriefWithheld` = NDA-required offer and this student has not signed) and
+the workspace says so with a link to sign. Seeded NDA projects are unaffected
+(every seeded member already signed); agreement-gated resources are unchanged.
+
+**Decline / expiry:** Decline keeps the leader-only path, records the
+server-owned responder/time, is terminal, and creates nothing; a repeated
+decline is idempotent and a later accept is refused. Expiry is still derived,
+not stored. After `respond_by` neither accept nor decline is possible, the
+offer stays stored as `PENDING`, and nothing is provisioned; accepting exactly
+at `respond_by` is still inside the window. The locked `/workspace/<id>` page
+used to promise "opens when you're selected and accept" even after a decline
+or lapse. It now shows a terminal reason for declined, withdrawn, lapsed or
+closed applications, and the pending state is unchanged.
+
+**Demo chronology:** Seeded submitted → selected/offered → responded → project
+start is ordered correctly for every seeded application. The canonical seeded
+pending offer (`…0002`, `respond_by` 2026-10-01) is still actionable (verified
+in the browser), and seeded accepted offers remain historical. Several seeded
+challenges with accepted cohorts are still `APPLICATIONS_OPEN` with later
+cohort dates. That is consistent with the approved multi-offer-per-challenge
+decision, so no fixture was changed and records are not shifted on ordinary
+reseeds. The seeded pending offer will lapse on 2026-10-01 unless the database
+is reset, which follows the established seed-clock rule.
+
+**Verification:** New `scripts/verify-offer-provisioning.ts`, against
+disposable `qa-667-*` fixtures built through the real services, with full
+before/after baseline counts:
+- ACCEPT: the team leader's accept moves the offer to `ACCEPTED` with the exact
+  server responder and time; exactly one `ACTIVE` project with the correct
+  `application_id`, offer start date and supervisor; members are exactly the
+  ACCEPTED roster, excluding an INVITED member; roles are carried over; the
+  application stays `SELECTED`; zero agreements; FK chronology
+  challenge → application → selection → offer → project is ordered.
+- DENIAL: the accepted non-leader, invited member, unrelated student, owning
+  partner, faculty and CAID admin all get `FORBIDDEN` and nothing is provisioned.
+- WORKSPACE: opens immediately for the leader, teammate, supervisor, owning
+  partner and managing-unit admin; `FORBIDDEN` for the invited member, unrelated
+  student, unrelated partner and unrelated internal admin.
+- REPLAY/CONFLICT: a repeated accept is idempotent with no second
+  project/member set; decline after accept and accept after decline are refused
+  with the original response kept.
+- DECLINE: terminal, zero project, idempotent replay.
+- EXPIRY: accept and decline after `respond_by` are refused and provision
+  nothing; accept exactly at `respond_by` succeeds.
+- CONCURRENCY: three concurrent accepts give one project and one member set,
+  with the others returning idempotent success; accept racing decline gives
+  exactly one terminal response, the loser gets a controlled
+  `INVALID_TRANSITION`, and a project exists only if ACCEPT won.
+- INJECTED FAILURES: a failure after the offer update, and a failure after the
+  project insert but before members, both roll back completely (offer back to
+  `PENDING`, zero projects/members), and a clean retry afterwards provisions
+  normally.
+
+`verify-offer-runtime.ts` (Phase 5.3) asserted the old seed-only bridge
+("acceptance creates no project"); that one assertion now expects exactly one
+project for its one accepted disposable offer. Regressions all pass:
+`verify-selection-offer` (6.6.6), `verify-application-lifecycle` (6.6.4),
+`verify-assessment-grading` (6.6.5), `verify-workspace-runtime`,
+`verify-full-brief-disclosure`, `verify-authorization` (6.3),
+`verify-candidate-access-runtime` and `verify-invitation-runtime` (6.6.3),
+`verify-partner-runtime`, `verify-partner-pipeline-runtime`,
+`verify-faculty-runtime`, `verify-faculty-queue-runtime`,
+`verify-application-runtime`, `verify-application-stage` and
+`verify-development-personas` (6.6.2). TypeScript, ESLint,
+`git diff --check`, DB check, Drizzle (no drift) and the webpack production
+build pass.
+
+**Playwright (OBSERVED, disposable data):**
+- Canonical branch, entirely in the UI except attaching the assessment
+  definition (no authoring UI exists; same approach as 6.6.5, via
+  `scripts/qa-offer-provisioning-browser-fixture.ts`): BenCang posted → CAID
+  approved/published → Bao applied and nominated Dr. Minh Pham → Pham accepted
+  supervision (`ASSESSMENT`) → Bao answered and submitted ("Awaiting review") →
+  Pham graded 80 against threshold 60 → the partner saw "Awaiting partner
+  selection" and issued the offer → Bao's inbox showed "Needs your response" →
+  the offer page showed the terms → Accept → "Offer accepted / You're in" →
+  "Open your workspace" opened an Active workspace listing Bao as team member
+  and Dr. Minh Pham as faculty supervisor. The inbox then showed "Offer
+  accepted", and before acceptance the workspace URL was the truthful "locked"
+  page.
+- Team branch (offer pre-built through the real services): only the leader
+  (Priya) saw Accept/Decline; the accepted teammate (Bao) and the INVITED member
+  (Hoang) saw "Only the accepted team leader can…". After Priya accepted, the
+  roster was Priya + Bao with supervisor Dr. Diane Osei. Bao opened the
+  workspace; Hoang, an unrelated student, and E-Lab got 404; the owning partner
+  and CAID managing admin got 200.
+- Decline branch: Jordan declined → "Offer declined / cannot be reopened"; the
+  inbox recorded the decline; no project; the workspace page now reads "Your
+  team declined this offer / No workspace was created".
+- Expired branch: "Offer expired", "This invitation has lapsed", no
+  Accept/Decline; the inbox showed "Offer expired / View expired offer"; no
+  project; the workspace reads "The response window for this offer has ended".
+- Supervisor Dr. Minh Pham opened the canonical workspace. The seeded canonical
+  pending offer is still actionable. Accept was not clicked on shared seed data.
+- DB rows matched every observation.
+
+**Schema impact:** None. The DBML, Drizzle schema and migrations are
+unchanged; existing unique indexes were sufficient.
+
+**Baseline cleanup:** All disposable verifier and browser rows were removed
+(including rows left by one verifier run interrupted by a temporary local
+Docker-engine stall, not a code fault). Final canonical counts:
+`applications=8`, `application_members=18`, `challenges=11`,
+`selections=5`, `offers=5`, `projects=4`, `project_members=10`,
+`supervision_requests=1`, `agreements=5`, `assessments=2`, zero `qa-66*`
+rows.
+
+**Remaining blocker:** None.
+
+**Exact next checkpoint:** Human review of Phase 6.6.7. Phase 6.6.8 (project,
+milestone and close-out writes) has not begun; do not start it without
+explicit approval.
+
+## 6.6.8 Project, milestone, and close-out writes
+
+**Goal:** Let the newly provisioned project progress to a real terminal state
+(older F-15/F-17/C-03; latest F6).
+
+**Scope/checklist:**
+
+- [x] Implement authorized milestone/deliverable submissions and faculty +
+  partner reviews, including revision and effective dual approval; preserve
+  legitimate review history without racing the quorum.
+- [x] Implement approved project close-out/final review, durable feedback if
+  promised, completed/archived workspace links, and honest active-project
+  date/status labels (not challenge application deadlines).
+- [x] Keep agreement-gated resources and cross-project/organization access
+  enforced throughout; remove disabled/stub close-out CTAs or make them real.
+
+**Dependencies/decisions:** 6.6.0 review-history and terminal-state rules;
+6.6.7 project provisioning. **Non-scope:** General meeting system, file
+storage, and unrelated P2/P3 polish.
+**Playwright regression:** Student submits milestone; faculty and partner
+review/revise/approve; project reaches final review and close-out; completed
+project remains reachable; wrong role and unrelated project remain denied.
+**DB/integrity verification:** Review events retained while exactly one
+effective decision/quorum is computed under concurrency; deliverable/project
+FKs, restricted-resource agreements, terminal transition and rollback checks.
+**Exit:** A fresh project can be completed through persisted authorized work.
+**DBML/schema review:** Required if effective-decision serialization,
+close-out, or feedback needs a structural change; do not blindly add a unique
+index that erases legitimate review rounds.
+
+### 6.6.8 completion record — 2026-09-29
+
+**Pre-implementation review (answers from the model as it stood).**
+(1) Round identity: not representable — `milestone_reviews` and `deliverables`
+referenced only `milestone_id`. (2) Effective round under concurrency: not
+representable. (3) Project-level final approval: no valid place
+(`milestone_reviews.milestone_id` is NOT NULL; DBML defines `feedback` as
+generic). (4) Milestone creation: only `src/db/seed/projects.ts` inserted
+milestones/deliverables/resources; nothing inserted feedback. The runtime
+review path also **overwrote** a reviewer's earlier decision, counted
+approvals from any time toward the quorum, took no lock, and accepted reviews
+on non-submitted milestones. Work stopped and the proposal below was put to
+the human reviewer.
+
+**Approved 2026-09-29 (human decision):** (a) the schema change as proposed;
+(b) milestones may be created by the project's faculty supervisor or an
+authorized owner-organization member, only while the project is ACTIVE;
+(c) FINAL_REVIEW is entered automatically when the last milestone completes;
+(d) a final-review revision request returns the project to ACTIVE, and
+optional partner close-out feedback is written during FINAL_REVIEW.
+
+**Schema (DBML → Drizzle → migration `drizzle/0008_milestone_rounds_final_reviews.sql`):**
+new `milestone_submissions` (UNIQUE `milestone_id, round_number`, round > 0);
+`deliverables.submission_id` and `milestone_reviews.submission_id` NOT NULL
+FKs; UNIQUE `milestone_reviews(submission_id, reviewer_role)` — one decision
+per side per round, history kept across rounds; new `project_final_reviews`
+(UNIQUE `project_id, round_number, reviewer_role`). The generated migration
+was hand-reviewed: the two NOT NULL columns are added nullable, pre-existing
+deliverables/reviews are backfilled as round 1 of their milestone, then SET
+NOT NULL (an unattributable review would fail the migration rather than be
+guessed). Backfill result: 12 round-1 submissions, 12 deliverables and 20
+reviews attached, zero NULLs. Seed now creates/reuses the round-1 submission;
+the old "feedback table must be empty" seed validation was removed because
+runtime close-out feedback is now legitimate. Evidence: migration applied to
+the dev DB; all migrations replayed on a throwaway DB; `pnpm db:reset`
+(after a `pg_dump` backup) replayed migrations + seed, a second seed was
+stable, and every table's row count matched the pre-reset backup exactly.
+
+**Milestone submission:** `submitMilestoneWork`
+(`src/services/milestone-review.service.ts`) — actor must be a student
+`project_members` row of the milestone's project; project ACTIVE; milestone
+PENDING / IN_PROGRESS / REVISION_REQUESTED (SUBMITTED → controlled CONFLICT,
+COMPLETED → refused). Locks project then milestone row, inserts round
+`max+1`, one deliverable (LINK / FILE need an https reference; TEXT / OTHER need
+text — no file storage is implemented; the reference is stored), and
+compare-and-sets the milestone to SUBMITTED.
+
+**Review rounds / effective decision:** reviews carry the submission id the
+reviewer saw; the service locks project → milestone, requires SUBMITTED,
+refuses a review whose submission is not the current (highest) round
+(stale page / old round → CONFLICT), refuses a second decision by the same side
+in that round (and the unique index backs it), inserts append-only, then:
+REVISION_REQUESTED (comment required) closes the round; APPROVED completes the
+milestone only when FACULTY and PARTNER both approved **the same round**.
+Earlier rounds never count. Read models (`listProjectMilestones`, faculty
+queue, partner panel, workspace) now use the current round only and expose
+the full labelled history; the previous timestamp-based "latest review" logic
+was removed.
+
+**Authority:** faculty = `projects.faculty_supervisor_id` with a faculty
+profile; partner = active ADMIN / CONTACT_PERSON / PROJECT_MANAGER in the
+challenge owner organization (existing policy); CAID/E-Lab managing roles keep
+read access only; students cannot record formal decisions. Unauthorized
+actors get NOT_FOUND (no existence leak).
+
+**Project close-out:** completing the last milestone (≥1 milestone) moves
+ACTIVE → FINAL_REVIEW in the same transaction. `recordFinalProjectReview`
+requires FINAL_REVIEW and every milestone COMPLETED (protects the legacy seeded
+FINAL_REVIEW project that still has a SUBMITTED milestone — milestone reviews
+remain allowed during FINAL_REVIEW so it can finish). Current final round is
+derived from persisted rows (highest round, or next if it holds a revision).
+FACULTY + PARTNER APPROVED in one round → COMPLETED with `end_date` = campus
+date (left null if that would precede `start_date`); REVISION_REQUESTED →
+ACTIVE, and new milestones can then be added. COMPLETED refuses submissions,
+milestone creation, milestone/final reviews and close-out feedback; the
+workspace stays readable with history.
+
+**Feedback:** partner close-out feedback (existing `feedback` model:
+`PARTNER_CLOSEOUT`, `PROJECT_TEAM` note + band metrics, optional
+`PRIVATE_ADMIN` note) is optional, only during FINAL_REVIEW, one per author,
+and never counts as approval. The workspace shows the team-visible note; the
+private note is never returned to it. The close-out form's disabled submit and
+"Nothing was saved" copy were replaced with the real action.
+
+**UI changes:** workspace "Deliverables & sign-off" tab (round cards, history,
+member submit/resubmit, supervisor/partner decisions, add-milestone) and a
+"Final review" panel; removed the stub `SubmitDeliverable` (fake upload) and
+the partner panel's dead "Open" button / invented `.zip` name; faculty queue's
+disabled "Write feedback" row became a real "Final review → Open final review"
+item for FINAL_REVIEW projects; REVISION_REQUESTED no longer shows as faculty
+action; partner project page and workspace header show "Starts" for future
+start dates and the real completion date.
+
+**Verification:** new `scripts/verify-project-closeout.ts` on a genuine 6.6.7
+runtime project (select → offer → accept; zero seeded milestones) covering
+creation authority, submission authority / validation / cross-project /
+rollback, reviewer authority, single-side non-completion, revision → round 2,
+stale round-1 reviews, no carry-over, full history, simultaneous
+submissions (one round), duplicate same-side reviews (one row), approval vs
+revision race (never completes), concurrent faculty + partner approvals
+(one completion), injected failures after submission insert, review insert and
+final-review insert (full rollback), auto FINAL_REVIEW, final revision →
+ACTIVE → round 2 without carry-over, stale final round, duplicate concurrent
+final approvals, feedback timing/visibility/uniqueness, COMPLETED write
+refusals and readability, agreement-gated resource access
+(NDA member vs non-NDA member vs supervisor/partner), no automatic agreements,
+FK/round contiguity/member integrity. `verify-dual-signoff-runtime` and
+`verify-faculty-queue-runtime` were updated to pass the current round.
+Regression (all pass): dual-signoff, faculty-queue, workspace-runtime,
+offer-provisioning (6.6.7), offer-runtime, selection-offer (6.6.6),
+authorization (6.3), partner-runtime, partner-pipeline, faculty-runtime,
+application-lifecycle (6.6.4), assessment-grading (6.6.5),
+full-brief-disclosure, candidate-access and invitation (6.6.3),
+application-runtime, application-stage, development-personas (6.6.2).
+TypeScript, ESLint, `git diff --check`, DB check, Drizzle (no drift after 0008)
+and webpack build pass.
+
+**Playwright (OBSERVED, disposable data):** leader Priya accepted a pending
+offer → new ACTIVE workspace with no milestones (member sees no add control);
+supervisor Dr. Minh Pham added "Discovery report", partner BenCang added
+"Handover deck"; Bao submitted round 1 (link); supervisor requested revision;
+Priya resubmitted as round 2 (both sign-offs back to pending, round 1 kept in
+history); supervisor then partner approved → COMPLETED with three history
+events; project stayed Active (1 of 2). Handover: Bao submitted, partner
+approved from `/partner/projects` (real "Open" link to the submitted URL),
+supervisor approved from the faculty queue → project automatically in Final
+review; faculty queue showed a "Final reviews" item linking to the workspace.
+Partner sent close-out feedback (bands + note + private note); faculty then
+partner final approval → Completed, "completed 29 Sept 2026". Completed
+workspace: readable, no submit/review/add/final controls for member,
+supervisor or CAID; team sees the shared feedback, not the private note;
+partner close-out page read-only; restricted dataset masked for Bao (no NDA),
+open for Priya (NDA); unrelated student, another student and E-Lab got 404.
+DB rows matched every observation.
+
+**Cleanup / baseline:** all `qa-668*` rows removed; canonical counts:
+applications 8, application members 18, challenges 11, offers 5, projects 4,
+project members 10, milestones 15, submissions 12, deliverables 12, reviews 20,
+final reviews 0, feedback 0, resources 10, agreements 5.
+
+**Remaining blocker:** None. Not implemented (not approved/required): editing or
+deleting milestones, faculty close-out feedback, file storage.
+
+**Exact next checkpoint:** Human review of Phase 6.6.8. Phase 6.6.9 has not
+begun; do not start it without explicit approval.
+
+## 6.6.9 Isolated Playwright multi-role E2E acceptance
+
+**Goal:** Demonstrate the complete path through runtime actions and database
+evidence, then obtain human review before Phase 8.
+
+**Scope/checklist:** Use a clean, isolated/disposable development database,
+not a shared or production database. Capture starting URL, persona, action,
+redirect/result URL, visible state, and persisted rows at each transaction
+boundary. Exercise with Playwright MCP:
+
+1. [x] Create the approved development test identities with actual profiles
+   and scoped memberships.
+2. [x] Partner creates a challenge.
+3. [x] The correct CAID/E-Lab unit reviews and publishes it.
+4. [x] Student gains legitimate public or candidate-scoped access.
+5. [x] Student completes an application.
+6. [x] Required supervision request is persisted.
+7. [x] Faculty responds before `respond_by`; overdue response is denied.
+8. [x] Student starts, answers, and submits an assessment.
+9. [x] Authorized reviewer grades/reviews; score and attempt state persist.
+10. [x] Application progresses according to the authoritative result.
+11. [x] Partner reviews the candidate/application under owner scope.
+12. [x] Partner selects the team.
+13. [x] Exactly one selection and PENDING offer persist.
+14. [x] Correct leader can respond; other members cannot.
+15. [x] Acceptance atomically provisions one project.
+16. [x] Correct project members immediately enter the workspace.
+17. [x] Milestone submissions and faculty/partner reviews persist.
+18. [x] Project reaches the approved terminal/close-out state.
+19. [x] Wrong-role, unrelated-resource, anonymous, private and confidential
+   negative paths remain denied at every relevant boundary.
+20. [x] Inspect persisted DB rows, FKs, state coherence, counts, and rollback/
+   idempotency at application, request, assessment, selection, offer, project,
+   and milestone boundaries.
+
+**Dependencies/decisions:** 6.6.0–6.6.8 complete and each slice reviewed; any
+valid product-path deviation is documented rather than silently skipped.
+**Non-scope:** Phase 7 matching and Phase 8 deployment. **Playwright
+regression:** The numbered flow plus existing persona/route/visibility suites;
+repeat near-boundary dates, double-submit, and expired states. **DB/integrity
+verification:** Read-only assertions on the disposable run's writes plus
+targeted concurrency/rollback verifiers; no shared-data reset. **Exit:** Human
+review accepts the browser ledger, DB evidence and documented deviations;
+only then may Phase 8 begin. **DBML/schema review:** No new design in this
+acceptance step; any uncovered model gap reopens the relevant earlier review.
+
+### 6.6.9 completion record — 2026-09-29
+
+**Disposable DB strategy.** A separate container `vinuni-e2e-669-db`
+(`pgvector/pgvector:pg18`, host `127.0.0.1:55432`, tmpfs data dir, no Docker
+volume, no Compose project) with internal database `solution_studio`, so the
+unmodified seed guard (local host + approved name) accepts it. Every app/script
+process received an explicit `DATABASE_URL` for port 55432; `pnpm db:reset` was
+never used (it is hard-wired to the ordinary container). Isolation proof:
+ordinary `vinuni-solution-studio-db` system_identifier `7690747744620048426`
+(5432, named volume) vs disposable `7690772820609802282` (run) and
+`7690779126390222891` (clean rebuild for verifiers). The ordinary DB was
+fingerprinted before any work (identity + row count + content md5 of all 54
+tables) and was byte-identical at the end. Migrations 0000–0008 replayed from
+zero; seed counts matched the canonical baseline exactly (applications 8,
+challenges 11, offers 5, projects 4, milestones 15, submissions 12, reviews 20,
+final reviews 0, feedback 0); a second seed was stable. The container was
+destroyed after the run; only logs/SQL evidence were kept outside the repo.
+
+**Personas / runtime.** `next dev --webpack -p 3100` with
+`AUTH_SELF_SERVICE_ENABLED=true`, `AUTH_DEV_PERSONAS_ENABLED=true` against the
+disposable DB. Ten `qa669.*@example.test` identities were created through the
+real signup persona form (4 students, 2 faculty, BenCang + VHF partners, CAID,
+E-Lab); each had exactly one credential and one profile or scoped membership.
+Personas were isolated with separate browser contexts / cleared cookies.
+
+**Playwright + DB ledger (all OBSERVED).** Canonical run: challenge 12
+`qa669-port-congestion-forecasting` → application 9
+(`7d3940c4-…6f7c`) → project 5.
+
+| # | Persona | Action → result | Persisted evidence | Result |
+|---|---|---|---|---|
+| 1 | all | Signup → `/challenges`, `/faculty`, `/partner`, `/review`, `/review` | 1 credential + 1 profile/membership each | PASS |
+| 2 | BenCang partner | `/partner/post` → draft → `?created=1` | owner BenCang, manager CAID, contact = partner, DRAFT, PUBLIC_PREVIEW | PASS |
+| 3 | E-Lab, CAID | E-Lab queue empty, `/review/<slug>` 404; CAID Approve → Publish | review APPROVED by CAID actor/org; APPLICATIONS_OPEN; 0 downstream rows | PASS |
+| 4 | anon, student | anon preview + "Sign in to apply"; student "Apply" | pre-publish draft 404 for anon/student | PASS |
+| 5 | leader | 4-step wizard, invites mate + Duc; second pre-opened tab submits | 1 application SUBMITTED, 1 accepted leader, 2 INVITED; tab 2 "already has an active application" | PASS after fix F1 |
+| 6 | — | — | 1 PENDING request to nominated faculty, `respond_by` 6 Oct 23:59:59 campus (5 working days) | PASS |
+| 7 | mate/Duc, faculty | mate accepts, Duc declines; unrelated faculty queue empty + direct 404; faculty accepts | ACCEPTED in time; application → ASSESSMENT | PASS |
+| 7b | unrelated faculty | Overdue probe (separate application, deadline time-shifted) — stale Accept | "response deadline has passed… read-only"; reload shows disabled buttons; request stays PENDING | PASS |
+| 8 | leader | preflight 30 min = timer 29:58; answer MCQ; submit | 1 attempt SUBMITTED, 1 response; no `correctIndex` in HTML/responses | PASS (deviation D2) |
+| 9 | faculty | unrelated faculty/partner/CAID/student 404, anon → sign-in; grade 72 | score 72 by accepted supervisor, rubric/comments, attempt REVIEWED | PASS |
+| 10 | — | student result "Passed" | application SELECTION_PENDING; 0 selection/offer/project | PASS |
+| 11 | partner, VHF partner | owner team page; VHF 404 on team/challenge admin | no application data in VHF views | PASS |
+| 12 | partner | Select + issue offer; pre-opened second tab | tab 2 `?offer=error&code=CONFLICT` | PASS |
+| 13 | — | — | exactly 1 selection (actor partner), 1 PENDING offer with terms, future respond_by, application SELECTED, 0 projects | PASS |
+| 14 | leader, mate, Duc, outsider, VHF, faculty, anon | only leader has Accept/Decline; captured Accept action replayed as mate/Duc/outsider → "no longer available to you" | offer still PENDING, 0 projects | PASS |
+| 15 | leader | Accept; duplicate ACCEPT replay idempotent; DECLINE replay "already resolved" | offer ACCEPTED by leader in time; 1 project ACTIVE, application_id 9, supervisor = faculty, members = leader + mate, same txn timestamp | PASS |
+| 16 | 10 personas + anon | leader/mate/supervisor/partner/CAID 200; E-Lab, Duc, outsider, unrelated faculty/partner 404; anon → sign-in | NDA gate: non-NDA member sees masked card, URL absent from HTML | PASS |
+| 17 | faculty, partner, mate, leader | add 2 milestones (member/CAID: no add control); r1 → revision → r2; stale r1 partner Approve → "A newer submission exists"; r2 dual approval | rounds 1–2 kept; no approval on r1; completion only after both approved r2 | PASS |
+| 18 | all | 2nd milestone → auto FINAL_REVIEW; close-out feedback; faculty then partner final approval | COMPLETED; team sees shared note only; completed workspace readable, 0 write controls for 5 roles; close-out page read-only | PASS |
+| 19 | see below | negative-path ledger | no raw 500s, no leaks | PASS |
+| 20 | — | chronology + 22 integrity assertions + orphan checks | all true; 0 orphans | PASS |
+
+DB evidence boundaries A–H (publication; application + request; assessment
+submit; grading/progression; selection + offer; acceptance/provisioning;
+milestone rounds/reviews; completion) each showed only the expected rows and no
+premature downstream rows. Step-20 chronology is strictly ordered from challenge
+creation to `COMPLETED`; asserted: one effective application, one leader, one
+request answered in time, one attempt and score, score ≥ threshold, grader =
+accepted supervisor, one selection/offer/project, responder = leader, project
+created in the acceptance transaction, supervisor and members consistent,
+deliverable/review FKs consistent with their submissions, no approval on the
+superseded round, current-round dual approval, dual final approval, no automatic
+agreements; no orphan project members/offers/projects or NULL submission FKs.
+
+**Negative paths (OBSERVED).** Anonymous → sign-in on grader/offer/workspace,
+404 on draft/PRIVATE/INVITE_ONLY; wrong role (partner/CAID/student on grader,
+faculty on offer) 404; unrelated student 404 on invitation, offer, workspace,
+INVITE_ONLY; unrelated partner (VHF) 404 on team review, challenge admin,
+project, PRIVATE and INVITE_ONLY, and no application data in its candidate
+directory; wrong unit (E-Lab) 404 on CAID review and workspace; unrelated
+project 404 both directions; INVITE_ONLY (created via partner → CAID) unlisted
+and 404 until an exact-email grant, then only the grantee sees it; PRIVATE
+anonymous/external 404 and VinUni student sees the approved masked view; NDA
+gate masked; expired supervision refused; expired offer (seeded offer 1,
+time-shifted) refused with "Offer response window has expired", reload
+non-actionable, DB unchanged; stale milestone round refused; terminal project
+has no write surface (service-level refusal covered by 6.6.8 verifier).
+
+**Concurrency / stale verifiers** (clean rebuilt disposable DB, all exit 0):
+all 30 `scripts/verify-*.ts`, including application lifecycle (duplicate
+submit), candidate-access (duplicate grants), faculty queue (deadline),
+assessment runtime (save vs submit) and grading (concurrent grades), selection
+offer (concurrent issuance), offer provisioning (accept vs decline, duplicate
+accept), project close-out (same-round, stale round, final-review concurrency,
+rollback), dual sign-off, Phase 6.3 authorization, and development personas
+(run with its required `NODE_ENV=development`). Verifiers restored canonical
+counts. Also: TypeScript, ESLint, `git diff --check`, `db:check` on both
+endpoints, `drizzle-kit check` ("Everything's fine") and `drizzle-kit generate`
+into a scratch copy ("No schema changes"; no 0009), `next build --webpack`.
+
+**Fix during acceptance (F1).** `src/lib/apply-validation.ts` `validateTeam`
+blocked the wizard whenever an invitee was still pending, so the server-
+supported team path (`createApplication` persists `INVITED` members;
+progression waits for responses — 6.6.4) was unreachable in the browser. The
+client check now mirrors `validateTeamShape`: leader + invitees within the
+size range. No schema, policy or server change. Re-observed in step 5.
+
+**Deviations / fixtures (disposable DB only, labelled).**
+D1 — no runtime assessment-definition authoring exists (non-scope since 5.2/
+6.6.5); one ACTIVE definition (threshold 60, 30 min, MCQ + REASONING) was
+inserted for challenge 12 before any application; attempt/score/transitions
+were runtime. D2 — the fixture's REASONING item had an empty config, which the
+runner renders as an empty option group (runtime uses MCQ options / CODING
+statements), so it was submitted unanswered (allowed by 6.6.5); fixture error,
+not an app defect. D3 — time-shift UPDATEs of one probe supervision request and
+seeded offer 1 to test expiry. D4 — one NDA-gated resource row on project 5
+(no runtime resource authoring). No lifecycle state was seeded.
+
+**Findings for human review (not fixed; not clear regressions).**
+P1 — date-only challenge deadline is stored as 00:00 UTC (07:00 campus time,
+visible in the grant form) while students see "Applications close 15 Nov" —
+closing-time semantics (6.6.3). P2 — challenge detail/result copy promises a
+"proctored" assessment "set before applications close", an interview and a
+notification "within three working days" regardless of configuration; no
+interview or notification exists. P3 — owner team page shows "Test submitted /
+Assessed not yet / Below threshold 20" (brief-fit label) for a team whose
+authoritative result is Passed; the candidate directory says "Has not sat a
+Studio assessment" for a student who has (keeps cross-partner privacy but is
+inaccurate). P4 — a declined invitee can open the offer page ("You've been
+selected", terms) read-only. P5 — a project can complete before its
+`start_date` (end_date stays NULL; header still "Starts 1 Dec"), an approved
+6.6.8 consequence. Minor: "Save draft" link saves nothing; faculty
+"supervision load 1 of 0 slots"; "— wks" in faculty invitation row; "closes
+closes"; wizard shows "already submitted" instead of success; "3 members"
+counts a declined invitee; stale faculty-queue row until reload after approval.
+
+**Remaining blocker:** none. Findings P1–P5 were decided and resolved in the
+cleanup below. Phase 8 is not authorized by this record.
+
+### 6.6.9 final acceptance cleanup — 2026-09-29
+
+**Human decisions (P1–P5).** P1 FIX: a date-only application deadline means
+the end of the displayed campus date (Asia/Ho_Chi_Minh). P2 FIX COPY: no
+proctoring, interview or timed-notification promises unless configured. P3
+FIX: the owner-scoped team review shows the truthful challenge-specific
+assessment result; broader directory views use privacy-preserving wording.
+P4 FIX ACCESS: declined / non-accepted invitees get the same controlled 404 as
+unrelated actors on the offer page; the accepted leader stays the only
+responder; accepted members keep read-only visibility. P5 ACCEPTED SEMANTICS:
+project/offer `start_date` is a planned start, not a lifecycle gate; early work
+and completion are allowed; label it "Planned start". No schema change.
+
+**Fixes (no migration, no schema/DBML change).**
+- P1: `src/lib/dates.ts` adds `applicationDeadlineCampusDate`,
+  `effectiveApplicationDeadline` (23:59:59.999 campus on that date) and
+  `endOfCampusDate`; `deadlineLabel`/`isUrgent` count campus calendar days.
+  Server checks use the effective instant (`applicationWindow`, candidate
+  grant expiry and grant/apply windows in `challenge-access.service`); the
+  partner form stores the end-of-campus-day instant; the draft
+  deadline ≤ start check, marketplace/detail/apply/invitation/assessment
+  displays and the partner grant form use the same campus date. Existing rows
+  (any time of day) normalise identically, so no data migration.
+- P2: challenge "How you'll be assessed" reflects the configured assessment
+  (or "No assessment configured") and a direct partner decision; the timeline
+  is Applied → Supervision → Assessment (if configured) → Selection → Offer →
+  Kickoff with no durations; assessment preflight/runner say "Fullscreen
+  lockdown" and "counts as a warning" (violations are client-side only, not
+  recorded); result pages drop the three-working-day notification, interview,
+  five-day decision and cooldown promises.
+- P3: `selectAssessmentSummaries` derives `passed` from the authoritative
+  `overall_score ≥ passing_score` (legacy seeded rubric verdict as fallback);
+  the owner team page shows "Ready for selection" and "Assessment on this
+  challenge: Passed / Below the pass threshold / Submitted · awaiting review /
+  …" (still no numeric score to partners); the roster drops the directory
+  "Assessed not yet" claim and labels "Brief fit"; directory cards and
+  recommendation caveats say "Assessment result not available in this view."
+- P4: `loadOfferContext` (offer page, response and NDA actions) requires an
+  ACCEPTED application member; others → FORBIDDEN → 404.
+- P5: workspace, partner project, offer, application, invitation, review and
+  challenge detail show "Planned start"; "Started"/"starts" inference removed.
+- Minor: "Save draft" (saved nothing) removed from the apply wizard; "closes
+  closes" fixed; `/applications` and the partner team page count accepted
+  members only; faculty load shows "N active projects · no capacity limit set"
+  when no capacity is configured and no longer adds a phantom slot on
+  supervision acceptance; the invitation row shows real weeks/hours or omits
+  them; the faculty queue resyncs its optimistic rows when `/faculty`
+  revalidates (no stale row after an action).
+
+**Evidence.** New `scripts/verify-application-deadline.ts`: for three stored
+forms (end-of-day, legacy 00:00 UTC, legacy midday) the campus date is the
+displayed date, applications are accepted at 00:00, 07:30, 12:00 and 23:59:59
+campus on the deadline date and rejected the next day. Playwright (OBSERVED, fresh
+disposable DB `7690934904846589994`, 29 Sep 19:36 campus): challenge with
+deadline 29 Sep shows "Applications close 29 Sept 2026 · Closes today" and
+accepted a team application at 19:37:16 (DB: submitted ≤ deadline 23:59:59.999
+campus); deadline 28 Sep shows "Closed" and the wizard refuses. Challenge,
+preflight and result pages contain none of proctor/interview/notification/
+working-day/cooldown/recorded wording. After grading 80 ≥ 60 the owner team page
+shows "Ready for selection" and "Passed"; directory shows the privacy wording
+and no "not sat". Offer: declined invitee and unrelated student 404 (before and
+after acceptance, no inbox offer link); accepted teammate 200 read-only; leader
+Accept/Decline and acceptance work. Faculty queue: "8 wks · 10 h/wk", "0 active
+projects · no capacity limit set" before and after acceptance; approving a
+milestone from the queue removed the row and showed the final-review item
+without reload. Completed project renders "Completed · Planned start 1 Dec
+2026" (workspace, partner project, application, offer) with zero write
+controls; `/applications` shows "2 members". No HTTP 500s. All 31 verifiers
+(including Phase 6.3 authorization and offer provisioning), TypeScript,
+ESLint, `git diff --check`, `drizzle-kit check`/generate (no drift, no 0009)
+and the webpack build pass. The disposable DB was destroyed; the ordinary DB
+(same identifier) is data-identical. OrbStack had stopped during the session
+and was restarted, together with the ordinary DB container, without data
+change.
+
+## Phase 6.6 exit criteria
+
+Status after 6.6.9 and its cleanup (agent evaluation):
+
+- [x] Every required major lifecycle state is reachable through authorized
+  runtime actions, not merely seeded fixtures. *(Assessment definitions remain
+  configuration without an authoring UI — D1.)*
+- [x] Phase 6.3 disclosure, production identity, and organization boundaries
+  pass negative regression tests.
+- [x] Deadline, scoring, selection, offer, and milestone integrity withstand
+  stale requests and concurrent retries.
+- [x] Stakeholder-facing copy, catalog counts, and demo chronology are honest.
+  *(P1–P5 and the minor items resolved and verified above.)*
+- [ ] The isolated Playwright multi-role scenario and DB assertions pass; a
+  human reviews the evidence and approves the Phase 8 handoff. *Scenario and
+  assertions pass — AWAITING FINAL HUMAN APPROVAL.*
 
 ---
 
 # 11. Phase 7 — Skill + Semantic Matching
+
+**Status: DEFERRED / NOT STARTED.** Matching is not required for the initial
+near-production release. Preserve this section as a resumable workstream when
+the owner makes matching a product priority. Do not use unimplemented matching
+to imply an AI shortlist or to block Phase 6.6/Phase 8.
 
 ## Goal
 
@@ -1771,7 +3162,14 @@ Checklist:
 
 ---
 
-# 12. Phase 8 — Production Deployment
+# 12. Phase 8 — Staging & Production Deployment
+
+**Status: FUTURE / NOT STARTED.** Phase 8 follows successful Phase 6.6 human
+review and full Playwright multi-role E2E acceptance. Deferred Phase 7 is **not**
+a prerequisite. Phase 8 still owns the production image, environment/secrets,
+managed PostgreSQL, separately reviewed migrations, staging, HTTPS/domain,
+backups/recovery, observability, rate limiting/security, and staging E2E
+verification. This roadmap amendment authorizes none of that implementation.
 
 ## Goal
 
@@ -1817,6 +3215,9 @@ Deploy a secure, recoverable, observable production system.
 - [ ] Separate staging secrets
 - [ ] Run migrations before production
 - [ ] Run end-to-end workflow tests
+- [ ] Repeat the approved Phase 6.6 multi-role workflow and negative access
+  checks in staging, with staging-only identities/data and persisted-state
+  assertions; do not treat a seeded screen tour as E2E acceptance
 
 ## 8.5 Object storage
 
@@ -1874,6 +3275,8 @@ project files
 - [ ] Database migrations reproducible
 - [ ] Monitoring enabled
 - [ ] Recovery process documented
+- [ ] Phase 6.6 human review and isolated Playwright E2E acceptance completed
+  before deployment work begins; Phase 7 may remain deferred
 
 ---
 
@@ -1881,11 +3284,63 @@ project files
 
 ## Current status
 
-**Current phase:** Phase 6.5 — COMPLETE / READY FOR HUMAN REVIEW
+**Current phase:** Phase 6.6.9 — isolated E2E acceptance and P1–P5 cleanup
+COMPLETE; Phase 6.6 AWAITING FINAL HUMAN APPROVAL
+
 **Phase 6:** COMPLETE / READY FOR FINAL HUMAN REVIEW
-**Active next checkpoint:** Phase 7.1 — Structured skill matching (after Phase 6.5 human review)
+
+**Active next checkpoint:** Final human approval of Phase 6.6 (6.6.9 ledger,
+fix F1 and the P1–P5 cleanup). Phase 8 is not authorized until that approval.
+Phase 7 remains deferred.
 
 ### Latest completed work
+
+- 2026-09-29 Phase 6.6.9 — isolated Playwright multi-role E2E acceptance is
+  COMPLETE / READY FOR HUMAN REVIEW. A disposable pgvector container (port
+  55432, tmpfs) replayed 0000–0008 and the seed; ten persona-signup identities
+  drove partner draft → CAID publish → application → supervision → assessment
+  → grading → selection/offer → acceptance/provisioning → milestone rounds →
+  final review → COMPLETED, with DB evidence at every boundary, a negative-path
+  ledger and all 30 focused verifiers passing. One client fix (apply wizard
+  team validation). The disposable DB was destroyed; the ordinary DB was
+  verified unchanged. See the 6.6.9 completion record. Follow-up cleanup
+  implemented the human P1–P5 decisions (campus end-of-day deadlines, honest
+  assessment/selection copy, owner-scoped assessment result, accepted-member
+  offer access, "Planned start") plus minor truthfulness fixes; exit
+  criteria 1–4 met, criterion 5 awaits final human approval.
+
+- 2026-09-28 Phase 6.6.5 — Assessment submission safety and live grading is
+  COMPLETE / READY FOR HUMAN APPROVAL. Approved assessment threshold and
+  uniqueness constraints are represented in DBML, Drizzle and migration
+  `0007_green_sabra.sql`; atomic response upsert, accepted-supervisor-only live
+  grading, threshold-driven centralized application transitions, concurrency/
+  rollback verifiers, fresh migration/seed reproduction and disposable
+  Playwright acceptance are complete. Browser fixtures were removed and the
+  canonical database baseline was restored. Phase 6.6.6 has not begun and
+  requires explicit approval.
+
+- 2026-09-28 Phase 6.6.4 — Application lifecycle and concurrency is COMPLETE /
+  READY FOR HUMAN REVIEW. Server-owned gate reconciliation, accepted-leader
+  withdrawal, terminal-state handling, sorted participant advisory locks,
+  application row locks, retry/rollback safety, coherent student/faculty/
+  partner presentation, focused DB verification and disposable multi-role/two-
+  tab Playwright acceptance are complete. No Phase 6.6.4 schema or migration
+  change was required. Phase 6.6.5 has not begun and requires explicit approval.
+
+- 2026-09-28 Phase 6.6.3 — Challenge, private access, and supervision
+  lifecycle is COMPLETE / READY FOR HUMAN REVIEW. Candidate-specific
+  INVITE_ONLY grant, expiry, revocation, audit history, application durability,
+  concurrency enforcement, owner UI, schema/migration replay, regression
+  verification, disposable Playwright acceptance, and cleanup are complete.
+  Phase 6.6.4 has not begun and requires explicit approval.
+
+- 2026-09-27 roadmap amendment only: approved product direction now requires a
+  near-production action path through project close-out. Planned bounded Phase
+  6.6.0–6.6.9, including development-only domain persona provisioning,
+  candidate-scoped PRIVATE/INVITE_ONLY access, hard supervision response
+  deadline, live grading, selection/offer/project writes, integrity and
+  Playwright multi-role acceptance. Phase 7 is deferred; Phase 8 follows 6.6
+  acceptance, not Phase 7. No checkpoint has been implemented by this edit.
 
 - 2026-09-06 Post-Phase-6 internal-demo authentication extension: added an
   opt-in self-service email/password signup and sign-in path alongside the
@@ -2113,12 +3568,15 @@ Full 45-domain-table pre-reset/post-reset/post-idempotency count equality is rec
 
 ## Immediate next task
 
-### Phase 7.1 — Structured skill matching
+### Phase 6.6.0 — Product-rule confirmation
 
-Phase 6.5 (local containerized development) is complete and awaiting human
-review. After that review, the next implementation checkpoint is Phase 7.1 —
-Structured skill matching. Do not begin Phase 7.1 or any Phase 8 production
-deployment work before Phase 6.5 is reviewed.
+Phase 6.5 (local containerized development) is complete and ready for human
+review. The 2026-09-27 roadmap amendment is also awaiting human approval.
+After that approval, the next implementation checkpoint is **Phase 6.6.0 —
+Product-rule confirmation**, followed by the bounded 6.6.1–6.6.9 sequence.
+Do not implement 6.6 yet on the authority of this documentation edit. Phase 7
+matching is deferred. Phase 8 can start only after Phase 6.6 human review and
+isolated Playwright multi-role E2E acceptance; it need not wait for Phase 7.
 
 Immediate sequence:
 
@@ -2171,9 +3629,19 @@ Final Phase 6 human review
         ↓
 Phase 6.5 local containerized development ✅
         ↓
-Phase 6.5 human review
+Phase 6.5 human review + human-approved roadmap amendment
         ↓
-Phase 7.1 structured skill matching
+Phase 6.6.0 product-rule confirmation
+        ↓
+Phase 6.6.1–6.6.8 bounded workflow closure and regression checkpoints
+        ↓
+Phase 6.6.9 disposable-DB Playwright multi-role E2E acceptance
+        ↓
+Phase 6.6 human review
+        ↓
+Phase 8 staging + production deployment (future, not started)
+
+Phase 7 matching: DEFERRED, resumable later; not on the critical path to Phase 8.
 ```
 
 ### Phase 6.5 checklist (complete, pending human review)
@@ -2182,13 +3650,15 @@ Phase 7.1 structured skill matching
 - [x] Read the relevant Next.js guides under `node_modules/next/dist/docs/` before writing dev-server/container configuration.
 - [x] Keep `docker-compose.yml` as the Compose filename; do not break the `scripts/db-reset.ts` guard.
 - [x] Preserve host `pnpm dev` and all existing `db:*` script behavior unchanged.
-- [x] Do not begin Phase 7.1 matching or Phase 8 production deployment work.
+- [x] No Phase 7 matching or Phase 8 production deployment work was performed
+  as part of Phase 6.5.
 
 ### Immediate next checkpoint
 
-- [ ] Phase 6.5 human review.
-- [ ] Phase 7.1 — Structured skill matching, after Phase 6.5 human review.
-- [ ] Do not begin Phase 7.1 before Phase 6.5 human review is complete.
+- [ ] Human review of Phase 6.5 and explicit approval of this amended roadmap.
+- [ ] Phase 6.6.0 — Product-rule confirmation only; record the decisions and
+  reviewed DBML/schema gaps before 6.6.1 implementation.
+- [ ] Do not begin Phase 7 matching or Phase 8 deployment as part of 6.6.0.
 
 ### Agent sequencing rule
 
@@ -2201,16 +3671,51 @@ Before each agent implementation task:
 3. Do not infer or skip to a later phase because it seems logically next.
 4. If a needed checkpoint is not represented here, update the plan through human review before implementation.
 5. After each checkpoint, update this plan with actual work completed, verification, counts, and the exact next checkpoint.
+6. For Phase 6.6, implement only the approved bounded sub-checkpoint; attach
+   Playwright regression and DB/integrity evidence before advancing. Escalate
+   product or DBML gaps instead of inventing policy, privilege, or migrations.
+7. Phase 7 is deferred; Phase 8 is sequenced after Phase 6.6 acceptance, not
+   after Phase 7. Neither is authorized by a Phase 6.6 checkpoint request.
 
 ### Recommended next agent instruction
 
-After human review of Phase 6.5, proceed with Phase 7.1 — Structured skill matching only. Do not implement Phase 8 production deployment, schema, migration, seed, or auth changes, or unrelated runtime paths unless explicitly requested.
+After human approval of this roadmap amendment, proceed with **Phase 6.6.0 —
+Product-rule confirmation only**. Record the required product decisions and
+schema-review items; do not implement 6.6.1, Phase 7, Phase 8, schema,
+migrations, seed, authentication, or unrelated runtime paths unless separately
+approved for their bounded checkpoint.
 
 ---
 
 # 15. Work Log
 
 Use this section after each development session.
+
+## 2026-09-27 — Roadmap amendment only
+
+### Completed
+
+- Recorded the approved near-production E2E direction as planned Phase 6.6,
+  with ten bounded checkpoints, explicit product/schema decisions, per-slice
+  Playwright and write-integrity verification, and final disposable-database
+  multi-role acceptance.
+- Deferred Phase 7 without deleting it; sequenced Phase 8 after Phase 6.6
+  human review and E2E acceptance, independently of matching.
+- Updated active status, sequencing, next-task guidance and Definition of Done.
+  Historical entries below retain the decisions and next actions as recorded
+  at their original dates.
+- Documentation-only change to this file; no application, schema, migration,
+  seed, authentication, database, Phase 7 or Phase 8 implementation.
+
+### Current blocker
+
+Human approval of this roadmap amendment and the unresolved 6.6.0 product/
+schema decisions. This is a planned checkpoint, not a claim of implementation.
+
+### Next action
+
+After explicit human approval, perform Phase 6.6.0 — Product-rule confirmation
+only, then seek review before the next bounded implementation slice.
 
 ## 2026-09-06
 
@@ -2662,7 +4167,7 @@ value from the bind-mounted `.env` (`localhost:5432`) without modifying it.
 20. Agents should perform analysis-only tasks when instructed and must not generate migrations until ERD v1 is frozen.
 21. `pnpm db:reset` is the canonical destructive LOCAL DEVELOPMENT reset; `pnpm db:seed` remains non-destructive/idempotent.
 22. Every Phase 3.5+ seed checkpoint must preserve reset → migrate → seed reproducibility from zero.
-23. `PRODUCTION_TRANSFORMATION_PLAN.md` is authoritative for implementation phase/checkpoint sequencing; agents must not invent, skip, or renumber checkpoints silently.
+23. `PRODUCTION_TRANSFORMATION_PLAN.md` is authoritative for implementation phase/checkpoint sequencing; agents must not invent, skip, or renumber checkpoints silently. Phase 7 is deferred; Phase 8 follows Phase 6.6 acceptance without requiring matching.
 24. After each major checkpoint, update this plan with actual completion status, verification results, counts, current blocker, and exact next checkpoint.
 
 ---
@@ -2734,7 +4239,7 @@ If these disagree, the agent should **report the discrepancy instead of guessing
 
 # 18. Definition of Done
 
-The static MVP transformation is complete when:
+The initial near-production transformation is complete when:
 
 - [ ] The approved ERD is fully represented in PostgreSQL
 - [ ] Database creation is reproducible from migrations
@@ -2747,10 +4252,22 @@ The static MVP transformation is complete when:
 - [ ] Workspace/projects are database-backed
 - [ ] Authentication is implemented
 - [ ] RBAC is enforced
-- [ ] Skill matching works
-- [ ] Semantic matching works through pgvector
+- [ ] Fresh, authorized multi-role users can perform the Phase 6.6 challenge →
+  application → supervision → assessment/review → selection/offer → accepted
+  project → milestone/close-out path with persisted state and negative access
+  checks; isolated Playwright E2E evidence is human-reviewed
+- [ ] Development-only persona provisioning cannot grant production roles;
+  candidate-scoped private access does not broaden ordinary marketplace scope
+- [ ] Stale/racing actions cannot violate deadline, grading, selection,
+  project-membership, or milestone-review integrity
 - [ ] Staging environment exists
 - [ ] Production deployment exists
 - [ ] Managed PostgreSQL is backed up and monitored
 - [ ] File/object storage is available if uploads are required
 - [ ] Deployment and recovery procedures are documented
+
+Deferred optional Phase 7 completion criteria, tracked separately and **not**
+gates for the initial release or Phase 8:
+
+- [ ] Skill matching works when separately prioritized
+- [ ] Semantic matching works through pgvector when separately prioritized

@@ -48,8 +48,8 @@ export default async function MyApplicationsPage() {
                     </Link>
                     <p className="text-meta text-ink-3 mt-0.5">
                       {application.teamName ?? "No team name"} ·{" "}
-                      {application.memberSummary.total} member
-                      {application.memberSummary.total === 1 ? "" : "s"}
+                      {application.memberSummary.accepted} member
+                      {application.memberSummary.accepted === 1 ? "" : "s"}
                     </p>
                   </td>
                   <td className="py-3 pr-3 w-[160px]">

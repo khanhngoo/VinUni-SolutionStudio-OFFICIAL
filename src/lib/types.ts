@@ -464,9 +464,14 @@ export interface Milestone {
   dueDate: string;
   status: MilestoneStatus;
   deliverable: string;
-  /** Dual sign-off (PRD D7) — both must approve at IN_REVIEW. */
+  /** Dual sign-off for the current submission round only. */
   facultyApproved: boolean;
   posterApproved: boolean;
+  /** Current submission round, if work has been submitted. */
+  submissionId?: string | null;
+  round?: number | null;
+  /** External reference for the current round's deliverable, if one was given. */
+  deliverableUrl?: string | null;
 }
 
 export type MeetingKind =

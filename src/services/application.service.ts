@@ -10,9 +10,11 @@ import {
 } from "@/db/queries/applications";
 import {
   findDuplicateApplicationMemberships,
+  getApplicationWriteSubjectByPublicId,
   getApplicationWriteChallengeBySlug,
   insertApplication,
   insertApplicationMembers,
+  lockEffectiveApplicationParticipants,
   selectChallengeEligibilityRulesForWrite,
   selectStudentProfileByUserId,
   selectStudentProfilesByEmails,
@@ -22,7 +24,19 @@ import {
   type ApplicationWriteChallenge,
   type StudentApplicationProfile,
 } from "@/db/mutations/applications";
+import {
+  insertSupervisionRequest,
+  listSupervisionRequestsForWrite,
+  lockApplicationForSupervision,
+  selectActiveFacultyForSupervision,
+} from "@/db/mutations/supervision";
+import {
+  lockCandidateAccessChallenge,
+  selectEffectiveCandidateAccessStudentIds,
+} from "@/db/mutations/challenge-access";
 import { evaluateChallengeEligibility } from "@/services/challenge-policy";
+import { isPublicId } from "@/lib/public-id";
+import { addCampusWorkingDays, effectiveApplicationDeadline } from "@/lib/dates";
 import {
   canAccessApplicationDetail,
   canAccessChallengeApplications,
@@ -98,6 +112,7 @@ export interface ApplicationMemberInput {
 
 export interface CreateApplicationInput {
   challengeSlug: string;
+  facultySupervisorId: bigint;
   leaderAvailabilityConfirmed?: boolean | null;
   leaderCommittedHoursPerWeek?: number | null;
   leaderPreferredRole?: string | null;
@@ -127,6 +142,7 @@ export interface ApplicationServiceListItem {
 }
 
 export interface ApplicationServiceDetail extends ApplicationServiceListItem {
+  activeAssessment: ApplicationDetailRead["activeAssessment"];
   assessmentSummaries: ApplicationDetailRead["assessmentSummaries"];
   members: Array<{
     availabilityConfirmed: boolean | null;
@@ -181,6 +197,32 @@ const DEVELOPMENT_ACTOR_EMAILS: Record<DevelopmentApplicationActorKey, string> =
 
 const APPLICATION_OPEN_STATUSES = ["APPLICATIONS_OPEN"];
 
+export interface ApplicationWindowSubject {
+  applicationDeadline: Date | null;
+  status: string;
+}
+
+export type ApplicationWindow =
+  | { isOpen: true }
+  | { isOpen: false; reason: "DEADLINE_PASSED" | "NOT_OPEN" };
+
+/** The status/deadline gate shared by the Apply UI and application creation. */
+export function applicationWindow(
+  challenge: ApplicationWindowSubject,
+  now = new Date()
+): ApplicationWindow {
+  if (!APPLICATION_OPEN_STATUSES.includes(challenge.status)) {
+    return { isOpen: false, reason: "NOT_OPEN" };
+  }
+  if (
+    challenge.applicationDeadline &&
+    now > effectiveApplicationDeadline(challenge.applicationDeadline)
+  ) {
+    return { isOpen: false, reason: "DEADLINE_PASSED" };
+  }
+  return { isOpen: true };
+}
+
 export async function getDevelopmentApplicationActor(
   key: DevelopmentApplicationActorKey,
   options: ApplicationServiceOptions = {}
@@ -211,6 +253,7 @@ export async function getApplicationDetail(
   actor: ApplicationActorContext,
   options: ApplicationServiceOptions = {}
 ): Promise<ApplicationServiceDetail | null> {
+  if (!isPublicId(publicId)) return null;
   const application = await getApplicationByPublicId(
     options.database ?? db,
     publicId.trim()
@@ -280,7 +323,11 @@ export async function createApplication(
 
   return withApplicationTransaction(options.database ?? db, async (tx) => {
     const now = options.now ?? new Date();
-    const challenge = await requireChallenge(tx, input.challengeSlug);
+    let challenge = await requireChallenge(tx, input.challengeSlug);
+    if (challenge.visibility === "INVITE_ONLY") {
+      await lockCandidateAccessChallenge(tx, challenge.id);
+      challenge = await requireChallenge(tx, input.challengeSlug);
+    }
     const normalized = normalizeCreateInput(input);
 
     validateChallengeAcceptsApplications(challenge, now);
@@ -296,8 +343,34 @@ export async function createApplication(
     const members = await resolveMemberInputs(tx, normalized.members, actor);
     const allMembers = [leader, ...members.map((member) => member.profile)];
 
+    if (challenge.visibility === "INVITE_ONLY") {
+      const effectiveStudentIds = await selectEffectiveCandidateAccessStudentIds(
+        tx,
+        challenge.id,
+        allMembers.map((member) => member.userId),
+        now
+      );
+      if (effectiveStudentIds.length !== allMembers.length) {
+        throw new ApplicationError(
+          "FORBIDDEN",
+          "Every student on an INVITE_ONLY application needs effective candidate access."
+        );
+      }
+    }
+
     validateTeamShape(normalized, challenge, allMembers.length);
-    await validateNoDuplicateApplications(tx, challenge, allMembers);
+    const acceptedParticipants = [
+      leader,
+      ...members
+        .filter((member) => member.input.status === "ACCEPTED")
+        .map((member) => member.profile),
+    ];
+    await lockEffectiveApplicationParticipants(
+      tx,
+      challenge.id,
+      acceptedParticipants.map((member) => member.userId)
+    );
+    await validateNoDuplicateApplications(tx, challenge, acceptedParticipants);
     await validateLeaderEligibility(tx, challenge, leader);
 
     const application = await insertApplication(tx, {
@@ -334,10 +407,101 @@ export async function createApplication(
       })),
     ]);
 
+    const faculty = await selectActiveFacultyForSupervision(
+      tx,
+      normalized.facultySupervisorId
+    );
+    if (!faculty) {
+      validationError(["The nominated supervisor is not an active faculty member."]);
+    }
+
+    await insertSupervisionRequest(tx, {
+      applicationId: application.id,
+      facultyId: faculty.userId,
+      requestedAt: now,
+      requestedBy: actor.userId,
+      respondBy: addCampusWorkingDays(now, 5),
+    });
+
     const created = await getApplicationByPublicId(tx, application.publicId);
     if (!created) throw notFound("Application disappeared during creation.");
 
     return toServiceDetail(created);
+  });
+}
+
+/**
+ * Creates a fresh supervision request after the prior one was declined or its
+ * hard deadline passed. Historical rows are never edited into a different
+ * story. Locking the application row serializes two-tab retries so only one
+ * effective pending request can be created.
+ */
+export async function reissueSupervisionRequest(
+  applicationPublicId: string,
+  facultySupervisorId: bigint,
+  actor: ApplicationActorContext,
+  options: ApplicationServiceOptions = {}
+): Promise<void> {
+  assertStudentActor(actor);
+  if (!isPublicId(applicationPublicId)) throw notFound("Application was not found.");
+
+  await withApplicationTransaction(options.database ?? db, async (tx) => {
+    const now = options.now ?? new Date();
+    let application = await getApplicationWriteSubjectByPublicId(
+      tx,
+      applicationPublicId.trim()
+    );
+    if (!application) throw notFound("Application was not found.");
+    if (application.submittedBy !== actor.userId) {
+      throw new ApplicationError(
+        "FORBIDDEN",
+        "Only the student who submitted the application can nominate another supervisor."
+      );
+    }
+    await lockApplicationForSupervision(tx, application.id);
+    application = await getApplicationWriteSubjectByPublicId(
+      tx,
+      applicationPublicId.trim()
+    );
+    if (!application || application.status !== "SUBMITTED") {
+      throw new ApplicationError(
+        "INVALID_TRANSITION",
+        "Supervision can only be rerouted while the application is awaiting supervision."
+      );
+    }
+    const requests = await listSupervisionRequestsForWrite(tx, application.id);
+    if (requests.some((request) => request.status === "ACCEPTED")) {
+      throw new ApplicationError(
+        "CONFLICT",
+        "A faculty member has already accepted this supervision."
+      );
+    }
+    if (
+      requests.some(
+        (request) =>
+          request.status === "PENDING" &&
+          request.respondBy !== null &&
+          now <= request.respondBy
+      )
+    ) {
+      throw new ApplicationError(
+        "CONFLICT",
+        "A supervision request is still awaiting a response."
+      );
+    }
+
+    const faculty = await selectActiveFacultyForSupervision(tx, facultySupervisorId);
+    if (!faculty) {
+      validationError(["The nominated supervisor is not an active faculty member."]);
+    }
+
+    await insertSupervisionRequest(tx, {
+      applicationId: application.id,
+      facultyId: faculty.userId,
+      requestedAt: now,
+      requestedBy: actor.userId,
+      respondBy: addCampusWorkingDays(now, 5),
+    });
   });
 }
 
@@ -380,6 +544,7 @@ function normalizeCreateInput(input: CreateApplicationInput) {
   const members = input.members ?? [];
   return {
     challengeSlug: input.challengeSlug.trim(),
+    facultySupervisorId: input.facultySupervisorId,
     leaderAvailabilityConfirmed: input.leaderAvailabilityConfirmed ?? null,
     leaderCommittedHoursPerWeek: input.leaderCommittedHoursPerWeek ?? null,
     leaderPreferredRole: cleanOptional(input.leaderPreferredRole),
@@ -469,7 +634,8 @@ function validateChallengeAcceptsApplications(
   challenge: ApplicationWriteChallenge,
   now: Date
 ) {
-  if (!APPLICATION_OPEN_STATUSES.includes(challenge.status)) {
+  const window = applicationWindow(challenge, now);
+  if (!window.isOpen && window.reason === "NOT_OPEN") {
     throw new ApplicationError(
       "INVALID_TRANSITION",
       `Challenge ${challenge.slug ?? challenge.title} is not accepting applications.`,
@@ -477,11 +643,11 @@ function validateChallengeAcceptsApplications(
     );
   }
 
-  if (challenge.applicationDeadline && now > challenge.applicationDeadline) {
+  if (!window.isOpen && window.reason === "DEADLINE_PASSED") {
     throw new ApplicationError(
       "INVALID_TRANSITION",
       "Application deadline has passed.",
-      [`Deadline: ${challenge.applicationDeadline.toISOString()}`]
+      [`Deadline: ${effectiveApplicationDeadline(challenge.applicationDeadline!).toISOString()}`]
     );
   }
 }
@@ -567,6 +733,7 @@ function toServiceListItem(row: ApplicationListItemRead): ApplicationServiceList
 function toServiceDetail(row: ApplicationDetailRead): ApplicationServiceDetail {
   return {
     ...toServiceListItem(row),
+    activeAssessment: row.activeAssessment,
     assessmentSummaries: row.assessmentSummaries,
     members: row.members.map((member) => ({
       availabilityConfirmed: member.availabilityConfirmed,

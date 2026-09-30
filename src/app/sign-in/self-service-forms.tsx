@@ -1,6 +1,9 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
+
+import { developmentPartnerOrganizations, developmentPersonas, type DevelopmentPersona } from "@/auth/development-personas";
+import { PasswordField } from "@/components/ui/password-field";
 
 import {
   signInWithSelfService,
@@ -10,7 +13,8 @@ import {
 
 const initialState: AuthenticationFormState = {};
 
-export function SelfServiceAuthenticationForms() {
+export function SelfServiceAuthenticationForms({ developmentPersonasEnabled }: { developmentPersonasEnabled: boolean }) {
+  const [persona, setPersona] = useState<DevelopmentPersona>("STUDENT");
   const [signInState, signInAction, signInPending] = useActionState(
     signInWithSelfService,
     initialState
@@ -39,13 +43,12 @@ export function SelfServiceAuthenticationForms() {
             name="email"
             type="email"
           />
-          <Field
+          <PasswordField
             autoComplete="current-password"
             id="sign-in-password"
             label="Password"
             minLength={12}
             name="password"
-            type="password"
           />
         </div>
 
@@ -65,10 +68,37 @@ export function SelfServiceAuthenticationForms() {
       >
         <h2 className="text-lg font-semibold text-ink">Create an account</h2>
         <p className="mt-1 text-sm leading-relaxed text-ink-3">
-          Registration creates a basic account without student or organization privileges.
+          {developmentPersonasEnabled
+            ? "Choose a local QA account type. Access comes from the profile or membership created on the server."
+            : "Registration creates a basic account. Contact an administrator to set up access."}
         </p>
 
         <div className="mt-5 space-y-4">
+          {developmentPersonasEnabled ? (
+            <>
+              <label className="block text-sm font-medium text-ink" htmlFor="sign-up-persona">
+                Development account type
+                <select id="sign-up-persona" name="persona" value={persona}
+                  onChange={(event) => setPersona(event.target.value as DevelopmentPersona)}
+                  className="mt-1.5 h-10 w-full rounded-card border border-line bg-white px-3 text-ink">
+                  {developmentPersonas.map((choice) => (
+                    <option key={choice} value={choice}>{({ STUDENT: "Student", FACULTY: "Faculty", PARTNER: "Partner representative", CAID_ADMIN: "CAID administrator", ELAB_ADMIN: "E-Lab administrator" } as const)[choice]}</option>
+                  ))}
+                </select>
+              </label>
+              {persona === "PARTNER" ? (
+                <label className="block text-sm font-medium text-ink" htmlFor="sign-up-partner">
+                  Development partner organization
+                  <select id="sign-up-partner" name="partnerOrganization"
+                    className="mt-1.5 h-10 w-full rounded-card border border-line bg-white px-3 text-ink">
+                    {developmentPartnerOrganizations.map((partner) => (
+                      <option key={partner.key} value={partner.key}>{partner.name}</option>
+                    ))}
+                  </select>
+                </label>
+              ) : null}
+            </>
+          ) : null}
           <Field
             autoComplete="name"
             id="sign-up-full-name"
@@ -85,7 +115,7 @@ export function SelfServiceAuthenticationForms() {
             name="email"
             type="email"
           />
-          <Field
+          <PasswordField
             autoComplete="new-password"
             description="12–128 characters with at least one letter and one number."
             id="sign-up-password"
@@ -93,16 +123,14 @@ export function SelfServiceAuthenticationForms() {
             maxLength={128}
             minLength={12}
             name="password"
-            type="password"
           />
-          <Field
+          <PasswordField
             autoComplete="new-password"
             id="sign-up-password-confirmation"
             label="Confirm password"
             maxLength={128}
             minLength={12}
             name="passwordConfirmation"
-            type="password"
           />
         </div>
 
@@ -136,7 +164,7 @@ function Field({
   maxLength?: number;
   minLength?: number;
   name: string;
-  type: "email" | "password" | "text";
+  type: "email" | "text";
 }) {
   const descriptionId = description ? `${id}-description` : undefined;
 

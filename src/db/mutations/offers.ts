@@ -1,7 +1,7 @@
 import { and, eq, gte, isNull, or, sql } from "drizzle-orm";
 
 import { db } from "@/db";
-import { offers } from "@/db/schema";
+import { offers, selections } from "@/db/schema";
 import type { OfferRuntimeStatus } from "@/db/queries/offers";
 
 export type OfferMutationDatabase =
@@ -47,4 +47,76 @@ export async function respondToPendingOffer(
     });
 
   return offer ?? null;
+}
+
+export interface SelectionOfferInsertValues {
+  applicationId: bigint;
+  compensationNote: string | null;
+  durationWeeks: number | null;
+  hoursPerWeek: number | null;
+  ndaRequired: boolean;
+  respondBy: Date;
+  selectedAt: Date;
+  selectedBy: bigint;
+  startDate: string | null;
+}
+
+export interface SelectionOfferInsertResult {
+  offerId: bigint;
+  respondBy: Date | null;
+  selectionId: bigint;
+  status: OfferRuntimeStatus;
+}
+
+/**
+ * Creates a selection and its initial PENDING offer as one durable pair.
+ * `selections.application_id` is unique, so a concurrent duplicate insert
+ * resolves to no row here rather than a thrown constraint error; callers also
+ * hold the application's lifecycle row lock while calling this, which is the
+ * primary race defense; the unique index is the defense-in-depth backstop.
+ */
+export async function insertSelectionAndOffer(
+  database: OfferMutationDatabase,
+  values: SelectionOfferInsertValues
+): Promise<SelectionOfferInsertResult | null> {
+  const [selection] = await database
+    .insert(selections)
+    .values({
+      applicationId: values.applicationId,
+      selectedAt: values.selectedAt,
+      selectedBy: values.selectedBy,
+    })
+    .onConflictDoNothing({ target: selections.applicationId })
+    .returning({ id: selections.id });
+
+  if (!selection) return null;
+
+  const [offer] = await database
+    .insert(offers)
+    .values({
+      compensationNote: values.compensationNote,
+      durationWeeks: values.durationWeeks,
+      hoursPerWeek: values.hoursPerWeek,
+      ndaRequired: values.ndaRequired,
+      respondBy: values.respondBy,
+      selectionId: selection.id,
+      startDate: values.startDate,
+      status: "PENDING",
+    })
+    .returning({
+      id: offers.id,
+      respondBy: offers.respondBy,
+      status: sql<OfferRuntimeStatus>`coalesce(${offers.status}, 'PENDING')`,
+    });
+
+  if (!offer) {
+    throw new Error("Offer could not be created for a new selection.");
+  }
+
+  return {
+    offerId: offer.id,
+    respondBy: offer.respondBy,
+    selectionId: selection.id,
+    status: offer.status,
+  };
 }

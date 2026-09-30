@@ -19,7 +19,8 @@ import type {
 interface TechnicalRunnerProps {
   applicationId: string;
   challengeTitle: string;
-  minutes: number;
+  expiresAt: string | null;
+  minutes: number | null;
   problems: AssessmentStudentQuestion[];
   responses: Record<string, AssessmentResponseInput>;
   submitAction: (
@@ -31,20 +32,15 @@ interface TechnicalRunnerProps {
   ) => Promise<void>;
 }
 
-type RunState =
-  | { status: "idle" }
-  | { status: "running" }
-  | { status: "done"; passed: number; total: number };
-
 /**
- * PRD §8.3: three panes — statement, editor, test output. The editor is a plain
- * textarea and nothing is executed; "Run sample tests" reports a plausible
- * result derived from whether the student has written anything substantive.
- * A real implementation would ship this to a sandboxed runner.
+ * PRD §8.3: three panes — statement, editor, and review guidance. The editor is
+ * a plain textarea. Phase 6.6 does not execute candidate code; coding answers
+ * are saved for manual faculty review.
  */
 export function TechnicalRunner({
   applicationId,
   challengeTitle,
+  expiresAt,
   minutes,
   problems,
   responses,
@@ -52,7 +48,7 @@ export function TechnicalRunner({
   saveResponseAction,
 }: TechnicalRunnerProps) {
   const router = useRouter();
-  const totalSeconds = minutes * 60;
+  const totalSeconds = minutes === null ? null : minutes * 60;
 
   const [problemIndex, setProblemIndex] = useState(0);
   const [code, setCode] = useState<Record<string, string>>(() =>
@@ -63,14 +59,12 @@ export function TechnicalRunner({
       ]),
     ),
   );
-  const [runs, setRuns] = useState<Record<string, RunState>>(() =>
-    Object.fromEntries(problems.map((p) => [p.questionKey, { status: "idle" }])),
-  );
   const [outputOpen, setOutputOpen] = useState(true);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [started, setStarted] = useState(false);
 
   const lockdown = useLockdown({
+    expiresAt,
     totalSeconds,
     onAutoSubmit: () => {
       void submit();
@@ -108,8 +102,7 @@ export function TechnicalRunner({
   }, [blockAction]);
 
   const problem = problems[problemIndex];
-  const run = runs[problem.questionKey];
-
+  const currentCode = code[problem.questionKey] ?? "";
   const attempted = useMemo(
     () =>
       problems.filter((p) => {
@@ -121,45 +114,42 @@ export function TechnicalRunner({
     [code, problems],
   );
 
-  function runSampleTests() {
-    setRuns((prev) => ({ ...prev, [problem.questionKey]: { status: "running" } }));
-    setOutputOpen(true);
-
-    window.setTimeout(() => {
-      const written = code[problem.questionKey]
-        .replace(problem.coding?.starterCode ?? "", "")
-        .trim();
-      const hasBody = written.length > 12 && !written.includes("pass");
-      const total = problem.coding?.sampleTests.length ?? 0;
-      const passed = hasBody ? total : 0;
-      setRuns((prev) => ({
-        ...prev,
-        [problem.questionKey]: { status: "done", passed, total },
-      }));
-      markSaved();
-      void saveCurrentProblem();
-    }, 900);
-  }
+  useEffect(() => {
+    if (!started || !hasStudentCode(problem, currentCode)) return;
+    const timeout = window.setTimeout(() => {
+      void saveResponseAction(problem.questionKey, {
+        kind: "CODING",
+        code: currentCode,
+      }).then(markSaved);
+    }, 750);
+    return () => window.clearTimeout(timeout);
+  }, [currentCode, markSaved, problem, saveResponseAction, started]);
 
   async function saveCurrentProblem() {
+    if (!hasStudentCode(problem, code[problem.questionKey] ?? "")) return;
     const response = {
       kind: "CODING",
       code: code[problem.questionKey] ?? "",
     } satisfies AssessmentResponseInput;
     await saveResponseAction(problem.questionKey, response);
+    markSaved();
   }
 
   async function submit() {
     markFinished();
     await submitAction(
       Object.fromEntries(
-        problems.map((p) => [
-          p.questionKey,
-          {
-            kind: "CODING",
-            code: code[p.questionKey] ?? "",
-          } satisfies AssessmentResponseInput,
-        ]),
+        problems.flatMap((p) =>
+          hasStudentCode(p, code[p.questionKey] ?? "")
+            ? [[
+                p.questionKey,
+                {
+                  kind: "CODING",
+                  code: code[p.questionKey] ?? "",
+                } satisfies AssessmentResponseInput,
+              ]]
+            : [],
+        ),
       ),
     );
     exitFullscreen();
@@ -173,10 +163,13 @@ export function TechnicalRunner({
         <div className="hidden lg:grid min-h-dvh place-items-center px-6 bg-paper">
           <div className="text-center max-w-[46ch]">
             <p className="text-meta text-ink-3">Technical assessment</p>
-            <h1 className="mt-2">{problems.length} problems · {minutes} minutes</h1>
+            <h1 className="mt-2">
+              {problems.length} problems · {minutes === null ? "Untimed" : `${minutes} minutes`}
+            </h1>
             <p className="text-ink-2 mt-2">
-              You can move between problems freely. Sample tests can be run as
-              often as you like; full tests run once on submit.
+              You can move between problems freely. Sample cases are provided
+              as reference only; your code is saved for manual review and is
+              not executed in the browser.
             </p>
             <button
               type="button"
@@ -263,14 +256,7 @@ export function TechnicalRunner({
               <span className="text-meta text-ink-3">
                 {problem.coding?.language ?? "Code"}
               </span>
-              <button
-                type="button"
-                onClick={runSampleTests}
-                disabled={run.status === "running"}
-                className="h-8 px-3.5 rounded-card border border-line bg-card text-ink-2 font-medium hover:border-ink-3 disabled:opacity-60"
-              >
-                {run.status === "running" ? "Running…" : "Run sample tests"}
-              </button>
+              <span className="text-meta text-ink-3">Manual review</span>
             </div>
             <textarea
               data-editor="true"
@@ -281,7 +267,6 @@ export function TechnicalRunner({
                   ...prev,
                   [problem.questionKey]: e.target.value,
                 }));
-                markSaved();
               }}
               onBlur={() => {
                 void saveCurrentProblem();
@@ -299,7 +284,7 @@ export function TechnicalRunner({
               className="shrink-0 flex items-center justify-between gap-2 px-4 h-11 border-b border-line text-left"
             >
               <span className="text-h3 uppercase tracking-[0.02em] font-semibold text-ink-3">
-                Test output
+                Review guidance
               </span>
               <span className="text-meta text-ink-3">
                 {outputOpen ? "Hide" : "Show"}
@@ -308,44 +293,11 @@ export function TechnicalRunner({
 
             {outputOpen ? (
               <div className="flex-1 min-h-0 overflow-y-auto px-4 py-4">
-                {run.status === "idle" ? (
-                  <p className="text-meta text-ink-3">
-                    Run the sample tests to see output here.
-                  </p>
-                ) : run.status === "running" ? (
-                  <p className="text-meta text-ink-3">Running sample tests…</p>
-                ) : (
-                  <>
-                    <p
-                      className={cn(
-                        "font-semibold",
-                        run.passed === run.total ? "text-ok" : "text-warn",
-                      )}
-                    >
-                      {run.passed} of {run.total} sample tests passed
-                    </p>
-                    <ul className="mt-3 flex flex-col gap-2">
-                      {problem.coding?.sampleTests.map((test, index) => (
-                        <li
-                          key={test.input}
-                          className="font-mono text-[11px] text-ink-2"
-                        >
-                          <span
-                            className={
-                              index < run.passed ? "text-ok" : "text-warn"
-                            }
-                          >
-                            {index < run.passed ? "PASS" : "FAIL"}
-                          </span>{" "}
-                          case {index + 1}
-                        </li>
-                      ))}
-                    </ul>
-                    <p className="text-meta text-ink-3 mt-4">
-                      Sample tests only. Full tests run when you submit.
-                    </p>
-                  </>
-                )}
+                <p className="text-meta text-ink-3">
+                  Code execution is not enabled. The sample cases in the
+                  problem statement are reference examples, and an authorized
+                  faculty grader reviews the submitted response manually.
+                </p>
               </div>
             ) : null}
           </section>
@@ -375,4 +327,11 @@ function savedCodeFor(
 ) {
   const saved = responses[problem.questionKey];
   return saved?.kind === "CODING" ? saved.code : problem.coding?.starterCode ?? "";
+}
+
+function hasStudentCode(
+  problem: AssessmentStudentQuestion,
+  value: string
+) {
+  return value.replace(problem.coding?.starterCode ?? "", "").trim().length > 0;
 }

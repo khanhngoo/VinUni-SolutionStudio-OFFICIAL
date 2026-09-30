@@ -7,7 +7,8 @@ import { Section } from "@/components/ui/section";
 import { formatDate as formatDateOnlyString, formatNullableDate as formatDate } from "@/lib/dates";
 import { getReviewChallengePage } from "@/services/review.service";
 
-import { publishChallengeAction, recordReviewDecisionAction } from "./actions";
+import { publishChallengeAction } from "./actions";
+import { ReviewDecisionForm } from "./review-decision-form";
 
 export const dynamic = "force-dynamic";
 
@@ -114,7 +115,7 @@ export default async function ReviewChallengeDetailPage({
             value={challenge.applicationDeadline ? formatDate(challenge.applicationDeadline) : "None set"}
           />
           <Row
-            label="Starts"
+            label="Planned start"
             value={challenge.startDate ? formatDateOnlyString(challenge.startDate) : "Not set"}
           />
           <Row
@@ -131,41 +132,7 @@ export default async function ReviewChallengeDetailPage({
       {REVIEWABLE_STATUSES.has(challenge.status) ? (
         <Section title="Review decision">
           {canReview ? (
-            <form action={recordReviewDecisionAction} className="flex flex-col gap-3 max-w-[520px]">
-              <input type="hidden" name="slug" value={challenge.slug ?? ""} />
-              <textarea
-                name="comments"
-                rows={3}
-                placeholder="Comments (shown to the partner)"
-                className="w-full px-3 py-2 rounded-card border border-line bg-card text-ink"
-              />
-              <div className="flex gap-2.5 flex-wrap">
-                <button
-                  type="submit"
-                  name="decision"
-                  value="APPROVED"
-                  className="inline-flex items-center justify-center h-10 px-4 rounded-card bg-brand text-white font-semibold hover:bg-brand-deep"
-                >
-                  Approve
-                </button>
-                <button
-                  type="submit"
-                  name="decision"
-                  value="REVISION_REQUESTED"
-                  className="inline-flex items-center justify-center h-10 px-4 rounded-card border border-line text-ink-2 font-medium hover:border-brand hover:text-brand"
-                >
-                  Request revision
-                </button>
-                <button
-                  type="submit"
-                  name="decision"
-                  value="REJECTED"
-                  className="inline-flex items-center justify-center h-10 px-4 rounded-card border border-red/40 text-red font-medium hover:bg-red/5"
-                >
-                  Reject
-                </button>
-              </div>
-            </form>
+            <ReviewDecisionForm slug={challenge.slug ?? ""} />
           ) : (
             <p className="text-ink-2">
               Your role in the managing organization does not permit review

@@ -1,7 +1,10 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
-import { getAuthenticatedActor } from "@/auth/authenticated-actor";
+import {
+  getAuthenticatedActor,
+  hasActorCapability,
+} from "@/auth/authenticated-actor";
 import { GroupHeading } from "@/components/partner/group-heading";
 import { Chip } from "@/components/ui/chip";
 import { Section } from "@/components/ui/section";
@@ -33,6 +36,7 @@ export default async function PartnerProjectPage({
 
   const resolution = await getAuthenticatedActor();
   if (resolution.status !== "RESOLVED") redirect("/sign-in");
+  if (!hasActorCapability(resolution.actor, "PARTNER_REPRESENTATIVE")) notFound();
 
   // Ownership comes from the partner dashboard, which is scoped to the actor's
   // organization: a project belonging to another partner is indistinguishable
@@ -79,7 +83,7 @@ export default async function PartnerProjectPage({
               ? ` · supervised by ${detail.project.supervisorName}`
               : ""}
             {detail.project.startDate
-              ? ` · started ${formatDate(detail.project.startDate)}`
+              ? ` · planned start ${formatDate(detail.project.startDate)}`
               : ""}
           </p>
         </div>
@@ -102,17 +106,29 @@ export default async function PartnerProjectPage({
         </p>
       ) : null}
 
-      {finished ? (
+      {detail.projectStatus === "FINAL_REVIEW" ? (
         <p className="mt-4 rounded-card border border-l-[3px] border-ok/30 border-l-ok bg-ok-soft px-4 py-2.5 text-ink-2">
-          This project is finished.{" "}
-          <Link
-            className="font-semibold"
-            href={`/partner/projects/${applicationId}/close`}
-          >
-            Close it out →
+          Every milestone is approved — the project is in final review.{" "}
+          <Link className="font-semibold" href={`/workspace/${applicationId}`}>
+            Record your final approval →
+          </Link>{" "}
+          <Link className="font-semibold" href={`/partner/projects/${applicationId}/close`}>
+            Close-out feedback →
           </Link>
         </p>
-      ) : null}
+      ) : finished ? (
+        <p className="mt-4 rounded-card border border-l-[3px] border-ok/30 border-l-ok bg-ok-soft px-4 py-2.5 text-ink-2">
+          This project is complete.{" "}
+          <Link className="font-semibold" href={`/workspace/${applicationId}`}>
+            View the workspace →
+          </Link>
+        </p>
+      ) : (
+        <p className="mt-4 text-meta text-ink-3">
+          <Link href={`/workspace/${applicationId}`}>Open the workspace</Link> to add
+          milestones and review submitted work.
+        </p>
+      )}
 
       <Section
         title="Milestones"

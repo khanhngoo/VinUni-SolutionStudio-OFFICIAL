@@ -366,6 +366,29 @@ The following are first-class challenge concepts in ERD v1 because they have sta
 
 Domain tags are not modeled as a separate generic tag architecture in v1. Keep `challenges.domain` and use skill taxonomy independently. Responsibilities can remain in challenge description and expected deliverables.
 
+### INVITE_ONLY Candidate Access
+
+`challenge_candidate_access` is the candidate-specific access boundary for an
+`INVITE_ONLY` challenge. An authorized owner representative grants one exact,
+existing active student access to one challenge by institutional identity. It
+is not a student-directory or matching table.
+
+Each row is historical evidence: it stores the challenge, student, granting
+actor/time, expiry, and optional revoking actor/time. Effective access is
+derived only while the challenge remains `INVITE_ONLY`, published and within
+its application window, the row is not revoked, and authoritative server time
+is between `granted_at` and `expires_at`. `expires_at` may not exceed the
+challenge application deadline; that cross-table rule is enforced by the
+transactional service.
+
+PostgreSQL check constraints enforce `expires_at > granted_at`, paired
+revocation actor/time, and `revoked_at >= granted_at`. At most one effective
+grant per challenge/student is enforced by locking the target challenge row
+and checking effective grants in the same transaction. This preserves expired
+and revoked history without an invalid time-dependent partial index using
+`now()`. A submitted application remains durable authorization for its student
+even after the source grant expires or is revoked.
+
 ### Public ID Strategy
 
 Internal primary keys remain `bigint`/bigserial-style relational IDs.

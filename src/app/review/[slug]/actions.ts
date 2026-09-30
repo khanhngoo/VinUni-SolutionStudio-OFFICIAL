@@ -25,7 +25,7 @@ async function requireInternalUnitActor() {
   return resolution.actor;
 }
 
-const DECISIONS = new Set(["APPROVED", "REVISION_REQUESTED", "REJECTED"]);
+const DECISIONS = new Set(["APPROVED", "REVISION_REQUESTED"]);
 
 export async function recordReviewDecisionAction(formData: FormData) {
   const slug = stringValue(formData, "slug");
@@ -34,7 +34,10 @@ export async function recordReviewDecisionAction(formData: FormData) {
   const actor = await requireInternalUnitActor();
 
   if (!DECISIONS.has(decisionRaw)) {
-    redirectWithError(slug, "VALIDATION_ERROR", ["Select a decision (Approve, Request revision, or Reject)."]);
+    redirectWithError(slug, "VALIDATION_ERROR", ["Select Approve or Request revision."]);
+  }
+  if (decisionRaw === "REVISION_REQUESTED" && (!comments || comments.length < 3)) {
+    redirectWithError(slug, "VALIDATION_ERROR", ["Explain what the owner needs to revise."]);
   }
 
   try {
@@ -42,7 +45,7 @@ export async function recordReviewDecisionAction(formData: FormData) {
       slug,
       {
         comments,
-        decision: decisionRaw as "APPROVED" | "REVISION_REQUESTED" | "REJECTED",
+        decision: decisionRaw as "APPROVED" | "REVISION_REQUESTED",
       },
       toChallengeWriteActorContext(actor)
     );

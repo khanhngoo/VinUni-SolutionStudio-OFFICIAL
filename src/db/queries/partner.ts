@@ -15,6 +15,7 @@ import {
   organizations,
   selections,
   skills,
+  supervisionRequests,
 } from "@/db/schema";
 
 export type PartnerQueryDatabase =
@@ -260,6 +261,7 @@ export interface PartnerApplicationRead {
    * only — the platform never shows a partner a numeric score or a percentile.
    */
   assessmentBand: string | null;
+  assessmentAttemptStatus: string | null;
   challengeSlug: string | null;
   challengeTitle: string;
   memberSummary: { accepted: number; invited: number; leaderName: string | null; total: number };
@@ -269,6 +271,7 @@ export interface PartnerApplicationRead {
   publicId: string;
   status: string;
   submittedAt: Date | null;
+  supervisionState: "ACCEPTED" | "NONE" | "PENDING" | "REROUTE_REQUIRED";
   teamName: string | null;
 }
 
@@ -320,7 +323,7 @@ export async function listApplicationsForOwnerOrganization(
 
   // The two facts a pipeline card shows beyond the roster: an outstanding
   // offer is a countdown, and a reviewed assessment is a band.
-  const [offerRows, bandRows] = await Promise.all([
+  const [offerRows, bandRows, attemptRows, supervisionRows] = await Promise.all([
     database
       .select({
         applicationId: selections.applicationId,
@@ -338,6 +341,21 @@ export async function listApplicationsForOwnerOrganization(
       .from(assessmentScores)
       .innerJoin(assessmentAttempts, eq(assessmentAttempts.id, assessmentScores.attemptId))
       .where(inArray(assessmentAttempts.applicationId, applicationIds)),
+    database
+      .select({
+        applicationId: assessmentAttempts.applicationId,
+        status: assessmentAttempts.status,
+      })
+      .from(assessmentAttempts)
+      .where(inArray(assessmentAttempts.applicationId, applicationIds)),
+    database
+      .select({
+        applicationId: supervisionRequests.applicationId,
+        respondBy: supervisionRequests.respondBy,
+        status: supervisionRequests.status,
+      })
+      .from(supervisionRequests)
+      .where(inArray(supervisionRequests.applicationId, applicationIds)),
   ]);
 
   const offersByApplication = new Map<string, { respondBy: Date | null; status: string | null }>();
@@ -351,6 +369,36 @@ export async function listApplicationsForOwnerOrganization(
   const bandsByApplication = new Map<string, string | null>();
   for (const row of bandRows) {
     bandsByApplication.set(row.applicationId.toString(), overallBandOf(row.rubricScores));
+  }
+
+  const attemptsByApplication = new Map<string, string>();
+  for (const row of attemptRows) {
+    attemptsByApplication.set(
+      row.applicationId.toString(),
+      row.status ?? "NOT_STARTED"
+    );
+  }
+
+  const supervisionByApplication = new Map<
+    string,
+    "ACCEPTED" | "PENDING" | "REROUTE_REQUIRED"
+  >();
+  const now = new Date();
+  for (const row of supervisionRows) {
+    const key = row.applicationId.toString();
+    const current = supervisionByApplication.get(key);
+    if (row.status === "ACCEPTED") {
+      supervisionByApplication.set(key, "ACCEPTED");
+    } else if (
+      current !== "ACCEPTED" &&
+      row.status === "PENDING" &&
+      row.respondBy !== null &&
+      now <= row.respondBy
+    ) {
+      supervisionByApplication.set(key, "PENDING");
+    } else if (!current) {
+      supervisionByApplication.set(key, "REROUTE_REQUIRED");
+    }
   }
 
   const summaries = new Map<
@@ -372,6 +420,7 @@ export async function listApplicationsForOwnerOrganization(
     const offer = offersByApplication.get(key) ?? null;
     return {
       assessmentBand: bandsByApplication.get(key) ?? null,
+      assessmentAttemptStatus: attemptsByApplication.get(key) ?? null,
       challengeSlug: row.challengeSlug,
       challengeTitle: row.challengeTitle,
       memberSummary: {
@@ -385,6 +434,7 @@ export async function listApplicationsForOwnerOrganization(
       publicId: row.publicId,
       status: row.status,
       submittedAt: row.submittedAt,
+      supervisionState: supervisionByApplication.get(key) ?? "NONE",
       teamName: row.teamName,
     };
   });

@@ -68,7 +68,6 @@ export function PartnerTeamRoster({
 
               {rec ? (
                 <p className="text-meta text-ink-3 mt-1">
-                  Assessed {student?.assessmentBand ?? "not yet"} ·{" "}
                   {rec.matchedSkills.length} of {challenge.skills.length} skills
                   on this brief
                 </p>
@@ -78,7 +77,7 @@ export function PartnerTeamRoster({
             {rec ? (
               <div className="flex items-center gap-2 shrink-0">
                 <Chip variant={bandChipVariant(rec.fitBand)}>
-                  {rec.fitBand}
+                  Brief fit: {rec.fitBand}
                 </Chip>
                 <ScoreDonut
                   score={clampScore(rec.score)}

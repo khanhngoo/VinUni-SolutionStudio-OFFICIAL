@@ -1,15 +1,20 @@
 import { db } from "@/db";
-import { getFacultyCapacity } from "@/db/queries/faculty";
+import {
+  getFacultyCapacity,
+  listFacultySupervisionRequests,
+} from "@/db/queries/faculty";
 import {
   countActiveSupervisions,
   respondToPendingSupervisionRequest,
   type SupervisionMutationDatabase,
 } from "@/db/mutations/supervision";
 import type { AuthenticatedActor } from "@/auth/authenticated-actor";
+import { progressApplicationAfterGateChange } from "@/services/application-lifecycle.service";
 
 export type SupervisionErrorCode =
   | "AT_CAPACITY"
   | "CONFLICT"
+  | "DEADLINE_EXPIRED"
   | "FORBIDDEN"
   | "NOT_FOUND";
 
@@ -55,6 +60,22 @@ export async function respondToSupervisionRequest(
   const facultyId = actor.user.userId;
 
   const run = async (tx: SupervisionMutationDatabase) => {
+    const request = await findFacultyRequest(tx, facultyId, requestId);
+    if (request?.status === "PENDING") {
+      if (!request.respondBy) {
+        throw new SupervisionError(
+          "CONFLICT",
+          "This request has no response deadline and is read-only. Ask the student to issue a fresh request."
+        );
+      }
+      if (now > request.respondBy) {
+        throw new SupervisionError(
+          "DEADLINE_EXPIRED",
+          "The response deadline has passed. This request is now read-only."
+        );
+      }
+    }
+
     if (decision === "ACCEPT") {
       const [capacity, active] = await Promise.all([
         getFacultyCapacity(tx, facultyId),
@@ -83,6 +104,13 @@ export async function respondToSupervisionRequest(
         "This request is no longer awaiting your response."
       );
     }
+
+    if (decision === "ACCEPT") {
+      await progressApplicationAfterGateChange(answered.applicationId, {
+        database: tx,
+        now,
+      });
+    }
   };
 
   // Only open a transaction when we own the connection; a caller that passed
@@ -95,4 +123,13 @@ export async function respondToSupervisionRequest(
   await db.transaction(async (tx) => {
     await run(tx);
   });
+}
+
+async function findFacultyRequest(
+  database: SupervisionMutationDatabase,
+  facultyId: bigint,
+  requestId: bigint
+) {
+  const requests = await listFacultySupervisionRequests(database, facultyId);
+  return requests.find((request) => request.id === requestId) ?? null;
 }

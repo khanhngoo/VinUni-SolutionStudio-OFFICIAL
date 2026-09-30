@@ -19,9 +19,13 @@ import type {
 import {
   getProjectCoreByApplicationPublicId,
   listProjectCores,
+  listProjectFinalReviews,
   listProjectMilestones,
   type ProjectCoreRead,
 } from "@/db/queries/projects";
+import { currentFinalRound } from "@/services/milestone-review.service";
+import { isPublicId } from "@/lib/public-id";
+import { dayKey } from "@/lib/dates";
 
 export interface FacultyServiceOptions {
   database?: FacultyQueryDatabase;
@@ -94,6 +98,7 @@ export async function getFacultyApplicationDetail(
   applicationPublicId: string,
   options: FacultyServiceOptions = {}
 ): Promise<FacultyApplicationDetail | null> {
+  if (!isPublicId(applicationPublicId)) return null;
   const database = options.database ?? db;
   const project = await getProjectCoreByApplicationPublicId(database, applicationPublicId);
   if (project?.facultySupervisor?.userId === facultyUserId) {
@@ -156,10 +161,11 @@ export async function getFacultyQueue(
           ? [application.challenge.ownerOrganization.name]
           : [],
         daysLeft: daysBetween(now, request.respondBy),
-        durationWeeks: null,
+        durationWeeks: application?.challenge.durationWeeks ?? null,
         hoursPerWeek: application?.challenge.weeklyHours ?? null,
         kind: "invite" as const,
         requestId: String(request.id),
+        responseState: supervisionResponseState(now, request.respondBy),
         teamName: request.teamName ?? "Unnamed team",
         teamSize:
           application?.members.filter(
@@ -177,26 +183,21 @@ export async function getFacultyQueue(
     const rows = await listProjectMilestones(database, project.id);
     const teamName = project.application.teamName ?? "Unnamed team";
 
-    // A milestone the team has handed in is the supervisor's move, unless they
-    // have already given their verdict -- then the row shows the wait on the
-    // partner instead of asking twice.
-    const outstanding = rows.filter(
-      (row) => row.status === "SUBMITTED" || row.status === "REVISION_REQUESTED"
-    );
+    // A submitted round is the supervisor's move until they decide on that
+    // round; `latestReviews` holds the current round only. A revision request
+    // closes the round, so REVISION_REQUESTED waits on the team, not faculty.
+    const outstanding = rows.filter((row) => row.status === "SUBMITTED");
 
     for (const row of outstanding) {
       const facultyDecision = row.latestReviews.find(
         (review) => review.reviewerRole === "FACULTY"
       );
       const partnerApproved = row.latestReviews.some(
-        (review) =>
-          (review.reviewerRole === "PARTNER" ||
-            review.reviewerRole === "MANAGING_ORGANIZATION") &&
-          review.decision === "APPROVED"
+        (review) => review.reviewerRole === "PARTNER" && review.decision === "APPROVED"
       );
 
       milestones.push({
-        actionNeeded: facultyDecision?.decision !== "APPROVED",
+        actionNeeded: !facultyDecision,
         applicationPublicId: project.application.publicId,
         challengeTitle: project.challenge.title,
         daysLeft: daysBetween(now, row.deadline ? new Date(row.deadline) : null),
@@ -206,22 +207,31 @@ export async function getFacultyQueue(
         milestoneId: String(row.id),
         milestoneTitle: row.title,
         partnerApproved,
+        submissionId: row.currentSubmission?.id.toString() ?? null,
         teamName,
       });
     }
 
-    const finished = project.status === "COMPLETED" || project.status === "ARCHIVED";
-    if (finished) {
-      feedback.push({
-        applicationPublicId: project.application.publicId,
-        challengeTitle: project.challenge.title,
-        // Negative, so the longest-owed sorts to the top.
-        daysLeft: daysBetween(now, project.endDate ? new Date(project.endDate) : null),
-        kind: "feedback",
-        teamName,
-      });
+    // Close-out is owed while the project is in FINAL_REVIEW and this
+    // supervisor has not decided the current final-review round.
+    if (project.status === "FINAL_REVIEW") {
+      const finalReviews = await listProjectFinalReviews(database, project.id);
+      const round = currentFinalRound(finalReviews);
+      const decided = finalReviews.some(
+        (review) => review.roundNumber === round && review.reviewerRole === "FACULTY"
+      );
+      if (!decided) {
+        feedback.push({
+          applicationPublicId: project.application.publicId,
+          challengeTitle: project.challenge.title,
+          daysLeft: 0,
+          kind: "feedback",
+          teamName,
+        });
+      }
       continue;
     }
+    if (project.status === "COMPLETED" || project.status === "ARCHIVED") continue;
 
     if (outstanding.length === 0) {
       settled.push({
@@ -253,5 +263,18 @@ export async function getFacultyQueue(
 /** Whole days from `from` to `to`. Negative once past; null dates read as due now. */
 function daysBetween(from: Date, to: Date | null): number {
   if (!to) return 0;
-  return Math.round((to.getTime() - from.getTime()) / 86_400_000);
+  const fromDay = new Date(`${dayKey(from.toISOString())}T00:00:00.000Z`);
+  const toDay = new Date(`${dayKey(to.toISOString())}T00:00:00.000Z`);
+  return Math.round((toDay.getTime() - fromDay.getTime()) / 86_400_000);
+}
+
+function supervisionResponseState(
+  now: Date,
+  respondBy: Date | null
+): "DUE_TODAY" | "EXPIRED" | "FUTURE" | "MISSING_DEADLINE" {
+  if (!respondBy) return "MISSING_DEADLINE";
+  if (now > respondBy) return "EXPIRED";
+  return dayKey(now.toISOString()) === dayKey(respondBy.toISOString())
+    ? "DUE_TODAY"
+    : "FUTURE";
 }

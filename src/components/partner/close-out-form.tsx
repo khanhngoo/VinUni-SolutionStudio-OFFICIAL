@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import Link from "next/link";
 import { GroupHeading } from "@/components/partner/group-heading";
 import { cn } from "@/lib/cn";
@@ -28,10 +28,12 @@ const HOST_AGAIN: WouldHostAgain[] = ["Yes", "With reservations", "No"];
  * what to type is the only moment that disclaimer is worth anything.
  */
 export function CloseOutForm({
+  action,
   teamName,
   memberNames,
   applicationId,
 }: {
+  action: (input: { hostAgain: string; note: string; privateNote: string; quality: string; reliability: string }) => Promise<string | null>;
   teamName: string;
   memberNames: string[];
   applicationId: string;
@@ -40,7 +42,10 @@ export function CloseOutForm({
   const [reliability, setReliability] = useState<ScoreBand | null>(null);
   const [hostAgain, setHostAgain] = useState<WouldHostAgain | null>(null);
   const [note, setNote] = useState("");
-  const [submitted] = useState(false);
+  const [privateNote, setPrivateNote] = useState("");
+  const [submitted, setSubmitted] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
 
   const ready =
     quality !== null &&
@@ -59,9 +64,9 @@ export function CloseOutForm({
         </p>
         <p className="text-ink-2 mt-1.5 max-w-[46ch] mx-auto leading-relaxed">
           {memberNames.length === 1
-            ? `${memberNames[0]} and their supervisor can see it now.`
-            : `All ${memberNames.length} members and their supervisor can see it now.`}{" "}
-          The engagement is archived from here.
+            ? `${memberNames[0]} and their supervisor can see it in the workspace.`
+            : `All ${memberNames.length} members and their supervisor can see it in the workspace.`}{" "}
+          The project completes once both final approvals are recorded.
         </p>
         <div className="flex flex-wrap gap-2 justify-center mt-5">
           <Link
@@ -77,9 +82,6 @@ export function CloseOutForm({
             All projects
           </Link>
         </div>
-        <p className="text-meta text-ink-3 mt-5">
-          Nothing was saved — this demo has no persistence layer.
-        </p>
       </div>
     );
   }
@@ -159,6 +161,8 @@ export function CloseOutForm({
             <textarea
               id="close-private"
               rows={3}
+              value={privateNote}
+              onChange={(e) => setPrivateNote(e.target.value)}
               placeholder="Leave blank unless something needs flagging."
               className="w-full border border-line rounded-card px-3 py-2 text-body resize-y leading-relaxed"
             />
@@ -170,20 +174,27 @@ export function CloseOutForm({
         <p className="text-meta text-ink-3 max-w-[42ch] leading-relaxed">
           Bands, not scores — the same vocabulary students see of their own
           assessments.
-          {ready ? " Send this to your Studio contact for now." : ""}
         </p>
-        {/*
-          Close-out feedback has no mutation behind it yet. The form stays --
-          filling it in is how a partner works out what they think -- but the
-          submit is disabled rather than accepting an assessment it would drop.
-        */}
+        {error ? (
+          <p role="alert" className="text-meta text-warn font-medium w-full">
+            {error}
+          </p>
+        ) : null}
         <button
           type="button"
-          disabled
-          title="Close-out feedback isn't stored yet"
-          className="inline-flex items-center justify-center h-9 px-4 rounded-card border border-line text-ink-3 font-semibold disabled:opacity-60"
+          disabled={!ready || pending}
+          onClick={() => {
+            if (!quality || !reliability || !hostAgain) return;
+            setError(null);
+            startTransition(async () => {
+              const message = await action({ hostAgain, note, privateNote, quality, reliability });
+              if (message) setError(message);
+              else setSubmitted(true);
+            });
+          }}
+          className="inline-flex items-center justify-center h-9 px-4 rounded-card bg-brand text-white font-semibold hover:bg-brand-deep disabled:opacity-60"
         >
-          Submit &amp; close
+          {pending ? "Sending…" : "Send feedback"}
         </button>
       </div>
     </>

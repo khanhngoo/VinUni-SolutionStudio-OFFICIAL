@@ -1,4 +1,5 @@
 import {
+  getAuthorizedInviteOnlyChallengeBySlug,
   getPublishedChallengeBySlug,
   listPublishedChallenges,
   type ChallengeDetail,
@@ -14,6 +15,7 @@ import {
   marketplaceVisibilityFilter,
   type ChallengeAccessContext,
 } from "./challenge-policy";
+import { canStudentAccessInviteOnlyChallenge } from "./challenge-access.service";
 
 export * from "./challenge-write.service";
 
@@ -52,10 +54,28 @@ export async function getMarketplaceChallengeBySlug(
   if (!normalizedSlug) return null;
 
   const challenge = await getPublishedChallengeBySlug(normalizedSlug);
-  if (!challenge) return null;
-  if (!canDiscoverChallenge(challenge, context)) return null;
+  if (challenge) {
+    if (!canDiscoverChallenge(challenge, context)) return null;
+    return applyChallengeDetailDisclosure(challenge, context);
+  }
 
-  return applyChallengeDetailDisclosure(challenge, context);
+  if (
+    context.audience !== "STUDENT" ||
+    context.userId === undefined ||
+    !(await canStudentAccessInviteOnlyChallenge(
+      normalizedSlug,
+      BigInt(context.userId)
+    ))
+  ) {
+    return null;
+  }
+
+  const inviteOnlyChallenge = await getAuthorizedInviteOnlyChallengeBySlug(
+    normalizedSlug
+  );
+  return inviteOnlyChallenge
+    ? applyChallengeDetailDisclosure(inviteOnlyChallenge, context)
+    : null;
 }
 
 function hasUnmatchableVisibilityRequest(

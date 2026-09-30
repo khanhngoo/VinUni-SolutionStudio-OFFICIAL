@@ -27,7 +27,7 @@ import {
 } from "./enums";
 import { organizations } from "./organizations";
 import { skills } from "./skills";
-import { facultyProfiles, users } from "./users";
+import { facultyProfiles, studentProfiles, users } from "./users";
 
 export const challenges = pgTable(
   "challenges",
@@ -98,6 +98,64 @@ export const challenges = pgTable(
     check("challenges_team_size_min_positive", sql`${table.teamSizeMin} IS NULL OR ${table.teamSizeMin} > 0`),
     check("challenges_team_size_max_positive", sql`${table.teamSizeMax} IS NULL OR ${table.teamSizeMax} > 0`),
     check("challenges_team_size_order", sql`${table.teamSizeMin} IS NULL OR ${table.teamSizeMax} IS NULL OR ${table.teamSizeMin} <= ${table.teamSizeMax}`),
+  ]
+);
+
+export const challengeCandidateAccess = pgTable(
+  "challenge_candidate_access",
+  {
+    id: id(),
+    challengeId: fk("challenge_id")
+      .notNull()
+      .references(() => challenges.id, {
+        onDelete: "cascade",
+        onUpdate: "cascade",
+      }),
+    studentId: fk("student_id")
+      .notNull()
+      .references(() => studentProfiles.userId, {
+        onDelete: "restrict",
+        onUpdate: "cascade",
+      }),
+    grantedBy: fk("granted_by")
+      .notNull()
+      .references(() => users.id, {
+        onDelete: "restrict",
+        onUpdate: "cascade",
+      }),
+    grantedAt: timestamptz("granted_at").defaultNow().notNull(),
+    expiresAt: timestamptz("expires_at").notNull(),
+    revokedBy: fk("revoked_by").references(() => users.id, {
+      onDelete: "restrict",
+      onUpdate: "cascade",
+    }),
+    revokedAt: timestamptz("revoked_at"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (table) => [
+    index("challenge_candidate_access_challenge_student_idx").on(
+      table.challengeId,
+      table.studentId
+    ),
+    index("challenge_candidate_access_student_expiry_idx").on(
+      table.studentId,
+      table.expiresAt
+    ),
+    index("challenge_candidate_access_granted_by_idx").on(table.grantedBy),
+    index("challenge_candidate_access_revoked_by_idx").on(table.revokedBy),
+    check(
+      "challenge_candidate_access_expiry_after_grant",
+      sql`${table.expiresAt} > ${table.grantedAt}`
+    ),
+    check(
+      "challenge_candidate_access_revocation_pair",
+      sql`(${table.revokedAt} IS NULL) = (${table.revokedBy} IS NULL)`
+    ),
+    check(
+      "challenge_candidate_access_revoked_after_grant",
+      sql`${table.revokedAt} IS NULL OR ${table.revokedAt} >= ${table.grantedAt}`
+    ),
   ]
 );
 
