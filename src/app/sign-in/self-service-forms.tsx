@@ -3,6 +3,7 @@
 import { useActionState, useState } from "react";
 
 import { developmentPartnerOrganizations, developmentPersonas, type DevelopmentPersona } from "@/auth/development-personas";
+import { PasswordField } from "@/components/ui/password-field";
 
 import {
   signInWithSelfService,
@@ -42,13 +43,12 @@ export function SelfServiceAuthenticationForms({ developmentPersonasEnabled }: {
             name="email"
             type="email"
           />
-          <Field
+          <PasswordField
             autoComplete="current-password"
             id="sign-in-password"
             label="Password"
             minLength={12}
             name="password"
-            type="password"
           />
         </div>
 
@@ -115,7 +115,7 @@ export function SelfServiceAuthenticationForms({ developmentPersonasEnabled }: {
             name="email"
             type="email"
           />
-          <Field
+          <PasswordField
             autoComplete="new-password"
             description="12–128 characters with at least one letter and one number."
             id="sign-up-password"
@@ -123,16 +123,14 @@ export function SelfServiceAuthenticationForms({ developmentPersonasEnabled }: {
             maxLength={128}
             minLength={12}
             name="password"
-            type="password"
           />
-          <Field
+          <PasswordField
             autoComplete="new-password"
             id="sign-up-password-confirmation"
             label="Confirm password"
             maxLength={128}
             minLength={12}
             name="passwordConfirmation"
-            type="password"
           />
         </div>
 
@@ -166,7 +164,7 @@ function Field({
   maxLength?: number;
   minLength?: number;
   name: string;
-  type: "email" | "password" | "text";
+  type: "email" | "text";
 }) {
   const descriptionId = description ? `${id}-description` : undefined;
 
