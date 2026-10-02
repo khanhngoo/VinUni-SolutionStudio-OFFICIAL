@@ -6,7 +6,12 @@ export type ChipVariant =
   | "warn"
   | "ok"
   | "solid"
-  | "outline-dashed";
+  | "outline-dashed"
+  | "draft"
+  | "neutral"
+  | "danger"
+  | "revise"
+  | "live";
 
 const variants: Record<ChipVariant, string> = {
   default: "bg-brand-soft text-brand font-medium",
@@ -15,6 +20,14 @@ const variants: Record<ChipVariant, string> = {
   ok: "bg-ok-soft text-ok font-medium",
   solid: "bg-brand text-white font-medium",
   "outline-dashed": "border border-dashed border-line text-ink-3",
+  // Status tones (see src/lib/status-tone.ts): ivory = not yet submitted,
+  // grey = closed/withdrawn, red = negative outcome, pink = needs rework,
+  // solid green = open/running right now.
+  draft: "bg-draft-soft text-draft border border-draft-line font-medium",
+  neutral: "bg-neutral-soft text-neutral font-medium",
+  danger: "bg-red-soft text-red font-medium",
+  revise: "bg-revise-soft text-revise font-medium",
+  live: "bg-ok text-white font-medium",
 };
 
 interface ChipProps {

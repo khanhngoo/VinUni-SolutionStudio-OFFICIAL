@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
 import { getAuthenticatedActor, hasActorCapability } from "@/auth/authenticated-actor";
-import { Chip } from "@/components/ui/chip";
+import { StatusChip } from "@/components/ui/status-chip";
 import { Section } from "@/components/ui/section";
 import { formatNullableDate as formatDate } from "@/lib/dates";
 import { getReviewQueue, ReviewError } from "@/services/review.service";
@@ -95,7 +95,7 @@ function QueueTable({
               <p className="text-meta text-ink-3 mt-0.5">Owned by {item.ownerOrganizationName}</p>
             </td>
             <td className="py-2.5 pr-3 align-middle w-[140px]">
-              <Chip>{item.status.replaceAll("_", " ")}</Chip>
+              <StatusChip kind="challenge" status={item.status} />
             </td>
             <td className="py-2.5 align-middle w-[120px] text-right">
               <span className="text-meta text-ink-3 whitespace-nowrap">

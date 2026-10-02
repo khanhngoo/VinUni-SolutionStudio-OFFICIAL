@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 
 import { getAuthenticatedActor, hasActorCapability } from "@/auth/authenticated-actor";
 import { Chip } from "@/components/ui/chip";
+import { StatusChip } from "@/components/ui/status-chip";
 import { Section } from "@/components/ui/section";
 import { ProgressBar } from "@/components/workspace/progress-bar";
 import { getPartnerDashboard, PartnerError } from "@/services/partner.service";
@@ -76,9 +77,7 @@ export default async function PartnerProjectsPage() {
                 {project.progress.completed < project.progress.total ? (
                   <Chip variant="warn">Needs your sign-off</Chip>
                 ) : (
-                  <Chip variant="ok">
-                    {project.projectStatus.replaceAll("_", " ")}
-                  </Chip>
+                  <StatusChip kind="project" status={project.projectStatus} />
                 )}
                 <h2 className="text-ink group-hover:text-brand transition-colors mt-2">
                   {project.challengeTitle}
@@ -117,7 +116,7 @@ export default async function PartnerProjectsPage() {
                     </Link>
                   </td>
                   <td className="py-2.5 pr-3 align-middle w-[140px]">
-                    <Chip>{project.projectStatus.replaceAll("_", " ")}</Chip>
+                    <StatusChip kind="project" status={project.projectStatus} />
                   </td>
                   <td className="py-2.5 align-middle w-[150px] text-right">
                     <Link

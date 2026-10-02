@@ -12,10 +12,10 @@ import type { Meeting, Milestone, MilestoneStatus } from "@/lib/types";
 
 export const MILESTONE_VARIANT: Record<MilestoneStatus, ChipVariant> = {
   Approved: "ok",
-  "Revision requested": "warn",
-  Submitted: "accent",
-  "In progress": "default",
-  "Not started": "outline-dashed",
+  "Revision requested": "revise",
+  Submitted: "warn",
+  "In progress": "accent",
+  "Not started": "neutral",
 };
 
 interface MilestoneListProps {
@@ -87,7 +87,7 @@ export function MilestoneList({
               <p
                 className={cn(
                   "text-meta mt-1.5",
-                  overdue ? "text-warn font-medium" : "text-ink-3",
+                  overdue ? "text-red font-semibold" : "text-ink-3",
                 )}
               >
                 Due {formatDate(milestone.dueDate)}

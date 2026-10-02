@@ -12,6 +12,7 @@ import { ProfileRail } from "@/components/profile/profile-rail";
 import { TeamPreferences } from "@/components/profile/team-preferences";
 import { VerifiedMark } from "@/components/profile/verified-mark";
 import { Chip } from "@/components/ui/chip";
+import { StatusChip } from "@/components/ui/status-chip";
 import { Section } from "@/components/ui/section";
 import { db } from "@/db";
 import { getStudentRecord } from "@/db/queries/students";
@@ -212,7 +213,7 @@ export default async function ProfilePage() {
                         milestones complete
                       </p>
                     </div>
-                    <Chip>{project.projectStatus.replaceAll("_", " ")}</Chip>
+                    <StatusChip kind="project" status={project.projectStatus} />
                   </li>
                 ))}
               </ul>

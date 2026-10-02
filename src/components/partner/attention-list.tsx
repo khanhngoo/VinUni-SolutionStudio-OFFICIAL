@@ -49,7 +49,11 @@ export function AttentionList({ items }: { items: AttentionItem[] }) {
               <span
                 className={cn(
                   "text-meta whitespace-nowrap",
-                  item.urgent ? "text-warn font-medium" : "text-ink-3",
+                  item.due === "Overdue"
+                    ? "text-red font-semibold"
+                    : item.urgent
+                      ? "text-warn font-medium"
+                      : "text-ink-3",
                 )}
               >
                 {item.due ?? "—"}

@@ -3,12 +3,13 @@ import { notFound, redirect } from "next/navigation";
 
 import { getAuthenticatedActor, hasActorCapability } from "@/auth/authenticated-actor";
 import { Chip } from "@/components/ui/chip";
+import { challengeTone } from "@/lib/status-tone";
+import { StatusChip } from "@/components/ui/status-chip";
 import { AttentionList, type AttentionItem } from "@/components/partner/attention-list";
 import { Section } from "@/components/ui/section";
 import { deadlineLabel, formatNullableDate as formatDate, isUrgent } from "@/lib/dates";
 import { ProgressBar } from "@/components/workspace/progress-bar";
 import { getPartnerDashboard, PartnerError } from "@/services/partner.service";
-import { applicationWindow } from "@/services/application.service";
 
 export const dynamic = "force-dynamic";
 
@@ -68,7 +69,7 @@ export default async function PartnerHomePage() {
       .map((project) => ({
         challengeTitle: project.challengeTitle,
         detail: `${project.progress.total - project.progress.completed} milestone(s) still open`,
-        due: project.nextDeadline ? deadlineLabel(project.nextDeadline) : null,
+        due: project.nextDeadline ? milestoneDueLabel(project.nextDeadline) : null,
         href: `/partner/projects/${project.applicationPublicId}`,
         kind: "approve",
         label: "Sign off",
@@ -135,7 +136,7 @@ export default async function PartnerHomePage() {
                         </p>
                       </td>
                       <td className="py-2.5 pr-3 align-middle w-[140px]">
-                        <Chip>{challengeLifecycleLabel(challenge)}</Chip>
+                        <StatusChip tone={challengeTone(challenge)} />
                       </td>
                       <td className="py-2.5 pr-3 align-middle w-[120px]">
                         <Chip variant="outline-dashed">{challenge.applicantCount} applied</Chip>
@@ -186,7 +187,7 @@ export default async function PartnerHomePage() {
                         <p className="text-meta text-ink-3 mt-0.5">{application.challengeTitle}</p>
                       </td>
                       <td className="py-2.5 pr-3 align-middle w-[140px]">
-                        <Chip>{application.status.replaceAll("_", " ")}</Chip>
+                        <StatusChip kind="application" status={application.status} />
                       </td>
                       <td className="py-2.5 align-middle w-[110px] text-right">
                         <span className="text-meta text-ink-3 whitespace-nowrap">
@@ -218,9 +219,9 @@ export default async function PartnerHomePage() {
                         >
                           {project.challengeTitle}
                         </Link>
-                        <p className="text-meta text-ink-3 mt-0.5">
-                          {project.projectStatus.replaceAll("_", " ")}
-                        </p>
+                        <div className="mt-1">
+                          <StatusChip kind="project" status={project.projectStatus} />
+                        </div>
                       </td>
                       <td className="py-2.5 pr-3 align-middle w-[132px]">
                         <span className="flex items-center gap-2">
@@ -280,16 +281,6 @@ export default async function PartnerHomePage() {
   );
 }
 
-function challengeLifecycleLabel(challenge: {
-  applicationDeadline: Date | null;
-  status: string;
-}) {
-  const window = applicationWindow(challenge);
-  if (!window.isOpen && window.reason === "DEADLINE_PASSED") {
-    return "APPLICATIONS CLOSED";
-  }
-  return challenge.status.replaceAll("_", " ");
-}
 
 function EmptyRow({ children }: { children: React.ReactNode }) {
   return (
@@ -297,4 +288,10 @@ function EmptyRow({ children }: { children: React.ReactNode }) {
       <p className="text-ink-2">{children}</p>
     </div>
   );
+}
+
+/** A milestone date in the past is overdue, not "closed" (that wording is for application windows). */
+function milestoneDueLabel(isoDate: string) {
+  const label = deadlineLabel(isoDate);
+  return label === "Closed" ? "Overdue" : label;
 }

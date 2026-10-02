@@ -8,7 +8,7 @@ const STATUS_VARIANT: Record<InviteStatus, ChipVariant> = {
   leader: "solid",
   accepted: "ok",
   invited: "warn",
-  declined: "outline-dashed",
+  declined: "danger",
 };
 
 const STATUS_LABELS: Record<InviteStatus, string> = {

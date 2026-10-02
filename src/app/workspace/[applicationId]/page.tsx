@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
 import { Chip } from "@/components/ui/chip";
+import { StatusChip } from "@/components/ui/status-chip";
 import { LockIcon } from "@/components/ui/icons";
 import { Section } from "@/components/ui/section";
 import { MilestoneList } from "@/components/workspace/milestone-list";
@@ -13,7 +14,6 @@ import { parseTab, WorkspaceTabs } from "@/components/workspace/workspace-tabs";
 import { daysUntil, formatDate } from "@/lib/dates";
 import {
   organizationRoleLabel,
-  projectStatusLabel,
 } from "@/lib/labels";
 import { STAGE_LABELS } from "@/lib/types";
 import { getAuthenticatedActor } from "@/auth/authenticated-actor";
@@ -89,7 +89,7 @@ export default async function WorkspacePage({
       </nav>
 
       <div className="flex flex-wrap gap-1.5 mt-3.5 mb-2.5">
-        <Chip variant="ok">{projectStatusLabel(detail.projectStatus)}</Chip>
+        <StatusChip kind="project" status={detail.projectStatus} />
         <Chip>{detail.challenge.ownerOrganizationName}</Chip>
         {detail.challenge.subtype ? <Chip>{detail.challenge.subtype}</Chip> : null}
       </div>
@@ -181,7 +181,7 @@ export default async function WorkspacePage({
               <p
                 className={
                   overdue
-                    ? "text-meta text-warn font-medium mt-2.5"
+                    ? "text-meta text-red font-semibold mt-2.5"
                     : "text-meta text-ink-3 mt-2.5"
                 }
               >

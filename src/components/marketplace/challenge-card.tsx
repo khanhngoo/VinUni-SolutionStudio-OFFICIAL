@@ -11,7 +11,8 @@ import {
   challengeWorkModeLabel,
   type MarketplaceChallengeCardModel,
 } from "@/lib/challenge-marketplace";
-import { deadlineLabel, isUrgent } from "@/lib/dates";
+import { deadlineLabel } from "@/lib/dates";
+import { deadlineVariant } from "@/lib/status-tone";
 import type { ScoreBand } from "@/lib/types";
 
 interface ChallengeCardProps {
@@ -27,7 +28,6 @@ interface ChallengeCardProps {
 
 export function ChallengeCard({ challenge, fit }: ChallengeCardProps) {
   const deadline = challengeDeadlineKey(challenge);
-  const urgent = isUrgent(deadline);
   const schools = challenge.eligibilitySummary.schools ?? [];
 
   return (
@@ -74,13 +74,13 @@ export function ChallengeCard({ challenge, fit }: ChallengeCardProps) {
         </p>
 
         <div className="mt-auto pt-2.5 border-t border-line-2 flex items-center justify-between gap-2">
-          <span
-            className={
-              urgent ? "text-meta text-warn font-medium" : "text-meta text-ink-3"
-            }
-          >
-            {challenge.applicationDeadline ? deadlineLabel(deadline) : "Deadline TBD"}
-          </span>
+          {challenge.applicationDeadline && deadlineVariant(deadline) ? (
+            <Chip variant={deadlineVariant(deadline)!}>{deadlineLabel(deadline)}</Chip>
+          ) : (
+            <span className="text-meta text-ink-3">
+              {challenge.applicationDeadline ? deadlineLabel(deadline) : "Deadline TBD"}
+            </span>
+          )}
           <span className="text-meta text-ink-3">
             {challenge.applicantCount} applied
           </span>

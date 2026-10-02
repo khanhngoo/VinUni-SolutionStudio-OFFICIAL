@@ -27,6 +27,15 @@
   --color-ok: #1f7a4d;
   --color-ok-soft: #e7f4ed;
 
+  /* Status tones — see src/lib/status-tone.ts for the meaning of each */
+  --color-draft: #7a6a3a;
+  --color-draft-soft: #faf5e4;
+  --color-draft-line: #e8dfc0;
+  --color-revise: #b4233f;
+  --color-revise-soft: #fde7ee;
+  --color-neutral: #6b7078;
+  --color-neutral-soft: #eceef1;
+
   --font-sans: var(--font-poppins), "Segoe UI", system-ui, -apple-system, sans-serif;
 
   /* Type scale — every size lives here so components never hardcode px */

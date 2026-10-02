@@ -2,6 +2,8 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
 import { Chip } from "@/components/ui/chip";
+import { statusTone, type StatusTone } from "@/lib/status-tone";
+import { StatusChip } from "@/components/ui/status-chip";
 import { Section } from "@/components/ui/section";
 import { getAuthenticatedActor } from "@/auth/authenticated-actor";
 import { db } from "@/db";
@@ -90,7 +92,7 @@ export default async function ApplicationDetailPage({
       <div className="flex flex-wrap items-start justify-between gap-4 mt-3.5">
         <div className="min-w-0">
           <div className="flex flex-wrap gap-1.5 mb-2.5">
-            <Chip>{application.status.replaceAll("_", " ")}</Chip>
+            <StatusChip kind="application" status={application.status} />
           </div>
           <h1>{application.teamName ?? challenge.title}</h1>
           <p className="text-ink-2 mt-2">
@@ -184,7 +186,7 @@ export default async function ApplicationDetailPage({
                     {assessment.submittedAt ? ` · Submitted ${formatDate(assessment.submittedAt)}` : ""}
                   </p>
                 </div>
-                <Chip>{assessment.attemptStatus.replaceAll("_", " ")}</Chip>
+                <StatusChip kind="attempt" status={assessment.attemptStatus} />
               </li>
             ))}
           </ul>
@@ -212,7 +214,7 @@ export default async function ApplicationDetailPage({
       {offerSummary ? (
         <Section title="Offer">
           <div className="bg-card border border-line rounded-card p-5">
-            <p className="font-medium text-ink">{offerSummary.offerStatus?.replaceAll("_", " ") ?? "—"}</p>
+            <StatusChip kind="offer" status={offerSummary.offerStatus} />
             <p className="text-meta text-ink-3 mt-1">
               {offerSummary.hoursPerWeek ?? "—"} hrs/wk · {offerSummary.durationWeeks ?? "—"} wks
               {offerSummary.startDate ? ` · Planned start ${formatDateOnly(offerSummary.startDate)}` : ""}
@@ -240,7 +242,7 @@ export default async function ApplicationDetailPage({
                   {request.faculty.department ? ` · ${request.faculty.department}` : ""}
                 </p>
                 <div className="text-right">
-                  <Chip>{supervisionLabel(request)}</Chip>
+                  <StatusChip tone={supervisionTone(request)} />
                   <p className="text-meta text-ink-3 mt-1">
                     {request.respondBy
                       ? `Respond by ${formatDate(request.respondBy)}`
@@ -265,15 +267,15 @@ export default async function ApplicationDetailPage({
   );
 }
 
-function supervisionLabel(
+function supervisionTone(
   request: ApplicationServiceDetail["supervisionRequests"][number]
-) {
-  if (request.status !== "PENDING") return request.status.replaceAll("_", " ");
-  if (!request.respondBy) return "PENDING · DEADLINE MISSING";
+): StatusTone {
+  if (request.status !== "PENDING") return statusTone("supervision", request.status);
+  if (!request.respondBy) return { label: "Pending · deadline missing", variant: "neutral" };
   const now = new Date();
-  if (now > request.respondBy) return "PENDING · EXPIRED";
+  if (now > request.respondBy) return { label: "Expired", variant: "neutral" };
   if (dayKey(now.toISOString()) === dayKey(request.respondBy.toISOString())) {
-    return "PENDING · DUE TODAY";
+    return { label: "Pending · due today", variant: "danger" };
   }
-  return "PENDING";
+  return statusTone("supervision", "PENDING");
 }

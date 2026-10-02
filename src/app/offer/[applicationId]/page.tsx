@@ -4,6 +4,7 @@ import { notFound, redirect } from "next/navigation";
 import { OfferCountdown } from "@/components/offer/offer-countdown";
 import { OfferFlow } from "@/components/offer/offer-flow";
 import { Chip } from "@/components/ui/chip";
+import { StatusChip } from "@/components/ui/status-chip";
 import { Section } from "@/components/ui/section";
 import { formatDate } from "@/lib/dates";
 import { offerStatusLabel } from "@/lib/labels";
@@ -97,7 +98,7 @@ export default async function OfferPage({
       </nav>
 
       <div className="flex flex-wrap gap-1.5 mt-3.5 mb-2.5">
-        <Chip variant="ok">Selected</Chip>
+        <StatusChip kind="offer" status={detail.offer.isExpired ? "EXPIRED" : detail.offer.status} />
         {detail.challenge.subtype ? <Chip>{detail.challenge.subtype}</Chip> : null}
         {detail.offer.terms.ndaRequired ? <Chip variant="warn">NDA required</Chip> : null}
       </div>
