@@ -32,6 +32,7 @@ import { evaluateChallengeEligibility } from "@/services/challenge-policy";
 import { getMarketplaceChallengeBySlug } from "@/services/challenge.service";
 
 import { ApplyWizardShell } from "./wizard-shell";
+import { StatusChip } from "@/components/ui/status-chip";
 
 export const dynamic = "force-dynamic";
 
@@ -117,7 +118,7 @@ export default async function ApplyPage({
                 You are already part of this application.
               </p>
               <p className="text-ink-2 mt-1.5">
-                Status: {existing.status.replaceAll("_", " ")}
+                Status: <StatusChip kind="application" status={existing.status} />
                 {existing.teamName ? ` · Team ${existing.teamName}` : ""}
               </p>
               <p className="text-meta text-ink-3 mt-3">

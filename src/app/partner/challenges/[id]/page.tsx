@@ -3,6 +3,8 @@ import { notFound, redirect } from "next/navigation";
 
 import { getAuthenticatedActor, hasActorCapability } from "@/auth/authenticated-actor";
 import { Chip } from "@/components/ui/chip";
+import { challengeTone } from "@/lib/status-tone";
+import { StatusChip } from "@/components/ui/status-chip";
 import { PipelineBoard } from "@/components/partner/pipeline-board";
 import { countdownLabel } from "@/lib/pipeline";
 import { groupIntoPipeline } from "@/lib/pipeline-columns";
@@ -102,7 +104,7 @@ export default async function PartnerChallengePage({
       <div className="flex flex-wrap items-start justify-between gap-4 mt-3.5">
         <div className="min-w-0">
           <div className="flex flex-wrap gap-1.5 mb-2.5">
-            <Chip>{challengeLifecycleLabel(challenge)}</Chip>
+            <StatusChip tone={challengeTone(challenge)} />
             <Chip variant="outline-dashed">{challenge.visibility.replaceAll("_", " ")}</Chip>
             {challenge.subtype ? <Chip>{challenge.subtype}</Chip> : null}
           </div>
@@ -290,9 +292,7 @@ export default async function PartnerChallengePage({
                       ) : null}
                     </div>
                     <div className="flex items-center gap-2">
-                      <Chip variant={grant.state === "EFFECTIVE" || grant.state === "APPLICATION_SUBMITTED" ? "ok" : undefined}>
-                        {grant.state.replaceAll("_", " ")}
-                      </Chip>
+                      <StatusChip kind="access" status={grant.state} />
                       {grant.canRevoke ? (
                         <form action={revokeCandidateAccessAction}>
                           <input type="hidden" name="slug" value={challenge.slug ?? ""} />
@@ -413,9 +413,7 @@ export default async function PartnerChallengePage({
             {challenge.reviews.map((review, index) => (
               <li key={index} className="bg-card border border-line rounded-card p-4">
                 <div className="flex items-center gap-2">
-                  <Chip variant={review.decision === "APPROVED" ? "ok" : undefined}>
-                    {review.decision.replaceAll("_", " ")}
-                  </Chip>
+                  <StatusChip kind="review" status={review.decision} />
                   <span className="text-meta text-ink-3">{formatDate(review.reviewedAt)}</span>
                 </div>
                 {review.comments ? (
@@ -488,15 +486,6 @@ function formatCampusDateTime(value: Date) {
   });
 }
 
-function challengeLifecycleLabel(challenge: {
-  applicationDeadline: Date | null;
-  status: string;
-}) {
-  const window = applicationWindow(challenge);
-  return !window.isOpen && window.reason === "DEADLINE_PASSED"
-    ? "APPLICATIONS CLOSED"
-    : challenge.status.replaceAll("_", " ");
-}
 
 function sizeLabel(min: number | null, max: number | null) {
   if (min === null && max === null) return "—";

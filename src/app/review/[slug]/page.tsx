@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 
 import { getAuthenticatedActor, hasActorCapability } from "@/auth/authenticated-actor";
 import { Chip } from "@/components/ui/chip";
+import { StatusChip } from "@/components/ui/status-chip";
 import { Section } from "@/components/ui/section";
 import { formatDate as formatDateOnlyString, formatNullableDate as formatDate } from "@/lib/dates";
 import { getReviewChallengePage } from "@/services/review.service";
@@ -61,7 +62,7 @@ export default async function ReviewChallengeDetailPage({
       <div className="flex flex-wrap items-start justify-between gap-4 mt-3.5">
         <div className="min-w-0">
           <div className="flex flex-wrap gap-1.5 mb-2.5">
-            <Chip>{challenge.status.replaceAll("_", " ")}</Chip>
+            <StatusChip kind="challenge" status={challenge.status} />
             {challenge.subtype ? <Chip variant="outline-dashed">{challenge.subtype}</Chip> : null}
           </div>
           <h1>{challenge.title}</h1>
@@ -168,9 +169,7 @@ export default async function ReviewChallengeDetailPage({
             {challenge.reviews.map((review, index) => (
               <li key={index} className="bg-card border border-line rounded-card p-4">
                 <div className="flex items-center gap-2">
-                  <Chip variant={review.decision === "APPROVED" ? "ok" : undefined}>
-                    {review.decision.replaceAll("_", " ")}
-                  </Chip>
+                  <StatusChip kind="review" status={review.decision} />
                   <span className="text-meta text-ink-3">{formatDate(review.reviewedAt)}</span>
                   <span className="text-meta text-ink-3">· {review.reviewerName}</span>
                 </div>

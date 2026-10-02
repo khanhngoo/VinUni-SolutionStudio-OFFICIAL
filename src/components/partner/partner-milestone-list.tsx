@@ -11,10 +11,10 @@ import type { Meeting, Milestone, MilestoneStatus } from "@/lib/types";
 
 const MILESTONE_VARIANT: Record<MilestoneStatus, ChipVariant> = {
   Approved: "ok",
-  "Revision requested": "warn",
-  Submitted: "accent",
-  "In progress": "default",
-  "Not started": "outline-dashed",
+  "Revision requested": "revise",
+  Submitted: "warn",
+  "In progress": "accent",
+  "Not started": "neutral",
 };
 
 type Decision = "approved" | "revision";

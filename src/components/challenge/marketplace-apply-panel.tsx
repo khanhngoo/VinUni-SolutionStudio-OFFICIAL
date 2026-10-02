@@ -9,7 +9,9 @@ import {
   challengeWeeklyHoursLabel,
   type MarketplaceChallengeDetailModel,
 } from "@/lib/challenge-marketplace";
-import { deadlineLabel, isUrgent } from "@/lib/dates";
+import { Chip } from "@/components/ui/chip";
+import { deadlineLabel } from "@/lib/dates";
+import { deadlineVariant } from "@/lib/status-tone";
 import type { ApplicationWindow } from "@/services/application.service";
 
 interface MarketplaceApplyPanelProps {
@@ -30,7 +32,6 @@ export function MarketplaceApplyPanel({
   timelineNodeIndex = -1,
 }: MarketplaceApplyPanelProps) {
   const deadline = challengeDeadlineKey(challenge);
-  const urgent = isUrgent(deadline);
   const unavailableReason =
     applicationWindow?.isOpen === false ? applicationWindow.reason : null;
 
@@ -39,15 +40,17 @@ export function MarketplaceApplyPanel({
       <div className="bg-card border border-line rounded-card p-5">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
-            <p
-              className={
-                urgent ? "font-semibold text-warn" : "font-semibold text-ink"
-              }
-            >
-              {challenge.applicationDeadline
-                ? deadlineLabel(deadline)
-                : "Application deadline TBD"}
-            </p>
+            {challenge.applicationDeadline && deadlineVariant(deadline) ? (
+              <Chip variant={deadlineVariant(deadline)!} className="text-[12px] px-3 py-1.5">
+                {deadlineLabel(deadline)}
+              </Chip>
+            ) : (
+              <p className="font-semibold text-ink">
+                {challenge.applicationDeadline
+                  ? deadlineLabel(deadline)
+                  : "Application deadline TBD"}
+              </p>
+            )}
             <p className="text-meta text-ink-3 mt-0.5">
               {challenge.applicantCount} students have applied
             </p>

@@ -12,7 +12,10 @@ export type StageVariant =
   | "accent"
   | "warn"
   | "ok"
-  | "outline-dashed";
+  | "outline-dashed"
+  | "danger"
+  | "neutral"
+  | "live";
 
 /**
  * Chip treatment per stage. `warn` is reserved for stages where the student
@@ -26,12 +29,12 @@ export const STAGE_VARIANT: Record<ApplicationStage, StageVariant> = {
   INTERVIEW_SCHEDULING: "warn",
   INTERVIEW_SCHEDULED: "default",
   INVITED: "warn",
-  ACTIVE: "ok",
+  ACTIVE: "live",
   IN_REVIEW: "accent",
   COMPLETED: "ok",
-  NOT_SELECTED: "outline-dashed",
-  WITHDRAWN: "outline-dashed",
-  EXPIRED: "outline-dashed",
+  NOT_SELECTED: "danger",
+  WITHDRAWN: "neutral",
+  EXPIRED: "neutral",
 };
 
 export const TERMINAL_STAGES: ApplicationStage[] = [

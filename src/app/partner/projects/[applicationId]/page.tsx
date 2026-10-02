@@ -7,6 +7,7 @@ import {
 } from "@/auth/authenticated-actor";
 import { GroupHeading } from "@/components/partner/group-heading";
 import { Chip } from "@/components/ui/chip";
+import { StatusChip } from "@/components/ui/status-chip";
 import { Section } from "@/components/ui/section";
 import { ProgressBar } from "@/components/workspace/progress-bar";
 import { toMeeting, toMilestone } from "@/lib/apply-view";
@@ -87,9 +88,7 @@ export default async function PartnerProjectPage({
               : ""}
           </p>
         </div>
-        <Chip variant={finished ? "ok" : "solid"}>
-          {detail.projectStatus.replaceAll("_", " ")}
-        </Chip>
+        <StatusChip kind="project" status={detail.projectStatus} />
       </div>
 
       <div className="mt-5">

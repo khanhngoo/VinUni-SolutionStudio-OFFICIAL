@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
-import { Chip } from "@/components/ui/chip";
+import { StatusChip } from "@/components/ui/status-chip";
 import { getAuthenticatedActor, hasActorCapability } from "@/auth/authenticated-actor";
 import { formatNullableDate as formatDate } from "@/lib/dates";
 import { listMyApplications, toApplicationActorContext } from "@/services/application.service";
@@ -53,7 +53,7 @@ export default async function MyApplicationsPage() {
                     </p>
                   </td>
                   <td className="py-3 pr-3 w-[160px]">
-                    <Chip>{application.status.replaceAll("_", " ")}</Chip>
+                    <StatusChip kind="application" status={application.status} />
                   </td>
                   <td className="py-3 pr-3 w-[140px] text-right text-meta text-ink-3">
                     {application.submittedAt ? `Submitted ${formatDate(application.submittedAt)}` : "—"}

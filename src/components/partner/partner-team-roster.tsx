@@ -57,7 +57,7 @@ export function PartnerTeamRoster({
                   <Chip variant="solid">Team lead</Chip>
                 ) : null}
                 {pending ? <Chip variant="warn">Invite pending</Chip> : null}
-                {declined ? <Chip variant="outline-dashed">Declined</Chip> : null}
+                {declined ? <Chip variant="danger">Declined</Chip> : null}
               </div>
 
               <p className="text-meta text-ink-3 mt-1">
